@@ -20,7 +20,7 @@ const ecosystemPaths = {
   adapters: join(workspace, 'planr-pipeline', 'registry', 'adapters.json'),
   skills: join(workspace, 'skills', 'package.json'),
 };
-const hasWorkspace = Object.values(ecosystemPaths).every(existsSync);
+const hasWorkspace = !check && Object.values(ecosystemPaths).every(existsSync);
 const cliVersion = hasWorkspace
   ? readJson(ecosystemPaths.cli).version
   : current.components.cli.version;
