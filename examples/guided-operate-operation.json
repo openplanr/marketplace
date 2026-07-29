@@ -1,0 +1,258 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "openplanr-ecosystem-operation",
+  "protocolVersion": "1.2.0",
+  "operationId": "OPERATE-SPEC-003",
+  "operationDigest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918",
+  "umbrellaSpecId": "SPEC-003",
+  "title": "Release Guided Operating Board Runtime Experience",
+  "capability": "guidedOperatingBoard",
+  "createdAt": "2026-07-29T20:30:00.000Z",
+  "updatedAt": "2026-07-29T20:30:00.000Z",
+  "state": "drafted",
+  "ledger": {
+    "kind": "marketplace-draft-pr",
+    "repository": "openplanr/marketplace",
+    "headRef": "ecosystem-release/operate-spec-003-guided-runtime",
+    "pullRequest": null
+  },
+  "participantOrder": [
+    "pipeline",
+    "cli",
+    "skills",
+    "marketplace"
+  ],
+  "participants": [
+    {
+      "component": "pipeline",
+      "repoLocalSpecId": "OPERATE-SPEC-003:pipeline",
+      "repoLocalWorkItem": "docs/implementation/guided-operating-board.md",
+      "repository": "openplanr/planr-pipeline",
+      "currentVersion": "0.30.0",
+      "targetVersion": "0.31.0",
+      "phase": "pending",
+      "branch": null,
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": {
+        "name": "planr-pipeline",
+        "version": "0.31.0",
+        "status": "pending",
+        "integrity": null
+      },
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [
+        {
+          "name": "ci",
+          "status": "expected",
+          "url": null
+        }
+      ],
+      "approvals": [
+        {
+          "gate": "plan",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-07-29T18:00:00.000Z",
+          "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918"
+        }
+      ],
+      "prerequisites": [],
+      "compensation": "close-pr",
+      "nextSafeAction": "Prepare the pipeline 0.31.0 branch, run conformance and packed-package checks, then open its independent PR."
+    },
+    {
+      "component": "cli",
+      "repoLocalSpecId": "OPERATE-SPEC-003:cli",
+      "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-003.md",
+      "repository": "openplanr/OpenPlanr",
+      "currentVersion": "1.14.3",
+      "targetVersion": "1.15.0",
+      "phase": "pending",
+      "branch": null,
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": {
+        "name": "openplanr",
+        "version": "1.15.0",
+        "status": "pending",
+        "integrity": null
+      },
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [
+        {
+          "name": "ci",
+          "status": "expected",
+          "url": null
+        }
+      ],
+      "approvals": [
+        {
+          "gate": "plan",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-07-29T18:00:00.000Z",
+          "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918"
+        }
+      ],
+      "prerequisites": [
+        "pipeline"
+      ],
+      "compensation": "close-pr",
+      "nextSafeAction": "First release and verify the independent 1.14.4 redaction patch; after pipeline 0.31.0 is public, update the exact dependency and prepare 1.15.0."
+    },
+    {
+      "component": "skills",
+      "repoLocalSpecId": "OPERATE-SPEC-003:skills",
+      "repoLocalWorkItem": "docs/implementation/guided-operating-board.md",
+      "repository": "openplanr/skills",
+      "currentVersion": "1.16.0",
+      "targetVersion": "1.17.0",
+      "phase": "pending",
+      "branch": null,
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": null,
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [
+        {
+          "name": "ci",
+          "status": "expected",
+          "url": null
+        }
+      ],
+      "approvals": [
+        {
+          "gate": "plan",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-07-29T18:00:00.000Z",
+          "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918"
+        }
+      ],
+      "prerequisites": [
+        "pipeline",
+        "cli"
+      ],
+      "compensation": "close-pr",
+      "nextSafeAction": "After OpenPlanr 1.15.0 is verified, prepare the generated 1.17.0 skill release and runtime canaries."
+    },
+    {
+      "component": "marketplace",
+      "repoLocalSpecId": "OPERATE-SPEC-003:marketplace",
+      "repoLocalWorkItem": "docs/implementation/guided-operating-board.md",
+      "repository": "openplanr/marketplace",
+      "currentVersion": "1.1.0",
+      "targetVersion": "1.2.0",
+      "phase": "pending",
+      "branch": null,
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": null,
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [
+        {
+          "name": "ci",
+          "status": "expected",
+          "url": null
+        }
+      ],
+      "approvals": [
+        {
+          "gate": "plan",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-07-29T18:00:00.000Z",
+          "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918"
+        }
+      ],
+      "prerequisites": [
+        "pipeline",
+        "cli",
+        "skills"
+      ],
+      "compensation": "withhold-manifest",
+      "nextSafeAction": "Keep the ledger draft and guided capability unavailable until every participant and canary is verified."
+    }
+  ],
+  "releaseEvidence": [
+    {
+      "id": "packed-cli",
+      "status": "pending",
+      "url": null,
+      "digest": null,
+      "checkedAt": null
+    },
+    {
+      "id": "protocol-v1.2",
+      "status": "pending",
+      "url": null,
+      "digest": null,
+      "checkedAt": null
+    },
+    {
+      "id": "event-replay",
+      "status": "pending",
+      "url": null,
+      "digest": null,
+      "checkedAt": null
+    },
+    {
+      "id": "security-boundaries",
+      "status": "pending",
+      "url": null,
+      "digest": null,
+      "checkedAt": null
+    },
+    {
+      "id": "outcome-reconciliation",
+      "status": "pending",
+      "url": null,
+      "digest": null,
+      "checkedAt": null
+    }
+  ],
+  "prepareDigest": null,
+  "confirmationDigest": null,
+  "blockedReason": null,
+  "nextSafeAction": "Release and verify OpenPlanr 1.14.4 redaction correction, then prepare pipeline 0.31.0 without publishing or merging from this ledger.",
+  "recovery": {
+    "mode": "compensate-before-publish",
+    "reason": null,
+    "nextSafeAction": "Before publication, close or revert only the affected participant PR; after any npm publication, change recovery to forward-fix."
+  },
+  "reconciliation": {
+    "status": "pending",
+    "checkedAt": null,
+    "sources": [
+      "github-pr",
+      "git-commit",
+      "git-tag",
+      "github-checks",
+      "npm-registry",
+      "marketplace-manifest",
+      "operating-canary"
+    ],
+    "drift": [],
+    "nextSafeAction": "Collect authoritative live state only after participant branches, PRs, checks, tags, and packages exist."
+  },
+  "history": [
+    {
+      "eventId": "70ad7e22-4901-4cbf-a306-b8793882cc89",
+      "timestamp": "2026-07-29T20:30:00.000Z",
+      "type": "operation.created",
+      "actor": "maintainer",
+      "participant": null,
+      "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918",
+      "note": "Draft ledger created before participant preparation; external merge, publish, tag, and deployment remain unapproved."
+    }
+  ]
+}

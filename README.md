@@ -41,7 +41,7 @@ Versions in this README mirror `.claude-plugin/marketplace.json`; keep both in t
 
 OpenPlanr Operating Board is certified for claude-code, codex, cursor through `planr operate`.
 
-Resolved component versions: pipeline 0.30.0, CLI 1.14.3, skills 1.16.0, marketplace 1.1.0.
+Resolved component versions: pipeline 0.30.0, CLI 1.14.3, skills 1.16.0, marketplace 1.2.0.
 <!-- operating-capability:end -->
 
 `planr operate` is the recurring evidence-to-decision control plane. It creates
@@ -64,6 +64,22 @@ Pipeline-PO DEV routes pause at `awaiting-plan` for the exact native PLAN
 invocation and resume only after matching planning provenance. A later
 `run --review-only` may observe verified shipment proof and due outcomes, but
 Operating Board never invokes SHIP.
+
+## Guided Operating Board capability
+
+<!-- guided-operating-capability:start -->
+**Resolved status:** `unavailable`
+
+Guided Operating Board remains withheld. Missing release gates: release.
+
+Candidate component versions: pipeline 0.31.0, CLI 1.15.0, skills 1.17.0, marketplace 1.2.0.
+<!-- guided-operating-capability:end -->
+
+The guided capability lets certified runtimes present CLI-owned questions and
+typed next actions without reconstructing commands or expanding authority. Its
+separate `OPERATE-SPEC-003` draft ledger preserves the already verified
+SPEC-002 Operating Board capability while the 0.31/1.15/1.17/1.2 release train
+is prepared and independently verified.
 
 Planning-only installations keep help, `operate inspect`, and `operate demo`.
 Protocol-dependent commands fail before provider use with
@@ -91,6 +107,10 @@ manifest, and immutable canary evidence:
 npm run reconcile:operation -- operations/OPERATE-SPEC-002.json live-state.json
 ```
 
+For the guided release train, use
+`examples/guided-operate-operation.json`; keep it drafted until authoritative
+PR, commit, tag, npm, tarball, and canary evidence exists.
+
 The operation digest and approvals bind promotion to the reviewed targets.
 Verification additionally requires passed, digest-addressed evidence for the
 packed CLI, Protocol v1.2, event replay/corruption rejection, security
@@ -110,7 +130,7 @@ truthfully record its own merge commit or the tag created from that merge:
    `unavailable` while the pipeline, CLI, skills, and all canaries are released
    and verified. Record their immutable commits, PRs, tags, package/tarball
    digests, checks, and evidence in the open ledger.
-2. Merge that still-unavailable ledger PR. Tag and verify marketplace `1.1.0`
+2. Merge that still-unavailable ledger PR. Tag and verify marketplace `1.2.0`
    from the merged revision.
 3. Open a follow-up finalization update. Record the merged ledger PR, the
    marketplace tag and digest, the final participant digests, and authoritative
