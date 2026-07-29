@@ -77,3 +77,36 @@ jobs:
           npm --prefix marketplace run generate
           npm --prefix marketplace run check
           npm --prefix marketplace test
+
+  evidence:
+    name: Immutable release evidence
+    needs: guided-operate
+    if: ${{ always() && needs.guided-operate.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: marketplace
+      - name: Materialize digest-bound evidence
+        run: >-
+          node marketplace/scripts/materialize-operating-canary.mjs
+          --directory evidence
+          --pipeline-commit "${{ inputs.pipeline_commit }}"
+          --cli-commit "${{ inputs.cli_commit }}"
+          --skills-commit "${{ inputs.skills_commit }}"
+          --run-id "${{ github.run_id }}"
+          --repository "${{ github.repository }}"
+      - name: Create validated canary report
+        run: >-
+          node marketplace/scripts/operating-canary-evidence.mjs
+          --directory evidence
+          --output guided-operating-canary-report.json
+          --url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: guided-operating-canary-report
+          path: guided-operating-canary-report.json
+          if-no-files-found: error
+          retention-days: 90
