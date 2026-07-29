@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.1.0",
-  "generatedAt": "2026-07-29T22:14:21.371Z",
+  "generatedAt": "2026-07-29T23:11:06.745Z",
   "protocol": {
     "current": "1.2.0",
     "supported": [
@@ -102,7 +102,7 @@
       "releaseOperation": {
         "operationId": "OPERATE-SPEC-003",
         "operationDigest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918",
-        "state": "drafted",
+        "state": "preparing",
         "reconciliation": "pending"
       }
     }

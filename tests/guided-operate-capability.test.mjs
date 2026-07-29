@@ -26,19 +26,28 @@ function adapters() {
   }));
 }
 
-test('guided release ledger is valid, digest-bound, and still unadvertised', async () => {
+test('guided release ledger records prepared participants while capability stays unadvertised', async () => {
   const operation = await readJson('../examples/guided-operate-operation.json');
   assert.deepEqual(validateOperation(operation), []);
   assert.equal(operation.operationDigest, calculateOperationDigest(operation));
   assert.equal(operation.umbrellaSpecId, 'SPEC-003');
-  assert.equal(operation.state, 'drafted');
-  assert.equal(operation.ledger.pullRequest, null);
+  assert.equal(operation.state, 'preparing');
+  assert.equal(operation.ledger.pullRequest.number, 76);
+  assert.equal(operation.ledger.pullRequest.state, 'draft');
   assert.equal(isVerifiedOperation(operation), false);
   assert.deepEqual(
     operation.participants.map(({ targetVersion }) => targetVersion),
     ['0.31.0', '1.15.0', '1.17.0', '1.2.0'],
   );
-  assert.ok(operation.participants.every(({ commitSha }) => commitSha === null));
+  assert.deepEqual(
+    operation.participants.map(({ commitSha }) => commitSha),
+    [
+      'a3df691ba5000828cee2580252b2d1e2ba5ed6eb',
+      '37ec90c946c52a7b9e4488e78bbf5b85aef195d7',
+      '5e8c5406ee13f2a62a8b9cabae10b70389925245',
+      null,
+    ],
+  );
 });
 
 test('guided capability opens only after versions, interaction metadata, and release reconcile', () => {
@@ -79,13 +88,13 @@ test('guided capability opens only after versions, interaction metadata, and rel
   assert.deepEqual(missingCapability.missing, ['adapters']);
 });
 
-test('published compatibility advances only released participants while guided train is drafted', async () => {
+test('published compatibility advances only released participants while guided train is preparing', async () => {
   const ecosystem = await readJson('../ecosystem.json');
   const guided = ecosystem.capabilities.guidedOperatingBoard;
   assert.equal(ecosystem.capabilities.operatingBoard.status, 'available');
   assert.equal(guided.status, 'unavailable');
   assert.equal(guided.releaseOperation.operationId, 'OPERATE-SPEC-003');
-  assert.equal(guided.releaseOperation.state, 'drafted');
+  assert.equal(guided.releaseOperation.state, 'preparing');
   assert.deepEqual(guided.components, {
     pipeline: '0.31.0',
     cli: '1.15.0',

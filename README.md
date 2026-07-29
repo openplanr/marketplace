@@ -127,17 +127,21 @@ Marketplace closeout is deliberately two-step because the draft ledger cannot
 truthfully record its own merge commit or the tag created from that merge:
 
 1. Keep the ledger PR open and the generated Operating Board capability
-   `unavailable` while the pipeline, CLI, skills, and all canaries are released
-   and verified. Record their immutable commits, PRs, tags, package/tarball
-   digests, checks, and evidence in the open ledger.
+   `unavailable` while the pipeline, CLI, and skills are released and verified.
+   Record their immutable commits, PRs, tags, package/tarball digests, and
+   checks in the open ledger.
 2. Merge that still-unavailable ledger PR. Tag and verify marketplace `1.2.0`
-   from the merged revision.
-3. Open a follow-up finalization update. Record the merged ledger PR, the
-   marketplace tag and digest, the final participant digests, and authoritative
-   reconciliation. Append `reconciliation.recorded` followed by
-   `operation.verified`, then regenerate the compatibility manifest.
-4. Merge the finalization update only after `npm run check`, `npm test`, and the
-   live-state reconciliation are clean. That merge is the first point at which
+   from the merged revision. This installs the canary workflow on the default
+   branch without exposing the guided capability.
+3. Run the exact-commit canary against the released pipeline, CLI, and skills.
+   Preserve its immutable report, then open a follow-up finalization update.
+   Record the merged ledger PR, marketplace tag and digest, canary evidence,
+   final participant digests, and authoritative reconciliation. Append
+   `reconciliation.recorded` followed by `operation.verified`, then regenerate
+   the compatibility manifest.
+4. Merge the finalization update only after `npm run check`, `npm test`, the
+   exact-commit canary, and live-state reconciliation are clean. That merge is
+   the first point at which
    `operatingBoard.status` and per-adapter availability may become `available`.
 
 The marketplace tag proves the versioned release; the finalization update

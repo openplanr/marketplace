@@ -8,13 +8,17 @@
   "title": "Release Guided Operating Board Runtime Experience",
   "capability": "guidedOperatingBoard",
   "createdAt": "2026-07-29T20:30:00.000Z",
-  "updatedAt": "2026-07-29T20:30:00.000Z",
-  "state": "drafted",
+  "updatedAt": "2026-07-29T22:50:00.000Z",
+  "state": "preparing",
   "ledger": {
     "kind": "marketplace-draft-pr",
     "repository": "openplanr/marketplace",
     "headRef": "ecosystem-release/operate-spec-003-guided-runtime",
-    "pullRequest": null
+    "pullRequest": {
+      "number": 76,
+      "url": "https://github.com/openplanr/marketplace/pull/76",
+      "state": "draft"
+    }
   },
   "participantOrder": [
     "pipeline",
@@ -30,27 +34,38 @@
       "repository": "openplanr/planr-pipeline",
       "currentVersion": "0.30.0",
       "targetVersion": "0.31.0",
-      "phase": "pending",
-      "branch": null,
+      "phase": "verified",
+      "branch": "agent/guided-operating-board-runtime",
       "targetBranch": "main",
-      "commitSha": null,
-      "pullRequest": null,
+      "commitSha": "a3df691ba5000828cee2580252b2d1e2ba5ed6eb",
+      "pullRequest": {
+        "number": 87,
+        "url": "https://github.com/openplanr/planr-pipeline/pull/87",
+        "state": "merged"
+      },
       "package": {
         "name": "planr-pipeline",
         "version": "0.31.0",
-        "status": "pending",
-        "integrity": null
+        "status": "verified",
+        "integrity": "sha512-Vul0KEgNoUzguQY6TmHb7PzfyVUqvOSQXkOuQCGCCfGgDj3M8mEu5j278EMAcVDK2yMgPBLgYgDgh62NgzZmIw=="
       },
-      "tag": null,
-      "tarballDigest": null,
+      "tag": "v0.31.0",
+      "tarballDigest": "sha256:c53323136f46438e553ea14c032d4e93e59492f425c9ab4b8a482b7c3b13cd01",
       "checks": [
         {
           "name": "ci",
-          "status": "expected",
-          "url": null
+          "status": "passed",
+          "url": "https://github.com/openplanr/planr-pipeline/actions/runs/30494260444"
         }
       ],
       "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-07-29T22:00:00.000Z",
+          "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918"
+        },
         {
           "gate": "plan",
           "actor": "Asem",
@@ -60,37 +75,48 @@
         }
       ],
       "prerequisites": [],
-      "compensation": "close-pr",
-      "nextSafeAction": "Prepare the pipeline 0.31.0 branch, run conformance and packed-package checks, then open its independent PR."
+      "compensation": "forward-fix",
+      "nextSafeAction": "Verified at v0.31.0. Any published correction must use a forward-fix release."
     },
     {
       "component": "cli",
       "repoLocalSpecId": "OPERATE-SPEC-003:cli",
       "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-003.md",
       "repository": "openplanr/OpenPlanr",
-      "currentVersion": "1.14.3",
+      "currentVersion": "1.14.4",
       "targetVersion": "1.15.0",
-      "phase": "pending",
-      "branch": null,
+      "phase": "verified",
+      "branch": "changeset-release/main",
       "targetBranch": "main",
-      "commitSha": null,
-      "pullRequest": null,
+      "commitSha": "37ec90c946c52a7b9e4488e78bbf5b85aef195d7",
+      "pullRequest": {
+        "number": 161,
+        "url": "https://github.com/openplanr/OpenPlanr/pull/161",
+        "state": "merged"
+      },
       "package": {
         "name": "openplanr",
         "version": "1.15.0",
-        "status": "pending",
-        "integrity": null
+        "status": "verified",
+        "integrity": "sha512-wCiVcEsc2n4nSJEoyo62vrEZEddFxnITuUmKZoabxEXSp9IUw5n4TTM6XV0h9CieTOH33xnaObQsbfLj1+6DqA=="
       },
-      "tag": null,
-      "tarballDigest": null,
+      "tag": "v1.15.0",
+      "tarballDigest": "sha256:393c98105a9e9bf903fc1d45de9ea7da401a58f3b20fcc2817f6803e7bc360da",
       "checks": [
         {
           "name": "ci",
-          "status": "expected",
-          "url": null
+          "status": "passed",
+          "url": "https://github.com/openplanr/OpenPlanr/actions/runs/30496388444"
         }
       ],
       "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-07-29T22:00:00.000Z",
+          "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918"
+        },
         {
           "gate": "plan",
           "actor": "Asem",
@@ -102,8 +128,8 @@
       "prerequisites": [
         "pipeline"
       ],
-      "compensation": "close-pr",
-      "nextSafeAction": "First release and verify the independent 1.14.4 redaction patch; after pipeline 0.31.0 is public, update the exact dependency and prepare 1.15.0."
+      "compensation": "forward-fix",
+      "nextSafeAction": "Verified at v1.15.0. Any published correction must use a forward-fix release."
     },
     {
       "component": "skills",
@@ -112,22 +138,33 @@
       "repository": "openplanr/skills",
       "currentVersion": "1.16.0",
       "targetVersion": "1.17.0",
-      "phase": "pending",
-      "branch": null,
+      "phase": "verified",
+      "branch": "agent/guided-operating-board-runtime",
       "targetBranch": "main",
-      "commitSha": null,
-      "pullRequest": null,
+      "commitSha": "5e8c5406ee13f2a62a8b9cabae10b70389925245",
+      "pullRequest": {
+        "number": 21,
+        "url": "https://github.com/openplanr/skills/pull/21",
+        "state": "merged"
+      },
       "package": null,
-      "tag": null,
-      "tarballDigest": null,
+      "tag": "v1.17.0",
+      "tarballDigest": "sha256:54cecfc80bb87bb580991d7f20e2decc07d2b6531bc68f1ac1d6a754cb3da8db",
       "checks": [
         {
           "name": "ci",
-          "status": "expected",
-          "url": null
+          "status": "passed",
+          "url": "https://github.com/openplanr/skills/actions/runs/30497434289"
         }
       ],
       "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-07-29T22:00:00.000Z",
+          "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918"
+        },
         {
           "gate": "plan",
           "actor": "Asem",
@@ -140,8 +177,8 @@
         "pipeline",
         "cli"
       ],
-      "compensation": "close-pr",
-      "nextSafeAction": "After OpenPlanr 1.15.0 is verified, prepare the generated 1.17.0 skill release and runtime canaries."
+      "compensation": "forward-fix",
+      "nextSafeAction": "Verified at v1.17.0. Repository release only; no npm artifact."
     },
     {
       "component": "marketplace",
@@ -150,11 +187,15 @@
       "repository": "openplanr/marketplace",
       "currentVersion": "1.1.0",
       "targetVersion": "1.2.0",
-      "phase": "pending",
-      "branch": null,
+      "phase": "preparing",
+      "branch": "ecosystem-release/operate-spec-003-guided-runtime",
       "targetBranch": "main",
       "commitSha": null,
-      "pullRequest": null,
+      "pullRequest": {
+        "number": 76,
+        "url": "https://github.com/openplanr/marketplace/pull/76",
+        "state": "draft"
+      },
       "package": null,
       "tag": null,
       "tarballDigest": null,
@@ -166,6 +207,13 @@
         }
       ],
       "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-07-29T22:00:00.000Z",
+          "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918"
+        },
         {
           "gate": "plan",
           "actor": "Asem",
@@ -180,7 +228,7 @@
         "skills"
       ],
       "compensation": "withhold-manifest",
-      "nextSafeAction": "Keep the ledger draft and guided capability unavailable until every participant and canary is verified."
+      "nextSafeAction": "Merge the still-unavailable ledger, tag marketplace v1.2.0, then run the exact-commit canary before finalization."
     }
   ],
   "releaseEvidence": [
@@ -223,11 +271,11 @@
   "prepareDigest": null,
   "confirmationDigest": null,
   "blockedReason": null,
-  "nextSafeAction": "Release and verify OpenPlanr 1.14.4 redaction correction, then prepare pipeline 0.31.0 without publishing or merging from this ledger.",
+  "nextSafeAction": "Merge the still-unavailable marketplace ledger, tag v1.2.0, and run the exact-commit canary before finalization.",
   "recovery": {
-    "mode": "compensate-before-publish",
-    "reason": null,
-    "nextSafeAction": "Before publication, close or revert only the affected participant PR; after any npm publication, change recovery to forward-fix."
+    "mode": "forward-fix",
+    "reason": "planr-pipeline 0.31.0 and openplanr 1.15.0 are public on npm.",
+    "nextSafeAction": "Published packages cannot be withdrawn; correct any defect with a forward-fix release while the marketplace capability remains withheld."
   },
   "reconciliation": {
     "status": "pending",
@@ -242,7 +290,7 @@
       "operating-canary"
     ],
     "drift": [],
-    "nextSafeAction": "Collect authoritative live state only after participant branches, PRs, checks, tags, and packages exist."
+    "nextSafeAction": "Record the marketplace merge/tag and exact-commit canary before authoritative final reconciliation."
   },
   "history": [
     {
@@ -253,6 +301,15 @@
       "participant": null,
       "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918",
       "note": "Draft ledger created before participant preparation; external merge, publish, tag, and deployment remain unapproved."
+    },
+    {
+      "eventId": "1265a72a-94e2-4d76-a346-9fb11b2264bc",
+      "timestamp": "2026-07-29T22:50:00.000Z",
+      "type": "prepare.started",
+      "actor": "maintainer",
+      "participant": null,
+      "digest": "sha256:a3c4093799c0b1801af4aaaf3757eaf32fa8879d332ffeb51c0df3c29c077918",
+      "note": "Pipeline 0.31.0 and OpenPlanr 1.15.0 are verified on npm; skills 1.17.0 is merged, tagged, and certified. Marketplace preparation and the exact-commit canary remain withheld."
     }
   ]
 }
