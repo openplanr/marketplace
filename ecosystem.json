@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.1.0",
-  "generatedAt": "2026-07-28T18:23:36.107Z",
+  "generatedAt": "2026-07-29T11:52:00.016Z",
   "protocol": {
     "current": "1.2.0",
     "supported": [
@@ -11,16 +11,16 @@
   },
   "components": {
     "cli": {
-      "version": "1.13.3",
+      "version": "1.14.0",
       "pipelineRange": "^0.30.0"
     },
     "pipeline": {
       "version": "0.30.0",
-      "cliRange": "^1.13.3"
+      "cliRange": "^1.14.0"
     },
     "skills": {
       "version": "1.16.0",
-      "cliRange": "^1.13.3"
+      "cliRange": "^1.14.0"
     },
     "marketplace": {
       "version": "1.1.0"
@@ -68,20 +68,19 @@
       "protocolRange": "^1.2.0",
       "components": {
         "pipeline": "0.30.0",
-        "cli": "1.13.3",
+        "cli": "1.14.0",
         "skills": "1.16.0",
         "marketplace": "1.1.0"
       },
       "certifiedRuntimes": [],
       "missing": [
-        "cli",
         "release"
       ],
       "releaseOperation": {
         "operationId": "OPERATE-SPEC-002",
         "operationDigest": "sha256:c2f350926bef6c4f4e385c6ed5788b28b689c79096dea3b38e5cf8a785ae2f1f",
-        "state": "drafted",
-        "reconciliation": "pending"
+        "state": "promoting",
+        "reconciliation": "incomplete"
       }
     }
   },

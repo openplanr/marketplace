@@ -19,9 +19,9 @@ Then install any of the plugins below:
 <!-- ecosystem-table:start -->
 | Component | Version | Compatibility |
 |---|---:|---|
-| OpenPlanr CLI | 1.13.3 | pipeline ^0.30.0 |
-| Pipeline package/plugin | 0.30.0 | CLI ^1.13.3 |
-| Runtime skills | 1.16.0 | CLI ^1.13.3 |
+| OpenPlanr CLI | 1.14.0 | pipeline ^0.30.0 |
+| Pipeline package/plugin | 0.30.0 | CLI ^1.14.0 |
+| Runtime skills | 1.16.0 | CLI ^1.14.0 |
 | Protocol | 1.2.0 | reads v1.0 artifacts; additive capabilities through v1.2.0 |
 <!-- ecosystem-table:end -->
 
@@ -39,9 +39,9 @@ Versions in this README mirror `.claude-plugin/marketplace.json`; keep both in t
 <!-- operating-capability:start -->
 **Resolved status:** `unavailable`
 
-Operating Board is not advertised by this manifest. Missing release gates: cli, release.
+Operating Board is not advertised by this manifest. Missing release gates: release.
 
-Resolved component versions: pipeline 0.30.0, CLI 1.13.3, skills 1.16.0, marketplace 1.1.0.
+Resolved component versions: pipeline 0.30.0, CLI 1.14.0, skills 1.16.0, marketplace 1.1.0.
 <!-- operating-capability:end -->
 
 `planr operate` is the recurring evidence-to-decision control plane. It creates

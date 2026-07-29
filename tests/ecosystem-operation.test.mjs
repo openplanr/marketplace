@@ -27,6 +27,12 @@ test('draft ecosystem operation follows the coordinated saga contract', async ()
 test('completed operation requires verified participants and a merged ledger', async () => {
   const operation = await readJson('../examples/ecosystem-operation.json');
   operation.state = 'completed';
+  // The example ledger carries real digests once an operation is under way, so
+  // clear them here rather than relying on the fixture still being blank. The
+  // rule under test is that completion demands them, not that the example
+  // happens to lack them.
+  operation.prepareDigest = null;
+  operation.confirmationDigest = null;
   const errors = validateOperation(operation);
   assert.ok(errors.includes('completed operation requires every participant to be verified'));
   assert.ok(errors.includes('completed operation requires a merged marketplace ledger PR'));

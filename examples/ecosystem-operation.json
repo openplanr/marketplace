@@ -8,8 +8,8 @@
   "title": "Release OpenPlanr Operating Board",
   "capability": "operatingBoard",
   "createdAt": "2026-07-28T12:00:00.000Z",
-  "updatedAt": "2026-07-28T12:00:00.000Z",
-  "state": "drafted",
+  "updatedAt": "2026-07-29T11:50:00.000Z",
+  "state": "promoting",
   "ledger": {
     "kind": "marketplace-draft-pr",
     "repository": "openplanr/marketplace",
@@ -30,20 +30,25 @@
       "repository": "openplanr/planr-pipeline",
       "currentVersion": "0.29.2",
       "targetVersion": "0.30.0",
-      "phase": "pending",
-      "branch": null,
+      "phase": "published",
+      "branch": "feat/operating-board-protocol",
       "targetBranch": "main",
-      "commitSha": null,
-      "pullRequest": null,
+      "commitSha": "feaec765e323770a5e7c90be06d260ca606780e7",
+      "pullRequest": "https://github.com/openplanr/planr-pipeline/pull/85",
       "package": {
         "name": "planr-pipeline",
         "version": "0.30.0",
-        "status": "pending",
-        "integrity": null
+        "status": "published",
+        "integrity": "sha512-TrK17pRTRHPijaeXtpbJ1NkznjTb76MpJeNRAcRsrF1J4hu9PKyHuYVwJQgxyAhrGhoo+CWHLqzYpk2YG0bafg=="
       },
-      "tag": null,
-      "tarballDigest": null,
-      "checks": [],
+      "tag": "v0.30.0",
+      "tarballDigest": "sha256:76ca016ee999df38a91827cb6ea2e396badbf40e530acacec79254fbbd4e3f61",
+      "checks": [
+        {
+          "name": "ci",
+          "status": "passed"
+        }
+      ],
       "approvals": [
         {
           "gate": "plan",
@@ -55,7 +60,7 @@
       ],
       "prerequisites": [],
       "compensation": "forward-fix",
-      "nextSafeAction": "Prepare and verify planr-pipeline 0.30.0 before promoting OpenPlanr."
+      "nextSafeAction": "Published. Recovery for this package is forward-fix only."
     },
     {
       "component": "cli",
@@ -64,20 +69,25 @@
       "repository": "openplanr/OpenPlanr",
       "currentVersion": "1.13.3",
       "targetVersion": "1.14.0",
-      "phase": "pending",
-      "branch": null,
+      "phase": "published",
+      "branch": "feat/operating-board",
       "targetBranch": "main",
-      "commitSha": null,
-      "pullRequest": null,
+      "commitSha": "41cf46d0e638f94bcd4634c18337380bcc6440bd",
+      "pullRequest": "https://github.com/openplanr/OpenPlanr/pull/145",
       "package": {
         "name": "openplanr",
         "version": "1.14.0",
-        "status": "pending",
-        "integrity": null
+        "status": "published",
+        "integrity": "sha512-Lfboq7UD6XWxF7pq8S0oXSi3tKEAwnMUe3mBxO58JDLlt9ltDGj/+aPLPgB5JK/GkqO6smODFfjpjnEy291TJA=="
       },
-      "tag": null,
-      "tarballDigest": null,
-      "checks": [],
+      "tag": "v1.14.0",
+      "tarballDigest": "sha256:cd8ee1d628d41eaf0c853c5047687ac901f4b0c17f7a61dc29954a71bd9b1a3f",
+      "checks": [
+        {
+          "name": "ci",
+          "status": "passed"
+        }
+      ],
       "approvals": [
         {
           "gate": "plan",
@@ -91,7 +101,7 @@
         "pipeline"
       ],
       "compensation": "forward-fix",
-      "nextSafeAction": "Wait for the verified pipeline package, then prepare OpenPlanr 1.14.0."
+      "nextSafeAction": "Published. Recovery for this package is forward-fix only."
     },
     {
       "component": "skills",
@@ -100,15 +110,20 @@
       "repository": "openplanr/skills",
       "currentVersion": "1.15.0",
       "targetVersion": "1.16.0",
-      "phase": "pending",
-      "branch": null,
+      "phase": "merged",
+      "branch": "feat/operating-board-skill",
       "targetBranch": "main",
-      "commitSha": null,
-      "pullRequest": null,
+      "commitSha": "b94f1e109e78fb1f0cced27a339114ed204cb2df",
+      "pullRequest": "https://github.com/openplanr/skills/pull/20",
       "package": null,
-      "tag": null,
+      "tag": "v1.16.0",
       "tarballDigest": null,
-      "checks": [],
+      "checks": [
+        {
+          "name": "ci",
+          "status": "passed"
+        }
+      ],
       "approvals": [
         {
           "gate": "plan",
@@ -122,8 +137,8 @@
         "pipeline",
         "cli"
       ],
-      "compensation": "revert-pr",
-      "nextSafeAction": "Wait for verified CLI 1.14.0, then prepare and tag skills 1.16.0."
+      "compensation": "forward-fix",
+      "nextSafeAction": "Merged and tagged v1.16.0. Repository release only; no npm artifact."
     },
     {
       "component": "marketplace",
@@ -132,7 +147,7 @@
       "repository": "openplanr/marketplace",
       "currentVersion": "1.0.0",
       "targetVersion": "1.1.0",
-      "phase": "pending",
+      "phase": "preparing",
       "branch": "ecosystem-release/operate-spec-002-operating-board",
       "targetBranch": "main",
       "commitSha": null,
@@ -140,7 +155,12 @@
       "package": null,
       "tag": null,
       "tarballDigest": null,
-      "checks": [],
+      "checks": [
+        {
+          "name": "ci",
+          "status": "pending"
+        }
+      ],
       "approvals": [
         {
           "gate": "plan",
@@ -156,7 +176,7 @@
         "skills"
       ],
       "compensation": "withhold-manifest",
-      "nextSafeAction": "Withhold marketplace availability until every upstream release is verified."
+      "nextSafeAction": "Open the ledger PR, run the operating canary against the three verified commits, then merge last."
     }
   ],
   "releaseEvidence": [
@@ -196,18 +216,18 @@
       "checkedAt": null
     }
   ],
-  "prepareDigest": null,
-  "confirmationDigest": null,
+  "prepareDigest": "sha256:afdb649148a835d03e70cc1a7b6232141bf03ecce47f18015695cd31a058d6a8",
+  "confirmationDigest": "sha256:e9e847a90dd36e2f92d40f833035375a37866669b46565f7e1b2a5f7b0c4a86c",
   "blockedReason": null,
-  "nextSafeAction": "Prepare and verify the pipeline participant; do not promote the CLI yet.",
+  "nextSafeAction": "Run the marketplace operating canary against the three verified commits, then merge this ledger last.",
   "recovery": {
     "mode": "forward-fix",
-    "reason": null,
-    "nextSafeAction": "Before publication, withhold downstream promotion; after any package publication, create a forward-fix operation."
+    "reason": "planr-pipeline 0.30.0 and openplanr 1.14.0 are public on npm.",
+    "nextSafeAction": "Published packages cannot be withdrawn; correct any defect with a forward-fix release."
   },
   "reconciliation": {
-    "status": "pending",
-    "checkedAt": null,
+    "status": "incomplete",
+    "checkedAt": "2026-07-29T11:50:00.000Z",
     "sources": [
       "github-pr",
       "git-commit",
@@ -218,7 +238,7 @@
       "operating-canary"
     ],
     "drift": [],
-    "nextSafeAction": "Query live participant state before resuming this operation."
+    "nextSafeAction": "Canary evidence is outstanding; do not mark the operation verified."
   },
   "history": [
     {
@@ -229,6 +249,15 @@
       "participant": null,
       "digest": "sha256:1445a228b94f4f6ee0fc8b538ecefde9ad328c178d4f8106f35f7b68f935801d",
       "note": "Draft ledger created before participant preparation."
+    },
+    {
+      "eventId": "8c1d6a52-3f47-4c1e-9f8a-2b7e1d4a6c90",
+      "timestamp": "2026-07-29T11:50:00.000Z",
+      "type": "operation.promoting",
+      "actor": "maintainer",
+      "participant": null,
+      "digest": "sha256:afdb649148a835d03e70cc1a7b6232141bf03ecce47f18015695cd31a058d6a8",
+      "note": "Pipeline 0.30.0 and CLI 1.14.0 published; skills 1.16.0 merged and tagged. Canary evidence outstanding."
     }
   ]
 }
