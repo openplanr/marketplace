@@ -22,6 +22,25 @@ export function atLeast(actual, minimum) {
   return true;
 }
 
+export function normalizeOperatingAdapter(adapter, pipelineVersion) {
+  return {
+    runtime: adapter.id,
+    version: adapter.version,
+    capabilityLevel: adapter.capabilityLevel,
+    pipelineRange: `^${pipelineVersion}`,
+    operatingBoard: {
+      declared: Boolean(
+        adapter.capabilities?.operatingBoard && adapter.entrypoints?.operate,
+      ),
+      available: false,
+      entrypoint: adapter.entrypoints?.operate ?? null,
+    },
+    interactiveQuestions: adapter.capabilities?.interactiveQuestions ?? 'none',
+    operatingAdvisorDispatch:
+      adapter.capabilities?.operatingAdvisorDispatch ?? null,
+  };
+}
+
 export function resolveOperatingBoard({
   protocolVersion,
   pipelineVersion,
