@@ -17,12 +17,13 @@ const readJson = async (path) =>
 
 function adapters() {
   return [
-    ['claude-code', 'native'],
-    ['codex', 'native'],
-    ['cursor', 'chat'],
-  ].map(([runtime, interactiveQuestions]) => ({
+    ['claude-code', 'native', 'native-isolated'],
+    ['codex', 'native', 'native-bounded'],
+    ['cursor', 'chat', 'structured-provider'],
+  ].map(([runtime, interactiveQuestions, operatingAdvisorDispatch]) => ({
     runtime,
     interactiveQuestions,
+    operatingAdvisorDispatch,
   }));
 }
 
@@ -75,6 +76,11 @@ test('guided capability opens only after versions, interaction metadata, and rel
     available.certifiedRuntimes.sort(),
     ['claude-code', 'codex', 'cursor'],
   );
+  assert.deepEqual(available.advisorDispatch, {
+    'claude-code': 'native-isolated',
+    codex: 'native-bounded',
+    cursor: 'structured-provider',
+  });
 
   const missingCapability = resolveGuidedOperatingBoard({
     ...input,
@@ -86,6 +92,17 @@ test('guided capability opens only after versions, interaction metadata, and rel
     releaseVerified: true,
   });
   assert.deepEqual(missingCapability.missing, ['adapters']);
+
+  const missingDispatch = resolveGuidedOperatingBoard({
+    ...input,
+    adapters: adapters().map((adapter) => (
+      adapter.runtime === 'codex'
+        ? { ...adapter, operatingAdvisorDispatch: undefined }
+        : adapter
+    )),
+    releaseVerified: true,
+  });
+  assert.deepEqual(missingDispatch.missing, ['adapters']);
 });
 
 test('published compatibility exposes the reconciled forward fix', async () => {

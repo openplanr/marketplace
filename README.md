@@ -65,6 +65,15 @@ invocation and resume only after matching planning provenance. A later
 `run --review-only` may observe verified shipment proof and due outcomes, but
 Operating Board never invokes SHIP.
 
+One explicit request to run a cycle may continue its reversible local native
+adapter lifecycle through independent advisors, Chair consolidation, and a
+reviewable result without manual internal commands. Adapter metadata declares
+`native-isolated`, `native-bounded`, or `structured-provider` dispatch.
+`planr operate report` renders the brief plus separate CEO, CTO, CPO, CMO, COO,
+and Chair results as Markdown or strict JSON and includes exact governed
+conversion commands for specs, tasks, and quick tasks. The visual dashboard is
+optional.
+
 ## Guided Operating Board capability
 
 <!-- guided-operating-capability:start -->

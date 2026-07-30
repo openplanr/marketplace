@@ -115,6 +115,8 @@ const candidateAdapters = adapterRegistry
         entrypoint: adapter.entrypoints?.operate ?? null,
       },
       interactiveQuestions: adapter.capabilities?.interactiveQuestions ?? 'none',
+      operatingAdvisorDispatch:
+        adapter.capabilities?.operatingAdvisorDispatch ?? 'structured-provider',
     }))
   : current.adapters;
 let resolvedAdapters = guidedReleaseVerified ? candidateAdapters : current.adapters;
