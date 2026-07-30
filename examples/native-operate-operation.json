@@ -14,7 +14,11 @@
     "kind": "marketplace-draft-pr",
     "repository": "openplanr/marketplace",
     "headRef": "ecosystem-release/operate-spec-003-r2-native-runtime",
-    "pullRequest": null
+    "pullRequest": {
+      "number": 84,
+      "url": "https://github.com/openplanr/marketplace/pull/84",
+      "state": "ready"
+    }
   },
   "participantOrder": [
     "pipeline",
@@ -167,19 +171,23 @@
       "repository": "openplanr/marketplace",
       "currentVersion": "1.2.0",
       "targetVersion": "1.3.0",
-      "phase": "preparing",
+      "phase": "prepared",
       "branch": "ecosystem-release/operate-spec-003-r2-native-runtime",
       "targetBranch": "main",
-      "commitSha": null,
-      "pullRequest": null,
+      "commitSha": "5fe04db76fe7e0ec575ba38ae8e043bf9df78f3b",
+      "pullRequest": {
+        "number": 84,
+        "url": "https://github.com/openplanr/marketplace/pull/84",
+        "state": "ready"
+      },
       "package": null,
       "tag": null,
       "tarballDigest": null,
       "checks": [
         {
           "name": "ci",
-          "status": "expected",
-          "url": null
+          "status": "pending",
+          "url": "https://github.com/openplanr/marketplace/actions/runs/30563067765"
         }
       ],
       "approvals": [
