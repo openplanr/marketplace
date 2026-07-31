@@ -8,13 +8,17 @@
   "title": "Release Field-Fix Operating Board Execution",
   "capability": "agenticOperatingBoard",
   "createdAt": "2026-07-31T16:45:00.000Z",
-  "updatedAt": "2026-07-31T18:20:00.000Z",
+  "updatedAt": "2026-07-31T20:30:00.000Z",
   "state": "promoting",
   "ledger": {
     "kind": "marketplace-draft-pr",
     "repository": "openplanr/marketplace",
     "headRef": "ecosystem-release/operate-spec-005-field-fix",
-    "pullRequest": null
+    "pullRequest": {
+      "number": 93,
+      "url": "https://github.com/openplanr/marketplace/pull/93",
+      "state": "ready"
+    }
   },
   "participantOrder": [
     "pipeline",
@@ -176,7 +180,11 @@
       "branch": "ecosystem-release/operate-spec-005-field-fix",
       "targetBranch": "main",
       "commitSha": null,
-      "pullRequest": null,
+      "pullRequest": {
+        "number": 93,
+        "url": "https://github.com/openplanr/marketplace/pull/93",
+        "state": "ready"
+      },
       "package": null,
       "tag": null,
       "tarballDigest": null,
