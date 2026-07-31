@@ -8,13 +8,17 @@
   "title": "Release Agentic Operating Board Execution",
   "capability": "agenticOperatingBoard",
   "createdAt": "2026-07-31T09:05:00.000Z",
-  "updatedAt": "2026-07-31T10:02:00.000Z",
+  "updatedAt": "2026-07-31T11:55:00.000Z",
   "state": "promoting",
   "ledger": {
     "kind": "marketplace-draft-pr",
     "repository": "openplanr/marketplace",
     "headRef": "ecosystem-release/operate-spec-004-agentic-engine",
-    "pullRequest": null
+    "pullRequest": {
+      "number": 90,
+      "url": "https://github.com/openplanr/marketplace/pull/90",
+      "state": "ready"
+    }
   },
   "participantOrder": [
     "pipeline",
@@ -176,7 +180,11 @@
       "branch": "ecosystem-release/operate-spec-004-agentic-engine",
       "targetBranch": "main",
       "commitSha": null,
-      "pullRequest": null,
+      "pullRequest": {
+        "number": 90,
+        "url": "https://github.com/openplanr/marketplace/pull/90",
+        "state": "ready"
+      },
       "package": null,
       "tag": null,
       "tarballDigest": null,
