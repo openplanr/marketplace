@@ -14,7 +14,11 @@
     "kind": "marketplace-draft-pr",
     "repository": "openplanr/marketplace",
     "headRef": "ecosystem-release/operate-spec-006-outputs-epic-loop",
-    "pullRequest": null
+    "pullRequest": {
+      "number": 95,
+      "url": "https://github.com/openplanr/marketplace/pull/95",
+      "state": "ready"
+    }
   },
   "participantOrder": [
     "pipeline",
@@ -176,7 +180,11 @@
       "branch": "ecosystem-release/operate-spec-006-outputs-epic-loop",
       "targetBranch": "main",
       "commitSha": null,
-      "pullRequest": null,
+      "pullRequest": {
+        "number": 95,
+        "url": "https://github.com/openplanr/marketplace/pull/95",
+        "state": "ready"
+      },
       "package": null,
       "tag": null,
       "tarballDigest": null,
