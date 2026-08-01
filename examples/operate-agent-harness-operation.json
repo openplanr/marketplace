@@ -8,7 +8,7 @@
   "title": "Stage the Protocol v1.3 Operating Board Agent Harness",
   "capability": "agenticOperatingBoard",
   "createdAt": "2026-08-01T21:00:00.000Z",
-  "updatedAt": "2026-08-01T21:00:00.000Z",
+  "updatedAt": "2026-08-01T21:30:00.000Z",
   "state": "preparing",
   "ledger": {
     "kind": "marketplace-draft-pr",
@@ -65,7 +65,7 @@
       "phase": "preparing",
       "branch": "codex/spec-004-operate-agent-harness",
       "targetBranch": "main",
-      "commitSha": null,
+      "commitSha": "aca83442d0a34265267a67e61d0e871821bc5db5",
       "pullRequest": null,
       "package": {
         "name": "openplanr",
@@ -75,13 +75,29 @@
       },
       "tag": null,
       "tarballDigest": null,
-      "checks": [],
+      "checks": [
+        {
+          "name": "full-suite",
+          "status": "passed",
+          "url": null
+        },
+        {
+          "name": "build",
+          "status": "passed",
+          "url": null
+        },
+        {
+          "name": "lint",
+          "status": "passed",
+          "url": null
+        }
+      ],
       "approvals": [],
       "prerequisites": [
         "pipeline"
       ],
       "compensation": "close-pr",
-      "nextSafeAction": "Finish the exact 0.36.1 pin, task ledger, and complete SHIP finalization."
+      "nextSafeAction": "Open the CLI pull request after the pipeline 0.36.1 package is available to CI."
     },
     {
       "component": "skills",
@@ -123,12 +139,23 @@
       "phase": "preparing",
       "branch": "ecosystem-release/operate-spec-007-agent-harness",
       "targetBranch": "main",
-      "commitSha": null,
+      "commitSha": "7c2f954ab2c5f34c9e67c97f2ea0a51123cfcc90",
       "pullRequest": null,
       "package": null,
       "tag": null,
       "tarballDigest": null,
-      "checks": [],
+      "checks": [
+        {
+          "name": "npm-test",
+          "status": "passed",
+          "url": null
+        },
+        {
+          "name": "generated-drift-check",
+          "status": "passed",
+          "url": null
+        }
+      ],
       "approvals": [],
       "prerequisites": [
         "pipeline",
