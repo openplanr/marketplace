@@ -8,13 +8,17 @@
   "title": "Stage the Protocol v1.3 Operating Board Agent Harness",
   "capability": "agenticOperatingBoard",
   "createdAt": "2026-08-01T21:00:00.000Z",
-  "updatedAt": "2026-08-01T21:30:00.000Z",
+  "updatedAt": "2026-08-01T21:40:00.000Z",
   "state": "preparing",
   "ledger": {
     "kind": "marketplace-draft-pr",
     "repository": "openplanr/marketplace",
     "headRef": "ecosystem-release/operate-spec-007-agent-harness",
-    "pullRequest": null
+    "pullRequest": {
+      "number": 97,
+      "url": "https://github.com/openplanr/marketplace/pull/97",
+      "state": "open"
+    }
   },
   "participantOrder": [
     "pipeline",
@@ -34,7 +38,11 @@
       "branch": "codex/spec-004-operate-v13-guidance",
       "targetBranch": "main",
       "commitSha": "0b8d61b7fc01fb70cfb611a8c8de3efd992696e3",
-      "pullRequest": null,
+      "pullRequest": {
+        "number": 95,
+        "url": "https://github.com/openplanr/planr-pipeline/pull/95",
+        "state": "open"
+      },
       "package": {
         "name": "planr-pipeline",
         "version": "0.36.1",
@@ -53,7 +61,7 @@
       "approvals": [],
       "prerequisites": [],
       "compensation": "close-pr",
-      "nextSafeAction": "Open the pipeline pull request and keep npm publication withheld."
+      "nextSafeAction": "Run and review pull request 95 CI; keep npm publication withheld."
     },
     {
       "component": "cli",
@@ -66,7 +74,11 @@
       "branch": "codex/spec-004-operate-agent-harness",
       "targetBranch": "main",
       "commitSha": "aca83442d0a34265267a67e61d0e871821bc5db5",
-      "pullRequest": null,
+      "pullRequest": {
+        "number": 177,
+        "url": "https://github.com/openplanr/OpenPlanr/pull/177",
+        "state": "open"
+      },
       "package": {
         "name": "openplanr",
         "version": "1.20.0",
@@ -110,7 +122,11 @@
       "branch": "codex/spec-004-operate-v13-skill",
       "targetBranch": "main",
       "commitSha": "ecbd9a5c6c898faaf7be5a8ca11d0484c27cab67",
-      "pullRequest": null,
+      "pullRequest": {
+        "number": 31,
+        "url": "https://github.com/openplanr/skills/pull/31",
+        "state": "open"
+      },
       "package": null,
       "tag": null,
       "tarballDigest": null,
@@ -139,8 +155,12 @@
       "phase": "preparing",
       "branch": "ecosystem-release/operate-spec-007-agent-harness",
       "targetBranch": "main",
-      "commitSha": "7c2f954ab2c5f34c9e67c97f2ea0a51123cfcc90",
-      "pullRequest": null,
+      "commitSha": "cab2b43067b6e4f1394b30132aa89ff13602f764",
+      "pullRequest": {
+        "number": 97,
+        "url": "https://github.com/openplanr/marketplace/pull/97",
+        "state": "open"
+      },
       "package": null,
       "tag": null,
       "tarballDigest": null,
