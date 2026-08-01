@@ -8,7 +8,7 @@
   "title": "Stage the Protocol v1.3 Operating Board Agent Harness",
   "capability": "agenticOperatingBoard",
   "createdAt": "2026-08-01T21:00:00.000Z",
-  "updatedAt": "2026-08-01T21:40:00.000Z",
+  "updatedAt": "2026-08-01T21:45:00.000Z",
   "state": "preparing",
   "ledger": {
     "kind": "marketplace-draft-pr",
@@ -34,14 +34,14 @@
       "repository": "openplanr/planr-pipeline",
       "currentVersion": "0.36.0",
       "targetVersion": "0.36.1",
-      "phase": "preparing",
+      "phase": "merged",
       "branch": "codex/spec-004-operate-v13-guidance",
       "targetBranch": "main",
-      "commitSha": "0b8d61b7fc01fb70cfb611a8c8de3efd992696e3",
+      "commitSha": "c38f50de088c0cde1d76115f84ce3ec23c54f373",
       "pullRequest": {
         "number": 95,
         "url": "https://github.com/openplanr/planr-pipeline/pull/95",
-        "state": "open"
+        "state": "merged"
       },
       "package": {
         "name": "planr-pipeline",
@@ -61,7 +61,7 @@
       "approvals": [],
       "prerequisites": [],
       "compensation": "close-pr",
-      "nextSafeAction": "Run and review pull request 95 CI; keep npm publication withheld."
+      "nextSafeAction": "Code is merged with CI green; keep the v0.36.1 release and npm publication withheld."
     },
     {
       "component": "cli",
