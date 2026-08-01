@@ -8,8 +8,8 @@
   "title": "Stage the Protocol v1.3 Operating Board Agent Harness",
   "capability": "agenticOperatingBoard",
   "createdAt": "2026-08-01T21:00:00.000Z",
-  "updatedAt": "2026-08-01T21:45:00.000Z",
-  "state": "preparing",
+  "updatedAt": "2026-08-01T22:26:58.000Z",
+  "state": "promoting",
   "ledger": {
     "kind": "marketplace-draft-pr",
     "repository": "openplanr/marketplace",
@@ -17,7 +17,7 @@
     "pullRequest": {
       "number": 97,
       "url": "https://github.com/openplanr/marketplace/pull/97",
-      "state": "open"
+      "state": "ready"
     }
   },
   "participantOrder": [
@@ -34,7 +34,7 @@
       "repository": "openplanr/planr-pipeline",
       "currentVersion": "0.36.0",
       "targetVersion": "0.36.1",
-      "phase": "merged",
+      "phase": "verified",
       "branch": "codex/spec-004-operate-v13-guidance",
       "targetBranch": "main",
       "commitSha": "c38f50de088c0cde1d76115f84ce3ec23c54f373",
@@ -46,22 +46,35 @@
       "package": {
         "name": "planr-pipeline",
         "version": "0.36.1",
-        "status": "pending",
-        "integrity": null
+        "status": "verified",
+        "integrity": "sha512-q3laoFaXgbIU/wjb3vtWmuq/bl5mXNZXTUeJZcAAIJODIxWrxXiwg/7C9ZCxsCQvvQBAp3k8wRT2ly00FIH1UA=="
       },
-      "tag": null,
-      "tarballDigest": null,
+      "tag": "v0.36.1",
+      "tarballDigest": "sha256:58692e44f9e5e5c14fce6ca4de11b97ebd7f7808b4e118966485a0fbf4eb7359",
       "checks": [
         {
-          "name": "full-suite",
+          "name": "ci",
           "status": "passed",
-          "url": null
+          "url": "https://github.com/openplanr/planr-pipeline/actions/runs/30719151524"
+        },
+        {
+          "name": "npm-publish",
+          "status": "passed",
+          "url": "https://github.com/openplanr/planr-pipeline/actions/runs/30719961428"
         }
       ],
-      "approvals": [],
+      "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-08-01T21:49:45.000Z",
+          "digest": "sha256:bb45a15af7f7ea332b208fc66fa7088b85555046b7315df338d7f2fbf02fd0f7"
+        }
+      ],
       "prerequisites": [],
-      "compensation": "close-pr",
-      "nextSafeAction": "Code is merged with CI green; keep the v0.36.1 release and npm publication withheld."
+      "compensation": "forward-fix",
+      "nextSafeAction": "Verified at v0.36.1 on npm with Protocol v1.3 mandate-session contracts. Any correction must be a forward-fix release."
     },
     {
       "component": "cli",
@@ -70,46 +83,54 @@
       "repository": "openplanr/OpenPlanr",
       "currentVersion": "1.19.0",
       "targetVersion": "1.20.0",
-      "phase": "preparing",
-      "branch": "codex/spec-004-operate-agent-harness",
+      "phase": "verified",
+      "branch": "changeset-release/main",
       "targetBranch": "main",
-      "commitSha": "aca83442d0a34265267a67e61d0e871821bc5db5",
+      "commitSha": "54a0fe5ac6c01a54d0b9d28f741e8deb2d9f7509",
       "pullRequest": {
-        "number": 177,
-        "url": "https://github.com/openplanr/OpenPlanr/pull/177",
-        "state": "open"
+        "number": 178,
+        "url": "https://github.com/openplanr/OpenPlanr/pull/178",
+        "state": "merged"
       },
       "package": {
         "name": "openplanr",
         "version": "1.20.0",
-        "status": "pending",
-        "integrity": null
+        "status": "verified",
+        "integrity": "sha512-7UvfvevhRBLNchocEhs8ak3+igEAco1yOUCewrIQWDHQKmSYInZcNyisPYvgUteQkWCcXMpEOczrqCVSh8FguQ=="
       },
-      "tag": null,
-      "tarballDigest": null,
+      "tag": "v1.20.0",
+      "tarballDigest": "sha256:dd021db229924396714d4fd9a2f4a464ba4dbf5c2faa66a4bea28c38b0c0607e",
       "checks": [
         {
-          "name": "full-suite",
+          "name": "ci",
           "status": "passed",
-          "url": null
+          "url": "https://github.com/openplanr/OpenPlanr/actions/runs/30720551295"
         },
         {
-          "name": "build",
+          "name": "release",
           "status": "passed",
-          "url": null
+          "url": "https://github.com/openplanr/OpenPlanr/actions/runs/30720956964"
         },
         {
-          "name": "lint",
+          "name": "npm-publish",
           "status": "passed",
-          "url": null
+          "url": "https://github.com/openplanr/OpenPlanr/actions/runs/30721083355"
         }
       ],
-      "approvals": [],
+      "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-08-01T22:21:28.000Z",
+          "digest": "sha256:bb45a15af7f7ea332b208fc66fa7088b85555046b7315df338d7f2fbf02fd0f7"
+        }
+      ],
       "prerequisites": [
         "pipeline"
       ],
-      "compensation": "close-pr",
-      "nextSafeAction": "Open the CLI pull request after the pipeline 0.36.1 package is available to CI."
+      "compensation": "forward-fix",
+      "nextSafeAction": "Verified at v1.20.0 on npm. The feature landed in pull request 177; version pull request 178 carries the release commit and tag. Any correction must be a forward-fix release."
     },
     {
       "component": "skills",
@@ -118,32 +139,45 @@
       "repository": "openplanr/skills",
       "currentVersion": "1.21.0",
       "targetVersion": "1.22.0",
-      "phase": "preparing",
+      "phase": "verified",
       "branch": "codex/spec-004-operate-v13-skill",
       "targetBranch": "main",
-      "commitSha": "ecbd9a5c6c898faaf7be5a8ca11d0484c27cab67",
+      "commitSha": "497c76b39eaf173204cffdd81edc41f2a3923ed0",
       "pullRequest": {
         "number": 31,
         "url": "https://github.com/openplanr/skills/pull/31",
-        "state": "open"
+        "state": "merged"
       },
       "package": null,
-      "tag": null,
-      "tarballDigest": null,
+      "tag": "v1.22.0",
+      "tarballDigest": "sha256:36f19cdeb3be790d8854c5558c09538535f2881da53f4273d58e6a3dab0ca791",
       "checks": [
         {
-          "name": "npm-test",
+          "name": "validate",
           "status": "passed",
-          "url": null
+          "url": "https://github.com/openplanr/skills/actions/runs/30721230497"
+        },
+        {
+          "name": "release-check",
+          "status": "passed",
+          "url": "https://github.com/openplanr/skills/actions/runs/30721235155"
         }
       ],
-      "approvals": [],
+      "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-08-01T22:25:42.000Z",
+          "digest": "sha256:bb45a15af7f7ea332b208fc66fa7088b85555046b7315df338d7f2fbf02fd0f7"
+        }
+      ],
       "prerequisites": [
         "pipeline",
         "cli"
       ],
-      "compensation": "close-pr",
-      "nextSafeAction": "Open the skills pull request after the pipeline release tag exists."
+      "compensation": "forward-fix",
+      "nextSafeAction": "Verified at v1.22.0. Repository release only; no npm artifact."
     },
     {
       "component": "marketplace",
@@ -152,38 +186,35 @@
       "repository": "openplanr/marketplace",
       "currentVersion": "1.6.0",
       "targetVersion": "1.7.0",
-      "phase": "preparing",
+      "phase": "pending",
       "branch": "ecosystem-release/operate-spec-007-agent-harness",
       "targetBranch": "main",
-      "commitSha": "cab2b43067b6e4f1394b30132aa89ff13602f764",
+      "commitSha": null,
       "pullRequest": {
         "number": 97,
         "url": "https://github.com/openplanr/marketplace/pull/97",
-        "state": "open"
+        "state": "ready"
       },
       "package": null,
       "tag": null,
       "tarballDigest": null,
-      "checks": [
+      "checks": [],
+      "approvals": [
         {
-          "name": "npm-test",
-          "status": "passed",
-          "url": null
-        },
-        {
-          "name": "generated-drift-check",
-          "status": "passed",
-          "url": null
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-08-01T22:26:58.000Z",
+          "digest": "sha256:bb45a15af7f7ea332b208fc66fa7088b85555046b7315df338d7f2fbf02fd0f7"
         }
       ],
-      "approvals": [],
       "prerequisites": [
         "pipeline",
         "cli",
         "skills"
       ],
       "compensation": "withhold-manifest",
-      "nextSafeAction": "Keep the agentic capability unavailable until every participant and canary is verified."
+      "nextSafeAction": "Merge and tag the withheld 1.7.0 ledger, then run exact-commit canaries before finalization."
     }
   ],
   "releaseEvidence": [
@@ -223,18 +254,18 @@
       "checkedAt": null
     }
   ],
-  "prepareDigest": null,
-  "confirmationDigest": null,
+  "prepareDigest": "sha256:a0f9a895d9c37e426876096d9148196948ac463024e6b520d63f7080aa6d3b13",
+  "confirmationDigest": "sha256:220bee24a21cc6219a931a05b3f4294def0adbae0517150b48428d8818b8aecd",
   "blockedReason": null,
-  "nextSafeAction": "Open participant pull requests in dependency order; do not publish or expose the capability yet.",
+  "nextSafeAction": "Merge and tag marketplace 1.7.0, run exact-commit canaries, then finalize the compatibility manifest.",
   "recovery": {
-    "mode": "compensate-before-publish",
-    "reason": null,
-    "nextSafeAction": "Close or revert only the affected participant pull request before any npm publication."
+    "mode": "forward-fix",
+    "reason": "planr-pipeline@0.36.1 and openplanr@1.20.0 are already public.",
+    "nextSafeAction": "Use forward-fix releases for published components and keep marketplace availability withheld until exact-commit canaries pass."
   },
   "reconciliation": {
-    "status": "pending",
-    "checkedAt": null,
+    "status": "incomplete",
+    "checkedAt": "2026-08-01T22:26:58.000Z",
     "sources": [
       "github-pr",
       "git-commit",
@@ -245,7 +276,62 @@
       "operating-canary"
     ],
     "drift": [],
-    "nextSafeAction": "Reconcile live PR, commit, tag, CI, npm, manifest, and canary state after each participant transition."
+    "nextSafeAction": "Publish the withheld marketplace ledger and collect exact-commit canary evidence before exposing compatibility."
   },
-  "history": []
+  "history": [
+    {
+      "eventId": "cf459d3f-8b70-447d-b883-5ecf2ef909a7",
+      "timestamp": "2026-08-01T21:00:00.000Z",
+      "type": "operation.created",
+      "actor": "Release coordinator",
+      "participant": null,
+      "digest": "sha256:bb45a15af7f7ea332b208fc66fa7088b85555046b7315df338d7f2fbf02fd0f7",
+      "note": "Created the coordinated release transaction for the Protocol v1.3 mandate-session Operating Board agent harness."
+    },
+    {
+      "eventId": "c746c531-1da0-477e-8f76-996cf12145c0",
+      "timestamp": "2026-08-01T21:00:01.000Z",
+      "type": "prepare.started",
+      "actor": "Release coordinator",
+      "participant": null,
+      "digest": "sha256:a0f9a895d9c37e426876096d9148196948ac463024e6b520d63f7080aa6d3b13",
+      "note": "Prepared pipeline, CLI, skills, and marketplace releases in dependency order."
+    },
+    {
+      "eventId": "df74843e-595e-4737-8dcc-fecc83e5ccd6",
+      "timestamp": "2026-08-01T21:49:45.000Z",
+      "type": "participant.verified",
+      "actor": "Release coordinator",
+      "participant": "pipeline",
+      "digest": "sha256:58692e44f9e5e5c14fce6ca4de11b97ebd7f7808b4e118966485a0fbf4eb7359",
+      "note": "planr-pipeline 0.36.1 was merged, tagged, published to npm, and verified by the full release workflow."
+    },
+    {
+      "eventId": "7287de44-7daf-490e-9437-561a7767e0fe",
+      "timestamp": "2026-08-01T22:21:28.000Z",
+      "type": "participant.verified",
+      "actor": "Release coordinator",
+      "participant": "cli",
+      "digest": "sha256:dd021db229924396714d4fd9a2f4a464ba4dbf5c2faa66a4bea28c38b0c0607e",
+      "note": "OpenPlanr 1.20.0 was merged, tagged, published to npm, and verified across the release and platform matrix workflows."
+    },
+    {
+      "eventId": "4e0df5e1-f55f-4850-9e31-b69f97b0def1",
+      "timestamp": "2026-08-01T22:25:42.000Z",
+      "type": "participant.verified",
+      "actor": "Release coordinator",
+      "participant": "skills",
+      "digest": "sha256:36f19cdeb3be790d8854c5558c09538535f2881da53f4273d58e6a3dab0ca791",
+      "note": "OpenPlanr Skills 1.22.0 was merged, tagged, and verified by validation and release-check workflows."
+    },
+    {
+      "eventId": "a25822bb-391d-4e4f-b5a8-d22666feef42",
+      "timestamp": "2026-08-01T22:26:58.000Z",
+      "type": "participant.prepared",
+      "actor": "Release coordinator",
+      "participant": "marketplace",
+      "digest": "sha256:220bee24a21cc6219a931a05b3f4294def0adbae0517150b48428d8818b8aecd",
+      "note": "Prepared marketplace 1.7.0 with compatibility withheld until exact-commit canaries pass."
+    }
+  ]
 }

@@ -159,7 +159,7 @@ test('verified compatibility promotes the default native cycle after reconciliat
     cli: { version: '1.19.0', pipelineRange: '^0.35.0' },
     pipeline: { version: '0.35.0', cliRange: '^1.19.0' },
     skills: { version: '1.21.0', cliRange: '^1.19.0' },
-    marketplace: { version: '1.6.0' },
+    marketplace: { version: '1.7.0' },
   });
 });
 
@@ -181,7 +181,8 @@ test('the Protocol v1.3 harness remains withheld while its release ledger is sta
   });
   assert.deepEqual(agentic.certifiedRuntimes, []);
   assert.equal(agentic.releaseOperation.operationId, 'OPERATE-SPEC-007');
-  assert.equal(agentic.releaseOperation.state, 'preparing');
+  assert.equal(agentic.releaseOperation.state, 'promoting');
+  assert.equal(agentic.releaseOperation.reconciliation, 'incomplete');
 });
 
 test('operation schema supports audited lifecycle and forward-fix state', async () => {
