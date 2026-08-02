@@ -202,8 +202,8 @@ test('the Protocol v1.4 agent-native capability remains withheld until its ledge
   });
   assert.deepEqual(agentic.certifiedRuntimes, []);
   assert.equal(agentic.releaseOperation.operationId, 'OPERATE-SPEC-008');
-  assert.equal(agentic.releaseOperation.state, 'drafted');
-  assert.equal(agentic.releaseOperation.reconciliation, 'pending');
+  assert.equal(agentic.releaseOperation.state, 'promoting');
+  assert.equal(agentic.releaseOperation.reconciliation, 'incomplete');
 });
 
 test('the SPEC-008 ledger links umbrella SPEC-005 without conflating operation identity', async () => {
