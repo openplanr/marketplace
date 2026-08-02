@@ -3,7 +3,7 @@
   "kind": "openplanr-ecosystem-operation",
   "protocolVersion": "1.2.0",
   "operationId": "OPERATE-SPEC-008",
-  "operationDigest": "sha256:20ae7d91d0bccde781741d09e03aeb6d6a1c6c31d7a1df456a493b6c22e342af",
+  "operationDigest": "sha256:6c3156d0292a6fc1b0fee04fe7b8c945fb8d374c9c0f6f357469a0fb8c1fca95",
   "umbrellaSpecId": "SPEC-005",
   "title": "Release the Protocol v1.4 Agent-Native Cross-Runtime Operating Board",
   "capability": "agenticOperatingBoard",
@@ -24,7 +24,7 @@
       "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-008.md",
       "repository": "openplanr/planr-pipeline",
       "currentVersion": "0.36.1",
-      "targetVersion": "0.37.0",
+      "targetVersion": "0.37.1",
       "phase": "preparing",
       "branch": "feat/agent-native-operate-v14",
       "targetBranch": "main",
@@ -32,7 +32,7 @@
       "pullRequest": null,
       "package": {
         "name": "planr-pipeline",
-        "version": "0.37.0",
+        "version": "0.37.1",
         "status": "pending",
         "integrity": null
       },

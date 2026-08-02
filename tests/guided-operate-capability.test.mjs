@@ -144,7 +144,7 @@ test('agent-native adapter normalization preserves runtime-governed dispatch', (
   const normalized = normalizeOperatingAdapter(
     {
       id: 'codex',
-      version: '0.37.0',
+      version: '0.37.1',
       capabilityLevel: 'workflow',
       capabilities: {
         operatingBoard: true,
@@ -154,7 +154,7 @@ test('agent-native adapter normalization preserves runtime-governed dispatch', (
       },
       entrypoints: { operate: '$planr-operate' },
     },
-    '0.37.0',
+    '0.37.1',
   );
   assert.equal(normalized.operatingAdvisorDispatch, 'native-agent');
   assert.equal(normalized.operatingBoard.entrypoint, '$planr-operate');
@@ -190,7 +190,7 @@ test('the Protocol v1.4 agent-native capability remains withheld until its ledge
   assert.deepEqual(agentic.missing, ['release']);
   assert.equal(agentic.protocolRange, '^1.4.0');
   assert.deepEqual(agentic.components, {
-    pipeline: '0.37.0',
+    pipeline: '0.37.1',
     cli: '1.21.0',
     skills: '1.23.0',
     marketplace: '1.8.0',

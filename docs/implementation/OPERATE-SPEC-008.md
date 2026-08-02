@@ -6,7 +6,7 @@ SPEC-005 agent-native Operating Board transaction.
 Target tuple:
 
 - Protocol `1.4.0`
-- `planr-pipeline@0.37.0`
+- `planr-pipeline@0.37.1`
 - `openplanr@1.21.0`
 - `@openplanr/skills@1.23.0`
 - marketplace `1.8.0`
