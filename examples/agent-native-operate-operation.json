@@ -1,0 +1,143 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "openplanr-ecosystem-operation",
+  "protocolVersion": "1.2.0",
+  "operationId": "OPERATE-SPEC-008",
+  "operationDigest": "sha256:20ae7d91d0bccde781741d09e03aeb6d6a1c6c31d7a1df456a493b6c22e342af",
+  "umbrellaSpecId": "SPEC-005",
+  "title": "Release the Protocol v1.4 Agent-Native Cross-Runtime Operating Board",
+  "capability": "agenticOperatingBoard",
+  "createdAt": "2026-08-02T00:00:00.000Z",
+  "updatedAt": "2026-08-02T00:00:00.000Z",
+  "state": "drafted",
+  "ledger": {
+    "kind": "marketplace-draft-pr",
+    "repository": "openplanr/marketplace",
+    "headRef": "ecosystem-release/operate-spec-008-agent-native",
+    "pullRequest": null
+  },
+  "participantOrder": ["pipeline", "cli", "skills", "marketplace"],
+  "participants": [
+    {
+      "component": "pipeline",
+      "repoLocalSpecId": "OPERATE-SPEC-008:pipeline",
+      "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-008.md",
+      "repository": "openplanr/planr-pipeline",
+      "currentVersion": "0.36.1",
+      "targetVersion": "0.37.0",
+      "phase": "preparing",
+      "branch": "feat/agent-native-operate-v14",
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": {
+        "name": "planr-pipeline",
+        "version": "0.37.0",
+        "status": "pending",
+        "integrity": null
+      },
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [{ "name": "ci", "status": "expected", "url": null }],
+      "approvals": [],
+      "prerequisites": [],
+      "compensation": "close-pr",
+      "nextSafeAction": "Complete Protocol v1.4 conformance and open the pipeline pull request."
+    },
+    {
+      "component": "cli",
+      "repoLocalSpecId": "OPERATE-SPEC-008:cli",
+      "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-008.md",
+      "repository": "openplanr/OpenPlanr",
+      "currentVersion": "1.20.0",
+      "targetVersion": "1.21.0",
+      "phase": "preparing",
+      "branch": "feat/agent-native-operate-v14",
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": {
+        "name": "openplanr",
+        "version": "1.21.0",
+        "status": "pending",
+        "integrity": null
+      },
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [{ "name": "ci", "status": "expected", "url": null }],
+      "approvals": [],
+      "prerequisites": ["pipeline"],
+      "compensation": "close-pr",
+      "nextSafeAction": "Finish CLI tests after the pipeline tarball is finalized."
+    },
+    {
+      "component": "skills",
+      "repoLocalSpecId": "OPERATE-SPEC-008:skills",
+      "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-008.md",
+      "repository": "openplanr/skills",
+      "currentVersion": "1.22.0",
+      "targetVersion": "1.23.0",
+      "phase": "preparing",
+      "branch": "feat/agent-native-operate-v14",
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": null,
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [{ "name": "validate", "status": "expected", "url": null }],
+      "approvals": [],
+      "prerequisites": ["pipeline", "cli"],
+      "compensation": "close-pr",
+      "nextSafeAction": "Verify generated skill byte parity and runtime canaries."
+    },
+    {
+      "component": "marketplace",
+      "repoLocalSpecId": "OPERATE-SPEC-008:marketplace",
+      "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-008.md",
+      "repository": "openplanr/marketplace",
+      "currentVersion": "1.7.0",
+      "targetVersion": "1.8.0",
+      "phase": "preparing",
+      "branch": "feat/agent-native-operate-v14",
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": null,
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [{ "name": "ci", "status": "expected", "url": null }],
+      "approvals": [],
+      "prerequisites": ["pipeline", "cli", "skills"],
+      "compensation": "withhold-manifest",
+      "nextSafeAction": "Keep the ledger unmerged until all participants and canaries are verified."
+    }
+  ],
+  "releaseEvidence": [
+    { "id": "packed-cli", "status": "pending", "url": null, "digest": null, "checkedAt": null },
+    { "id": "protocol-v1.2", "status": "pending", "url": null, "digest": null, "checkedAt": null },
+    { "id": "event-replay", "status": "pending", "url": null, "digest": null, "checkedAt": null },
+    { "id": "security-boundaries", "status": "pending", "url": null, "digest": null, "checkedAt": null },
+    { "id": "outcome-reconciliation", "status": "pending", "url": null, "digest": null, "checkedAt": null }
+  ],
+  "prepareDigest": null,
+  "confirmationDigest": null,
+  "blockedReason": null,
+  "nextSafeAction": "Complete local implementation and tests, then open the draft marketplace ledger PR.",
+  "recovery": {
+    "mode": "compensate-before-publish",
+    "reason": null,
+    "nextSafeAction": "Close or revert prepared changes before publication; after publication use a forward fix."
+  },
+  "reconciliation": {
+    "status": "pending",
+    "checkedAt": null,
+    "sources": [
+      "github-pr", "git-commit", "git-tag", "github-checks", "npm-registry",
+      "marketplace-manifest", "operating-canary"
+    ],
+    "drift": [],
+    "nextSafeAction": "Reconcile live PR, tag, CI, npm, manifest, and canary state before finalization."
+  },
+  "history": []
+}
