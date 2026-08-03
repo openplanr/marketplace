@@ -96,11 +96,19 @@ staging ledger merged as `v1.10.0` (commit
 matrices (run 30838934551), so this entry is now `verified` and the advertised
 tuple advances to `0.39.0 / 1.23.0 / 1.25.0 / 1.10.0`.
 
-Tarball digests are sourced per artifact: npm-published participants
-(`planr-pipeline`, `openplanr`) use the sha256 of their published npm tarball;
-the participants without an npm package (`@openplanr/skills`, `marketplace`) use
-the sha256 of the GitHub release archive
-(`https://github.com/<org>/<repo>/archive/refs/tags/<tag>.tar.gz`) — the method
-validated by reproducing the verified `OPERATE-SPEC-009` skills digest. The five
-`releaseEvidence` digests are taken from the windows-latest/node-22 report (the
-canonical cell per the `OPERATE-SPEC-009` precedent).
+Tarball digests are sourced per artifact, each matching its own
+`OPERATE-SPEC-009` precedent:
+
+- npm-published participants (`planr-pipeline`, `openplanr`) use the sha256 of
+  their published npm tarball.
+- `@openplanr/skills` (external repo, no npm package) uses the sha256 of the
+  GitHub release archive
+  (`https://github.com/<org>/<repo>/archive/refs/tags/<tag>.tar.gz`) — validated
+  by reproducing SPEC-009's skills digest `a3bda88…`.
+- `marketplace` (this repo, no npm package) uses the sha256 of
+  `git archive --format=tar.gz <merge-commit>` — validated by reproducing
+  SPEC-009's marketplace digest `d51d396…` from commit `bc2df4d`. `git archive`
+  is deterministic from tree content, so this digest is stable.
+
+The five `releaseEvidence` digests are taken from the windows-latest/node-22
+report (the canonical cell per the `OPERATE-SPEC-009` precedent).

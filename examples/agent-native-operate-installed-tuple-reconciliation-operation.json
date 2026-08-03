@@ -192,7 +192,7 @@
       },
       "package": null,
       "tag": "v1.10.0",
-      "tarballDigest": "sha256:a3062a80a22ebf03da2c1fbef213ec4bd19e627d9d0fd4bd516a44768f251444",
+      "tarballDigest": "sha256:d1f89a83a7d0b2d1baba2fa3ce798e8273f307821044c6b9b5d6ab998c674307",
       "checks": [
         {
           "name": "check",
@@ -341,7 +341,7 @@
       "type": "participant.verified",
       "actor": "Release coordinator",
       "participant": "marketplace",
-      "digest": "sha256:a3062a80a22ebf03da2c1fbef213ec4bd19e627d9d0fd4bd516a44768f251444",
+      "digest": "sha256:d1f89a83a7d0b2d1baba2fa3ce798e8273f307821044c6b9b5d6ab998c674307",
       "note": "Marketplace 1.10.0 was merged and tagged before the real-runtime canary certified the tuple."
     },
     {
