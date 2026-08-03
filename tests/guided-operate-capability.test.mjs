@@ -176,20 +176,20 @@ test('verified compatibility promotes the default native cycle after reconciliat
     marketplace: '1.3.1',
   });
   assert.deepEqual(ecosystem.components, {
-    cli: { version: '1.22.0', pipelineRange: '^0.39.0' },
-    pipeline: { version: '0.39.0', cliRange: '^1.22.0' },
-    skills: { version: '1.24.0', cliRange: '^1.22.0' },
+    cli: { version: '1.23.0', pipelineRange: '^0.39.0' },
+    pipeline: { version: '0.39.0', cliRange: '^1.23.0' },
+    skills: { version: '1.25.0', cliRange: '^1.23.0' },
     marketplace: { version: '1.10.0' },
   });
 });
 
-test('the SPEC-006 installed-tuple reconciliation stays withheld until its ledger verifies', async () => {
+test('the SPEC-006 installed-tuple reconciliation is available after its ledger verifies', async () => {
   const ecosystem = await readJson('../ecosystem.json');
   const agentic = ecosystem.capabilities.agenticOperatingBoard;
-  // Staging: the candidate 1.23.0/1.25.0 tuple is exposed but the capability
-  // stays withheld until the real-runtime canary certifies the published tuple.
-  assert.equal(agentic.status, 'unavailable');
-  assert.deepEqual(agentic.missing, ['release']);
+  // Verified: the real-runtime canary certified the published tuple, so the
+  // advertised tuple advances to 1.23.0/1.25.0 and the capability is available.
+  assert.equal(agentic.status, 'available');
+  assert.deepEqual(agentic.missing, []);
   assert.equal(agentic.protocolRange, '^1.4.0');
   assert.deepEqual(agentic.components, {
     pipeline: '0.39.0',
@@ -202,13 +202,13 @@ test('the SPEC-006 installed-tuple reconciliation stays withheld until its ledge
     codex: 'native-agent',
     cursor: 'sequential-native',
   });
-  assert.deepEqual(agentic.certifiedRuntimes, []);
+  assert.deepEqual(agentic.certifiedRuntimes, ['claude-code', 'codex', 'cursor']);
   assert.equal(agentic.releaseOperation.operationId, 'OPERATE-SPEC-010');
-  assert.equal(agentic.releaseOperation.state, 'drafted');
-  assert.equal(agentic.releaseOperation.reconciliation, 'pending');
+  assert.equal(agentic.releaseOperation.state, 'verified');
+  assert.equal(agentic.releaseOperation.reconciliation, 'matched');
 });
 
-test('the OPERATE-SPEC-010 installed-tuple staging ledger validates and stays unverified', async () => {
+test('the OPERATE-SPEC-010 installed-tuple ledger verifies and preserves the SPEC-009 audit record', async () => {
   const durableOrchestration = await readJson(
     '../examples/agent-native-operate-durable-orchestration-operation.json',
   );
@@ -219,12 +219,12 @@ test('the OPERATE-SPEC-010 installed-tuple staging ledger validates and stays un
   assert.equal(durableOrchestration.operationId, 'OPERATE-SPEC-009');
   assert.equal(durableOrchestration.state, 'verified');
   assert.equal(isVerifiedOperation(durableOrchestration), true);
-  // The new staging ledger targets the installed-tuple reconciliation, stays
-  // unverified, and validates as a well-formed pre-finalization operation.
+  // The installed-tuple reconciliation ledger is finalized: verified against the
+  // published tuple and reconciled with the real-runtime canary evidence.
   assert.equal(installedTuple.operationId, 'OPERATE-SPEC-010');
   assert.equal(installedTuple.umbrellaSpecId, 'SPEC-006');
-  assert.equal(installedTuple.state, 'drafted');
-  assert.equal(isVerifiedOperation(installedTuple), false);
+  assert.equal(installedTuple.state, 'verified');
+  assert.equal(isVerifiedOperation(installedTuple), true);
   assert.equal(
     installedTuple.operationDigest,
     calculateOperationDigest(installedTuple),
@@ -236,7 +236,7 @@ test('the OPERATE-SPEC-010 installed-tuple staging ledger validates and stays un
   );
   assert.equal(installedTuple.recovery.mode, 'forward-fix');
   assert.ok(
-    installedTuple.releaseEvidence.every(({ status }) => status === 'pending'),
+    installedTuple.releaseEvidence.every(({ status }) => status === 'passed'),
   );
 });
 
