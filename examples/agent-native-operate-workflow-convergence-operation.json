@@ -1,0 +1,253 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "openplanr-ecosystem-operation",
+  "protocolVersion": "1.2.0",
+  "operationId": "OPERATE-SPEC-011",
+  "operationDigest": "sha256:b01ad2a44ab0932d626bf5a063bb2d6db2bc3b90750d61769118faa9ce56d44f",
+  "umbrellaSpecId": "SPEC-007",
+  "title": "Finalize the SPEC-007 workflow-convergence release tuple",
+  "capability": "agenticOperatingBoard",
+  "createdAt": "2026-08-03T23:05:00.000Z",
+  "updatedAt": "2026-08-03T23:05:00.000Z",
+  "state": "drafted",
+  "ledger": {
+    "kind": "marketplace-draft-pr",
+    "repository": "openplanr/marketplace",
+    "headRef": "ecosystem-release/operate-spec-011",
+    "pullRequest": null
+  },
+  "participantOrder": [
+    "pipeline",
+    "cli",
+    "skills",
+    "marketplace"
+  ],
+  "participants": [
+    {
+      "component": "pipeline",
+      "repoLocalSpecId": "OPERATE-SPEC-011:pipeline",
+      "repoLocalWorkItem": "docs/implementation/operating-board.md",
+      "repository": "openplanr/planr-pipeline",
+      "currentVersion": "0.39.0",
+      "targetVersion": "0.40.0",
+      "phase": "published",
+      "branch": "release/0.40.0",
+      "targetBranch": "main",
+      "commitSha": "69645c07032725899cc4a0b7ff36a587caebf2c1",
+      "pullRequest": {
+        "number": 102,
+        "url": "https://github.com/openplanr/planr-pipeline/pull/102",
+        "state": "merged"
+      },
+      "package": {
+        "name": "planr-pipeline",
+        "version": "0.40.0",
+        "status": "verified",
+        "integrity": "sha512-L1H+zFqtYqyQfwT1S8mYhofjN+bsOHLqoaZOyvWGsyKzTWPU6EMR5x/rGL7rYFlgVMS4Y9L+laEOQ6uRtBDpbg=="
+      },
+      "tag": "v0.40.0",
+      "tarballDigest": "sha256:860f1dd35b03ead48bca82985c1b684818529973c6874e7ae3b10992ee95730e",
+      "checks": [
+        {
+          "name": "ci",
+          "status": "passed",
+          "url": "https://github.com/openplanr/planr-pipeline/actions/runs/30858158220"
+        },
+        {
+          "name": "npm-publish",
+          "status": "passed",
+          "url": "https://github.com/openplanr/planr-pipeline/actions/runs/30858342087"
+        }
+      ],
+      "approvals": [],
+      "prerequisites": [],
+      "compensation": "forward-fix",
+      "nextSafeAction": "planr-pipeline 0.40.0 is published; its converged workflow procedures and frozen command surface back the 1.24.0/1.26.0 tuple."
+    },
+    {
+      "component": "cli",
+      "repoLocalSpecId": "OPERATE-SPEC-011:cli",
+      "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-011.md",
+      "repository": "openplanr/OpenPlanr",
+      "currentVersion": "1.23.0",
+      "targetVersion": "1.24.0",
+      "phase": "published",
+      "branch": "release/1.24.0",
+      "targetBranch": "main",
+      "commitSha": "290e19f7c9557d56a7ce81af93a20d673620c9d0",
+      "pullRequest": {
+        "number": 196,
+        "url": "https://github.com/openplanr/OpenPlanr/pull/196",
+        "state": "merged"
+      },
+      "package": {
+        "name": "openplanr",
+        "version": "1.24.0",
+        "status": "verified",
+        "integrity": "sha512-DNYFx15FmlU/8xYtn2PXL1/OnSzuabIX1K4oE8GW1GyjJWuJZjd8mRrz7d6cQVpNnuSt9IHMoEdvn/SAgUI/xA=="
+      },
+      "tag": "v1.24.0",
+      "tarballDigest": "sha256:7918b6f742b6effe7aa17b50a864a6be51a1ddfd42a2dc21ca638d4299f8e8c6",
+      "checks": [
+        {
+          "name": "ci",
+          "status": "passed",
+          "url": "https://github.com/openplanr/OpenPlanr/actions/runs/30859991297"
+        },
+        {
+          "name": "npm-publish",
+          "status": "passed",
+          "url": "https://github.com/openplanr/OpenPlanr/actions/runs/30859991438"
+        }
+      ],
+      "approvals": [],
+      "prerequisites": [
+        "pipeline"
+      ],
+      "compensation": "forward-fix",
+      "nextSafeAction": "openplanr 1.24.0 is published; setup reports every skip, recovers from a partial apply, and honours the persisted command-prefix choice."
+    },
+    {
+      "component": "skills",
+      "repoLocalSpecId": "OPERATE-SPEC-011:skills",
+      "repoLocalWorkItem": "docs/implementation/operating-board.md",
+      "repository": "openplanr/skills",
+      "currentVersion": "1.25.0",
+      "targetVersion": "1.26.0",
+      "phase": "published",
+      "branch": "release/1.26.0",
+      "targetBranch": "main",
+      "commitSha": "6f4e9f8319ec6b8ed02decafd318e263cc7c3ec4",
+      "pullRequest": {
+        "number": 35,
+        "url": "https://github.com/openplanr/skills/pull/35",
+        "state": "merged"
+      },
+      "package": null,
+      "tag": "v1.26.0",
+      "tarballDigest": "sha256:e04d5c4bb26cd2333511af60746dbef85c0cbf440fc9876898e4c939b4a24127",
+      "checks": [
+        {
+          "name": "validate",
+          "status": "passed",
+          "url": "https://github.com/openplanr/skills/actions/runs/30859374472"
+        },
+        {
+          "name": "release-check",
+          "status": "passed",
+          "url": "https://github.com/openplanr/skills/actions/runs/30859374587"
+        }
+      ],
+      "approvals": [],
+      "prerequisites": [
+        "pipeline",
+        "cli"
+      ],
+      "compensation": "forward-fix",
+      "nextSafeAction": "The skills bundle mirrors the converged pipeline workflows and pins planr-pipeline@0.40.0; its mirror-parity and runtime-neutrality guards are enforced in CI."
+    },
+    {
+      "component": "marketplace",
+      "repoLocalSpecId": "OPERATE-SPEC-011:marketplace",
+      "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-011.md",
+      "repository": "openplanr/marketplace",
+      "currentVersion": "1.10.0",
+      "targetVersion": "1.11.0",
+      "phase": "pending",
+      "branch": "ecosystem-release/operate-spec-011",
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": null,
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [
+        {
+          "name": "real-runtime-canary",
+          "status": "passed",
+          "url": "https://github.com/openplanr/marketplace/actions/runs/30860383948"
+        }
+      ],
+      "approvals": [],
+      "prerequisites": [
+        "pipeline",
+        "cli",
+        "skills"
+      ],
+      "compensation": "withhold-manifest",
+      "nextSafeAction": "Merge this staging ledger, tag the merge commit v1.11.0, then finalize the operation so the advertised tuple advances to 0.40.0/1.24.0/1.26.0/1.11.0."
+    }
+  ],
+  "releaseEvidence": [
+    {
+      "id": "packed-cli",
+      "status": "passed",
+      "url": "https://github.com/openplanr/marketplace/actions/runs/30860383948",
+      "digest": "sha256:267cc7e167473de57e9b42222eb451917553970ad87854b59ad44b6615783716",
+      "checkedAt": "2026-08-03T23:05:00.000Z"
+    },
+    {
+      "id": "protocol-v1.2",
+      "status": "passed",
+      "url": "https://github.com/openplanr/marketplace/actions/runs/30860383948",
+      "digest": "sha256:a46cf23da7bff01a0b03b34a79492ba576630df5f850850ab057426919fc5dc5",
+      "checkedAt": "2026-08-03T23:05:00.000Z"
+    },
+    {
+      "id": "event-replay",
+      "status": "passed",
+      "url": "https://github.com/openplanr/marketplace/actions/runs/30860383948",
+      "digest": "sha256:220d8b253fdc06095e4ebef83ce3b91386cc4a073e0d9db61cd200a85cacee85",
+      "checkedAt": "2026-08-03T23:05:00.000Z"
+    },
+    {
+      "id": "security-boundaries",
+      "status": "passed",
+      "url": "https://github.com/openplanr/marketplace/actions/runs/30860383948",
+      "digest": "sha256:c40f0d4caac782141125a0236d4eb3abb7a8e6c2f1c4db780b6b9afe7add3888",
+      "checkedAt": "2026-08-03T23:05:00.000Z"
+    },
+    {
+      "id": "outcome-reconciliation",
+      "status": "passed",
+      "url": "https://github.com/openplanr/marketplace/actions/runs/30860383948",
+      "digest": "sha256:e3b3f6678768f885f2c11334b2f9bd19ff17f59752d21753775a6a996a513aec",
+      "checkedAt": "2026-08-03T23:05:00.000Z"
+    }
+  ],
+  "prepareDigest": null,
+  "confirmationDigest": null,
+  "blockedReason": null,
+  "nextSafeAction": "Merge this staging ledger, then tag the merge commit v1.11.0 and finalize so the manifest advertises the published tuple.",
+  "recovery": {
+    "mode": "forward-fix",
+    "reason": "planr-pipeline 0.40.0 and openplanr 1.24.0 are public npm packages and skills v1.26.0 is a public tag; the marketplace ledger reconciles the manifest and cannot roll them back.",
+    "nextSafeAction": "Do not rewrite or unpublish any released artifact; withhold the manifest until the ledger verifies."
+  },
+  "reconciliation": {
+    "status": "pending",
+    "checkedAt": "2026-08-03T23:05:00.000Z",
+    "sources": [
+      "github-pr",
+      "git-commit",
+      "git-tag",
+      "github-checks",
+      "npm-registry",
+      "marketplace-manifest",
+      "operating-canary"
+    ],
+    "drift": [],
+    "nextSafeAction": "Reconcile after the staging ledger merges and the marketplace tag is placed."
+  },
+  "history": [
+    {
+      "eventId": "a7f3c1e2-9d84-4b6f-8e15-2c0a7d63b4f9",
+      "timestamp": "2026-08-03T23:05:00.000Z",
+      "type": "operation.created",
+      "actor": "Release coordinator",
+      "participant": "marketplace",
+      "digest": "sha256:b01ad2a44ab0932d626bf5a063bb2d6db2bc3b90750d61769118faa9ce56d44f",
+      "note": "Staged the SPEC-007 workflow-convergence tuple after pipeline 0.40.0, openplanr 1.24.0, and skills v1.26.0 published and the six-leg real-runtime canary passed."
+    }
+  ]
+}
