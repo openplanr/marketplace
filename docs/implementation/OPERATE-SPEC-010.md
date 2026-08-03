@@ -84,14 +84,23 @@ finalization), not the existence of the packages on their registries.
 
 ## Finalization gate
 
-This ledger may be finalized only after the marketplace ledger merges and the
-full real-runtime canary passes against the published commits — pipeline
+This ledger is finalized only after the marketplace ledger merges and the full
+real-runtime canary passes against the published commits — pipeline
 `51c37b105191093f0cc3537d0b80f050342b4539`, cli
 `396126bdfb6539d8fe3e65f2cccdee0cc1d0150a`, and skills
 `aac9f8f9b49efdc80b5ddfcaff68cc4b4e4690d2` — across the Ubuntu, macOS, and
 Windows Node 20/22 matrix. The real-runtime canary steps that certify this tuple
-live in `.github/workflows/operating-canary.yml`; their evidence artifacts
-attach to the canary run that finalizes this entry. The private
-`@openplanr/skills` tarball digest is computed by the marketplace CI at that
-canary run and recorded at finalize; it is not reproducible outside that runner
-and is intentionally left `null` while this ledger is staged.
+live in `.github/workflows/operating-canary.yml`. Both gates cleared: the
+staging ledger merged as `v1.10.0` (commit
+`e8fd7147717b41de540cbe023a635b920006f962`) and the canary succeeded on all six
+matrices (run 30838934551), so this entry is now `verified` and the advertised
+tuple advances to `0.39.0 / 1.23.0 / 1.25.0 / 1.10.0`.
+
+Tarball digests are sourced per artifact: npm-published participants
+(`planr-pipeline`, `openplanr`) use the sha256 of their published npm tarball;
+the participants without an npm package (`@openplanr/skills`, `marketplace`) use
+the sha256 of the GitHub release archive
+(`https://github.com/<org>/<repo>/archive/refs/tags/<tag>.tar.gz`) — the method
+validated by reproducing the verified `OPERATE-SPEC-009` skills digest. The five
+`releaseEvidence` digests are taken from the windows-latest/node-22 report (the
+canonical cell per the `OPERATE-SPEC-009` precedent).
