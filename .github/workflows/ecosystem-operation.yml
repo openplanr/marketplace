@@ -14,6 +14,8 @@ on:
       - 'examples/agent-native-operate-operation.json'
       - 'examples/agent-native-operate-forward-fix-operation.json'
       - 'examples/agent-native-operate-pipeline-reconciliation-operation.json'
+      - 'examples/agent-native-operate-durable-orchestration-operation.json'
+      - 'examples/agent-native-operate-installed-tuple-reconciliation-operation.json'
       - 'operations/**'
       - 'schemas/ecosystem-operation.schema.json'
       - 'scripts/generate-ecosystem.mjs'

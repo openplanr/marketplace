@@ -1,0 +1,232 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "openplanr-ecosystem-operation",
+  "protocolVersion": "1.2.0",
+  "operationId": "OPERATE-SPEC-010",
+  "operationDigest": "sha256:0c1ce63443748207cc96267c237cac34f9406b6be95ca14b9175a174a6af8af2",
+  "umbrellaSpecId": "SPEC-006",
+  "title": "Stage the SPEC-006 installed-tuple reconciliation release tuple",
+  "capability": "agenticOperatingBoard",
+  "createdAt": "2026-08-03T17:52:11.000Z",
+  "updatedAt": "2026-08-03T17:52:11.000Z",
+  "state": "drafted",
+  "ledger": {
+    "kind": "marketplace-draft-pr",
+    "repository": "openplanr/marketplace",
+    "headRef": "ecosystem-release/operate-spec-010",
+    "pullRequest": null
+  },
+  "participantOrder": [
+    "pipeline",
+    "cli",
+    "skills",
+    "marketplace"
+  ],
+  "participants": [
+    {
+      "component": "pipeline",
+      "repoLocalSpecId": "OPERATE-SPEC-010:pipeline",
+      "repoLocalWorkItem": "docs/implementation/operating-board.md",
+      "repository": "openplanr/planr-pipeline",
+      "currentVersion": "0.39.0",
+      "targetVersion": "0.39.0",
+      "phase": "pending",
+      "branch": "release/0.39.0",
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": null,
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [
+        {
+          "name": "ci",
+          "status": "expected"
+        },
+        {
+          "name": "npm-publish",
+          "status": "expected"
+        }
+      ],
+      "approvals": [],
+      "prerequisites": [],
+      "compensation": "forward-fix",
+      "nextSafeAction": "planr-pipeline stays at the already-published v0.39.0; this tuple ships no new pipeline release. Reuse the verified v0.39.0 artifacts when the owner runs the finalize canary."
+    },
+    {
+      "component": "cli",
+      "repoLocalSpecId": "OPERATE-SPEC-010:cli",
+      "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-010.md",
+      "repository": "openplanr/OpenPlanr",
+      "currentVersion": "1.22.0",
+      "targetVersion": "1.23.0",
+      "phase": "pending",
+      "branch": "release/version-1.23.0",
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": null,
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [
+        {
+          "name": "ci",
+          "status": "expected"
+        },
+        {
+          "name": "npm-publish",
+          "status": "expected"
+        }
+      ],
+      "approvals": [],
+      "prerequisites": [
+        "pipeline"
+      ],
+      "compensation": "forward-fix",
+      "nextSafeAction": "openplanr@1.23.0 is already published on npm with SLSA provenance and pinned to planr-pipeline@0.39.0; the owner runs the real-runtime canary against it before recording it verified."
+    },
+    {
+      "component": "skills",
+      "repoLocalSpecId": "OPERATE-SPEC-010:skills",
+      "repoLocalWorkItem": "docs/implementation/operating-board.md",
+      "repository": "openplanr/skills",
+      "currentVersion": "1.24.0",
+      "targetVersion": "1.25.0",
+      "phase": "pending",
+      "branch": "release/1.25.0",
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": null,
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [
+        {
+          "name": "validate",
+          "status": "expected"
+        },
+        {
+          "name": "release-check",
+          "status": "expected"
+        }
+      ],
+      "approvals": [],
+      "prerequisites": [
+        "pipeline",
+        "cli"
+      ],
+      "compensation": "forward-fix",
+      "nextSafeAction": "@openplanr/skills@1.25.0 is already tagged with its strict, fully-pinned plugin manifest; the owner records the marketplace-CI-computed pack digest at finalize."
+    },
+    {
+      "component": "marketplace",
+      "repoLocalSpecId": "OPERATE-SPEC-010:marketplace",
+      "repoLocalWorkItem": "docs/implementation/OPERATE-SPEC-010.md",
+      "repository": "openplanr/marketplace",
+      "currentVersion": "1.9.0",
+      "targetVersion": "1.10.0",
+      "phase": "pending",
+      "branch": "ecosystem-release/operate-spec-010",
+      "targetBranch": "main",
+      "commitSha": null,
+      "pullRequest": null,
+      "package": null,
+      "tag": null,
+      "tarballDigest": null,
+      "checks": [
+        {
+          "name": "check",
+          "status": "expected"
+        },
+        {
+          "name": "operation-ledger",
+          "status": "expected"
+        },
+        {
+          "name": "real-runtime-canary",
+          "status": "expected"
+        }
+      ],
+      "approvals": [],
+      "prerequisites": [
+        "pipeline",
+        "cli",
+        "skills"
+      ],
+      "compensation": "withhold-manifest",
+      "nextSafeAction": "Keep the marketplace manifest withholding the agenticOperatingBoard tuple at 0.39.0/1.23.0/1.25.0 until the real-runtime canary passes against the published tuple."
+    }
+  ],
+  "releaseEvidence": [
+    {
+      "id": "packed-cli",
+      "status": "pending",
+      "url": null,
+      "digest": null,
+      "checkedAt": null
+    },
+    {
+      "id": "protocol-v1.2",
+      "status": "pending",
+      "url": null,
+      "digest": null,
+      "checkedAt": null
+    },
+    {
+      "id": "event-replay",
+      "status": "pending",
+      "url": null,
+      "digest": null,
+      "checkedAt": null
+    },
+    {
+      "id": "security-boundaries",
+      "status": "pending",
+      "url": null,
+      "digest": null,
+      "checkedAt": null
+    },
+    {
+      "id": "outcome-reconciliation",
+      "status": "pending",
+      "url": null,
+      "digest": null,
+      "checkedAt": null
+    }
+  ],
+  "prepareDigest": null,
+  "confirmationDigest": null,
+  "blockedReason": null,
+  "nextSafeAction": "Merge this staging ledger, then run the real-runtime canary against pipeline 51c37b105191093f0cc3537d0b80f050342b4539, cli 396126bdfb6539d8fe3e65f2cccdee0cc1d0150a, and skills aac9f8f9b49efdc80b5ddfcaff68cc4b4e4690d2, then finalize OPERATE-SPEC-010 from its evidence to advertise the 0.39.0/1.23.0/1.25.0/1.10.0 tuple.",
+  "recovery": {
+    "mode": "forward-fix",
+    "reason": "planr-pipeline 0.39.0, openplanr 1.23.0, and @openplanr/skills 1.25.0 are already public; this marketplace ledger reconciles the manifest after the fact and cannot roll the published artifacts back.",
+    "nextSafeAction": "Do not rewrite or unpublish any released artifact; keep the marketplace manifest withholding the 1.23.0/1.25.0 tuple until the real-runtime canary certifies it, then finalize."
+  },
+  "reconciliation": {
+    "status": "pending",
+    "checkedAt": "2026-08-03T17:52:11.000Z",
+    "sources": [
+      "github-pr",
+      "git-commit",
+      "git-tag",
+      "github-checks",
+      "npm-registry",
+      "marketplace-manifest",
+      "operating-canary"
+    ],
+    "drift": [],
+    "nextSafeAction": "Reconcile PRs, commits, tags, CI, npm, manifest, and the real-runtime canary once this staging ledger merges and the owner runs the finalize canary."
+  },
+  "history": [
+    {
+      "eventId": "02c6a13c-eb41-4e2b-868b-454a02123d3a",
+      "timestamp": "2026-08-03T17:52:11.000Z",
+      "type": "operation.created",
+      "actor": "Release coordinator",
+      "participant": null,
+      "digest": "sha256:0c1ce63443748207cc96267c237cac34f9406b6be95ca14b9175a174a6af8af2",
+      "note": "Staged the SPEC-006 installed-tuple reconciliation tuple. The upstream artifacts (planr-pipeline 0.39.0 unchanged, openplanr 1.23.0, @openplanr/skills 1.25.0) are already published; the marketplace manifest stays withheld until the real-runtime canary certifies the tuple against the published packages."
+    }
+  ]
+}
