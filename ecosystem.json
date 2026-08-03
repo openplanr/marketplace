@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.1.0",
-  "generatedAt": "2026-08-03T23:08:38.204Z",
+  "generatedAt": "2026-08-03T23:11:01.202Z",
   "protocol": {
     "current": "1.4.0",
     "supported": [
@@ -13,16 +13,16 @@
   },
   "components": {
     "cli": {
-      "version": "1.23.0",
-      "pipelineRange": "^0.39.0"
+      "version": "1.24.0",
+      "pipelineRange": "^0.40.0"
     },
     "pipeline": {
-      "version": "0.39.0",
-      "cliRange": "^1.23.0"
+      "version": "0.40.0",
+      "cliRange": "^1.24.0"
     },
     "skills": {
-      "version": "1.25.0",
-      "cliRange": "^1.23.0"
+      "version": "1.26.0",
+      "cliRange": "^1.24.0"
     },
     "marketplace": {
       "version": "1.11.0"
@@ -31,9 +31,9 @@
   "adapters": [
     {
       "runtime": "claude-code",
-      "version": "0.39.0",
+      "version": "0.40.0",
       "capabilityLevel": "product",
-      "pipelineRange": "^0.39.0",
+      "pipelineRange": "^0.40.0",
       "operatingBoard": {
         "declared": true,
         "available": true,
@@ -44,9 +44,9 @@
     },
     {
       "runtime": "codex",
-      "version": "0.39.0",
+      "version": "0.40.0",
       "capabilityLevel": "workflow",
-      "pipelineRange": "^0.39.0",
+      "pipelineRange": "^0.40.0",
       "operatingBoard": {
         "declared": true,
         "available": true,
@@ -57,9 +57,9 @@
     },
     {
       "runtime": "cursor",
-      "version": "0.39.0",
+      "version": "0.40.0",
       "capabilityLevel": "workflow",
-      "pipelineRange": "^0.39.0",
+      "pipelineRange": "^0.40.0",
       "operatingBoard": {
         "declared": true,
         "available": true,
@@ -75,9 +75,9 @@
       "command": "planr operate",
       "protocolRange": "^1.2.0",
       "components": {
-        "pipeline": "0.39.0",
-        "cli": "1.23.0",
-        "skills": "1.25.0",
+        "pipeline": "0.40.0",
+        "cli": "1.24.0",
+        "skills": "1.26.0",
         "marketplace": "1.11.0"
       },
       "certifiedRuntimes": [
@@ -122,7 +122,7 @@
       }
     },
     "agenticOperatingBoard": {
-      "status": "unavailable",
+      "status": "available",
       "command": "planr operate",
       "protocolRange": "^1.4.0",
       "components": {
@@ -131,20 +131,22 @@
         "skills": "1.26.0",
         "marketplace": "1.11.0"
       },
-      "certifiedRuntimes": [],
+      "certifiedRuntimes": [
+        "claude-code",
+        "codex",
+        "cursor"
+      ],
       "advisorDispatch": {
         "claude-code": "native-agent",
         "codex": "native-agent",
         "cursor": "sequential-native"
       },
-      "missing": [
-        "release"
-      ],
+      "missing": [],
       "releaseOperation": {
         "operationId": "OPERATE-SPEC-011",
         "operationDigest": "sha256:b01ad2a44ab0932d626bf5a063bb2d6db2bc3b90750d61769118faa9ce56d44f",
-        "state": "drafted",
-        "reconciliation": "pending"
+        "state": "verified",
+        "reconciliation": "matched"
       }
     }
   },
