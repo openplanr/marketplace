@@ -325,8 +325,13 @@ export function validateOperation(operation) {
         // the ledger to an artifact the project already publishes rather than to
         // an internal process document minted per release.
         const changelog = readFileSync(join(workItemRoot, expectedWorkItem), 'utf8');
+        // Both heading styles in use across the ecosystem must match: changesets
+        // writes `## 1.25.1`, while the Keep a Changelog repositories write
+        // `## [0.41.0] — 2026-08-04`. A matcher that only accepted the former
+        // would reject a correctly documented release in two of the four repos.
+        const version = participant.targetVersion.replace(/\./g, '\\.');
         const versionHeading = new RegExp(
-          `^#{1,3}\\s*v?${participant.targetVersion.replace(/\./g, '\\.')}\\s*$`,
+          `^#{1,3}\\s*\\[?v?${version}\\]?(?:\\s|$)`,
           'm',
         );
         if (!versionHeading.test(changelog)) {

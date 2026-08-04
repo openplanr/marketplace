@@ -104,6 +104,29 @@ work item. This is a coordinated saga, not a claim of cross-provider atomicity:
 the coordinator reconciles actual GitHub/npm state on resume and uses a
 forward-fix after publication.
 
+### Authoring a release ledger
+
+```bash
+npm run stage-release -- release-intent.json canary-report.json
+npm run replay:operation -- examples/<operation>.json
+```
+
+The intent names only what is a judgment — which participants move, to what
+versions, under which umbrella, and why. Merge commits, pull request states, tags,
+npm integrity strings, and the three kinds of archive digest are derived from
+GitHub, the npm registry, and git. The builder refuses to write a ledger that does
+not validate.
+
+Correctness is established by replay, not by the operation's own digest:
+`operationDigest` hashes the operation's *intent* and excludes every recorded
+fact, so a ledger with a fabricated merge commit and digest hashes identically to
+a truthful one. `replay:operation` re-derives the facts from live sources and
+reports any disagreement.
+
+Still a human's: the title, the umbrella spec, this package's version bump, the
+work item in `docs/implementation/`, registering the operation in
+`scripts/validate-operation.mjs`, and the pull request narrative.
+
 ### Where a participant's release record lives
 
 Each ledger participant binds a repository-local work item. New operations bind that
