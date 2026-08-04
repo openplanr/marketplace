@@ -104,6 +104,19 @@ work item. This is a coordinated saga, not a claim of cross-provider atomicity:
 the coordinator reconciles actual GitHub/npm state on resume and uses a
 forward-fix after publication.
 
+### Where a participant's release record lives
+
+Each ledger participant binds a repository-local work item. New operations bind that
+repository's **`CHANGELOG.md`**, and validation checks that the released version's own
+heading is present — a stronger assertion than file existence, against an artifact the
+project already publishes and ships. Coordinated releases therefore mint no internal
+process document inside a product repository; the detailed record is the ledger here.
+
+Operations recorded before this convention keep their original paths. `repoLocalWorkItem`
+is part of `operationIntent()`, so retargeting a recorded operation would change its
+`operationDigest` and invalidate an immutable verified record along with every approval
+bound to it.
+
 ### One pull request per cycle
 
 A cycle used to need two pull requests. The marketplace participant records the
