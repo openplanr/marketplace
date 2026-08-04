@@ -1,0 +1,29 @@
+name: Reconcile published drift
+
+# Detects when the ecosystem manifest falls behind what is actually published on
+# npm — the state where the product reports "aligned" while a newer release the
+# user can never discover is already live. A red scheduled run on the repository
+# that owns the manifest is the loud signal; there is no issue-creation
+# machinery and no third-party actions by design.
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '23 6 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # Exits 1 (job goes red) only when the manifest is behind npm. Aligned or
+      # ahead (a staged, not-yet-finalized ledger) exits 0; a registry/network
+      # error exits 2 so the guard fails visibly closed instead of green.
+      - run: npm run check:drift
