@@ -22,6 +22,12 @@ const repositoryDirectories = {
   marketplace: 'marketplace',
 };
 const repoLocalWorkItems = {
+  'OPERATE-SPEC-012': {
+    pipeline: 'docs/implementation/operating-board.md',
+    cli: 'docs/implementation/OPERATE-SPEC-012.md',
+    skills: 'docs/implementation/operating-board.md',
+    marketplace: 'docs/implementation/OPERATE-SPEC-012.md',
+  },
   'OPERATE-SPEC-011': {
     pipeline: 'docs/implementation/operating-board.md',
     cli: 'docs/implementation/OPERATE-SPEC-011.md',
