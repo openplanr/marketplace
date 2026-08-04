@@ -59,6 +59,11 @@ const guidedOperationPath = existsSync(nativeOperationPath)
 const guidedReleaseOperation = existsSync(guidedOperationPath)
   ? readJson(guidedOperationPath)
   : null;
+const agenticSetupPinOperationPath = join(
+  repo,
+  'examples',
+  'agent-native-operate-setup-pin-operation.json',
+);
 const agenticDevexReleaseOperationPath = join(
   repo,
   'examples',
@@ -92,8 +97,10 @@ const agenticForwardFixOperationPath = join(
 // Newest operation wins. A release adds its file to the head of this chain; the
 // older entries stay so an archived operation still resolves if the newer file
 // is removed.
-const agenticOperationPath = existsSync(agenticDevexReleaseOperationPath)
-  ? agenticDevexReleaseOperationPath
+const agenticOperationPath = existsSync(agenticSetupPinOperationPath)
+  ? agenticSetupPinOperationPath
+  : existsSync(agenticDevexReleaseOperationPath)
+    ? agenticDevexReleaseOperationPath
   : existsSync(agenticWorkflowConvergenceOperationPath)
     ? agenticWorkflowConvergenceOperationPath
   : existsSync(agenticInstalledTupleReconciliationOperationPath)
