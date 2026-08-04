@@ -22,6 +22,48 @@ const repositoryDirectories = {
   marketplace: 'marketplace',
 };
 const repoLocalWorkItems = {
+  'OPERATE-SPEC-007': {
+    pipeline: 'docs/implementation/operating-board.md',
+    cli: 'docs/implementation/OPERATE-SPEC-007.md',
+    skills: 'docs/implementation/operating-board.md',
+    marketplace: 'docs/implementation/OPERATE-SPEC-007.md',
+  },
+  'OPERATE-SPEC-006': {
+    pipeline: 'docs/implementation/operating-board.md',
+    cli: 'docs/implementation/OPERATE-SPEC-006.md',
+    skills: 'docs/implementation/operating-board.md',
+    marketplace: 'docs/implementation/OPERATE-SPEC-006.md',
+  },
+  'OPERATE-SPEC-005': {
+    pipeline: 'docs/implementation/operating-board.md',
+    cli: 'docs/implementation/OPERATE-SPEC-005.md',
+    skills: 'docs/implementation/operating-board.md',
+    marketplace: 'docs/implementation/OPERATE-SPEC-005.md',
+  },
+  'OPERATE-SPEC-004': {
+    pipeline: 'docs/implementation/operating-board.md',
+    cli: 'docs/implementation/OPERATE-SPEC-004.md',
+    skills: 'docs/implementation/operating-board.md',
+    marketplace: 'docs/implementation/OPERATE-SPEC-004.md',
+  },
+  'OPERATE-SPEC-003-R3': {
+    pipeline: 'docs/implementation/guided-operating-board.md',
+    cli: 'docs/implementation/OPERATE-SPEC-003.md',
+    skills: 'docs/implementation/guided-operating-board.md',
+    marketplace: 'docs/implementation/guided-operating-board.md',
+  },
+  'OPERATE-SPEC-003': {
+    pipeline: 'docs/implementation/guided-operating-board.md',
+    cli: 'docs/implementation/OPERATE-SPEC-003.md',
+    skills: 'docs/implementation/guided-operating-board.md',
+    marketplace: 'docs/implementation/guided-operating-board.md',
+  },
+  'OPERATE-SPEC-002': {
+    pipeline: 'docs/implementation/operating-board.md',
+    cli: 'docs/implementation/OPERATE-SPEC-002.md',
+    skills: 'docs/implementation/operating-board.md',
+    marketplace: 'docs/implementation/operating-board.md',
+  },
   'OPERATE-SPEC-013': {
     pipeline: 'docs/implementation/operating-board.md',
     cli: 'docs/implementation/OPERATE-SPEC-013.md',
@@ -227,9 +269,22 @@ export function validateOperation(operation) {
       if (participant?.repoLocalSpecId !== `${operation.operationId}:${expected}`) {
         errors.push(`${expected} repoLocalSpecId must link the operation and participant`);
       }
+      // Resolved by operationId, falling back only to the BASE operation of an
+      // -RN revision (OPERATE-SPEC-003-R2 -> OPERATE-SPEC-003), which by
+      // definition revises that operation's work.
+      //
+      // The umbrellaSpecId fallback that used to sit here was far looser: any
+      // unregistered operation resolved through its umbrella, so a brand-new
+      // operation silently inherited a previous release's work items and
+      // validated clean — and any "register the work item when the id is unknown"
+      // logic was dead code for every operation whose umbrella already had a row.
+      // A new operation now registers explicitly or fails closed.
+      const revisionBase = /^(OPERATE-SPEC-[0-9]{3,})-R[1-9][0-9]*$/.exec(
+        operation.operationId ?? '',
+      )?.[1];
       const expectedWorkItem = (
-        repoLocalWorkItems[operation.operationId]
-        ?? repoLocalWorkItems[operation.umbrellaSpecId]
+        repoLocalWorkItems[operation.operationId] ??
+        (revisionBase ? repoLocalWorkItems[revisionBase] : undefined)
       )?.[expected];
       if (!expectedWorkItem) {
         errors.push(`unsupported repo-local work-item map: ${operation.operationId}`);
@@ -303,11 +358,22 @@ export function validateOperation(operation) {
           errors.push(`${participant?.component} approval does not bind operationDigest`);
         }
       }
+      // The marketplace participant may decline to record the commit, tag, and
+      // archive digest of the commit that contains this ledger — see the
+      // self-reference note in the verified-state block. The phase-level rules
+      // honour the same exemption, and only for that participant: pipeline, cli,
+      // and skills describe artifacts that exist independently of this file and
+      // must always be recorded.
+      const declinedSelfReference =
+        participant?.component === 'marketplace' &&
+        participant?.commitSha === null &&
+        participant?.tag === null &&
+        participant?.tarballDigest === null;
       if (['published', 'verified'].includes(participant?.phase)) {
         if (participant?.package && !['published', 'verified'].includes(participant.package.status)) {
           errors.push(`${participant?.component} is ${participant.phase} without a published package`);
         }
-        if (!participant?.tag) {
+        if (!declinedSelfReference && !participant?.tag) {
           errors.push(`${participant?.component} phase ${participant.phase} requires tag`);
         }
         if (participant?.package && !digestPattern.test(participant?.tarballDigest ?? '')) {
@@ -315,7 +381,7 @@ export function validateOperation(operation) {
         }
       }
       if (['prepared', 'promoting', 'merged', 'published', 'verified'].includes(participant?.phase)) {
-        if (!/^[a-f0-9]{40}$/.test(participant?.commitSha ?? '')) {
+        if (!declinedSelfReference && !/^[a-f0-9]{40}$/.test(participant?.commitSha ?? '')) {
           errors.push(`${participant?.component} phase ${participant.phase} requires commitSha`);
         }
         if (!participant?.pullRequest) {
@@ -395,8 +461,26 @@ export function validateOperation(operation) {
     if (!operation.participants?.every(({ phase }) => phase === 'verified')) {
       errors.push(`${operation.state} operation requires every participant to be verified`);
     }
-    if (operation?.ledger?.pullRequest?.state !== 'merged') {
-      errors.push(`${operation.state} operation requires a merged marketplace ledger PR`);
+    // Same self-reference: in a single-pull-request cycle the ledger PR is the one
+    // being reviewed, so it is open — not merged — at the moment this file is
+    // written. A ledger that declines the participant-level self-reference may
+    // therefore name an open ledger PR; one that claims its own merge must still
+    // prove it.
+    const marketplaceParticipant = operation.participants?.find(
+      ({ component }) => component === 'marketplace',
+    );
+    const singlePullRequestCycle =
+      marketplaceParticipant?.commitSha === null &&
+      marketplaceParticipant?.tag === null &&
+      marketplaceParticipant?.tarballDigest === null;
+    const ledgerPullRequestState = operation?.ledger?.pullRequest?.state;
+    const acceptableLedgerStates = singlePullRequestCycle ? ['merged', 'open'] : ['merged'];
+    if (!acceptableLedgerStates.includes(ledgerPullRequestState)) {
+      errors.push(
+        singlePullRequestCycle
+          ? `${operation.state} operation requires an open or merged marketplace ledger PR`
+          : `${operation.state} operation requires a merged marketplace ledger PR`,
+      );
     }
   }
   if (operation?.state === 'verified') {
@@ -404,20 +488,62 @@ export function validateOperation(operation) {
       errors.push('verified operation requires matched live-state reconciliation');
     }
     for (const participant of operation.participants ?? []) {
+      // The marketplace participant's merge commit, tag, and archive digest all
+      // describe the commit that CONTAINS this ledger. They cannot be known while
+      // authoring it, which is the whole reason a cycle needed two pull requests:
+      // one to stage a `drafted` ledger, then — once the merge commit existed and
+      // was tagged — a second to write those three facts back and flip to
+      // `verified`. That split is what creates the withheld window in which the
+      // manifest advertises a stale tuple.
+      //
+      // A ledger may now decline the self-reference: the marketplace participant
+      // sets commitSha, tag, and tarballDigest to null, and its pullRequest to the
+      // still-open ledger PR. Nothing outside this repository reads those fields
+      // (the only external reader of any tarballDigest is planr-pipeline's saga,
+      // and it reads the npm package-level digest), and every one of them is
+      // recoverable from git at read time: the ledger file is in the commit, the
+      // tag points at it, and `git archive` of that commit reproduces the digest.
+      // Recording them buys nothing and costs a second pull request.
+      //
+      // All-or-nothing: a participant that claims one self-fact must claim all of
+      // them, so a partially-populated marketplace participant still fails closed.
+      const selfReferential = participant.component === 'marketplace';
+      const declinedSelfReference =
+        selfReferential &&
+        participant.commitSha === null &&
+        participant.tag === null &&
+        participant.tarballDigest === null;
+
       if (!participant.approvals?.some(({ gate }) => gate === 'release')) {
         errors.push(`verified operation requires release approval for ${participant.component}`);
       }
-      if (participant.pullRequest?.state !== 'merged') {
+      if (!declinedSelfReference && participant.pullRequest?.state !== 'merged') {
         errors.push(`verified operation requires merged PR for ${participant.component}`);
+      }
+      if (declinedSelfReference && !participant.pullRequest?.number) {
+        errors.push(
+          'a marketplace participant that declines self-reference must still name its ledger PR',
+        );
       }
       if (!participant.checks?.length || participant.checks.some(({ status }) => status !== 'passed')) {
         errors.push(`verified operation requires passed CI checks for ${participant.component}`);
       }
-      if (!participant.tag) {
+      if (!declinedSelfReference && !participant.tag) {
         errors.push(`verified operation requires a tag for ${participant.component}`);
       }
-      if (!digestPattern.test(participant.tarballDigest ?? '')) {
+      if (!declinedSelfReference && !digestPattern.test(participant.tarballDigest ?? '')) {
         errors.push(`verified operation requires tarballDigest for ${participant.component}`);
+      }
+      if (
+        selfReferential &&
+        !declinedSelfReference &&
+        (participant.commitSha === null ||
+          participant.tag === null ||
+          participant.tarballDigest === null)
+      ) {
+        errors.push(
+          'marketplace self-reference is all-or-nothing: claim commitSha, tag, and tarballDigest together, or set all three to null',
+        );
       }
       if (
         participant.package &&
