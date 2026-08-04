@@ -217,6 +217,10 @@ test('replay reports a clean ledger and returns 0', async () => {
       }
       return { ok: true, arrayBuffer: async () => tarballBytes };
     },
+    // Injected so the offline test stays offline: the marketplace participant's
+    // digest otherwise runs `git archive` against a real clone, which a shallow
+    // CI checkout cannot satisfy.
+    exec: () => Buffer.from('pretend marketplace archive'),
     // The recorded tarball digests are of the real artifacts, which the stub does
     // not serve, so only the fields the stub can honestly reproduce are compared.
     log: (line) => lines.push(line),

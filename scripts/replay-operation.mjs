@@ -39,6 +39,11 @@ export async function replayOperation({
   githubApi = ghApi,
   fetchImpl = fetch,
   marketplaceRoot = repositoryRoot,
+  // The marketplace digest is computed from the local git object store, so this
+  // seam has to be injectable alongside the network ones — otherwise a caller who
+  // has stubbed every remote source still reaches for a real clone, and fails
+  // wherever the history is shallow or absent.
+  exec,
   log = console.log,
 }) {
   const results = [];
@@ -55,6 +60,7 @@ export async function replayOperation({
       githubApi,
       fetchImpl,
       repositoryRoot: marketplaceRoot,
+      exec,
     });
     results.push({
       component: participant.component,
