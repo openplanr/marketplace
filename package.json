@@ -13,6 +13,7 @@
     "canary:materialize": "node scripts/materialize-operating-canary.mjs",
     "reconcile:operation": "node scripts/reconcile-operation.mjs",
     "test": "node --test",
-    "replay:operation": "node scripts/replay-operation.mjs"
+    "replay:operation": "node scripts/replay-operation.mjs",
+    "stage-release": "node scripts/stage-release.mjs"
   }
 }
