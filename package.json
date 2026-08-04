@@ -12,6 +12,7 @@
     "canary:report": "node scripts/operating-canary-evidence.mjs",
     "canary:materialize": "node scripts/materialize-operating-canary.mjs",
     "reconcile:operation": "node scripts/reconcile-operation.mjs",
-    "test": "node --test"
+    "test": "node --test",
+    "replay:operation": "node scripts/replay-operation.mjs"
   }
 }
