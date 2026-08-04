@@ -21,7 +21,16 @@ const repositoryDirectories = {
   skills: 'skills',
   marketplace: 'marketplace',
 };
-const repoLocalWorkItems = {
+/**
+ * Work item for a participant whose release record is its own published changelog.
+ * Preferred for new operations: the artifact is already public, already written per
+ * release, and already shipped to consumers — so a coordinated release stops minting
+ * an internal process document inside a product repository. Binding it is checked by
+ * released-version heading, not mere existence.
+ */
+export const CHANGELOG_WORK_ITEM = 'CHANGELOG.md';
+
+export const repoLocalWorkItems = {
   'OPERATE-SPEC-007': {
     pipeline: 'docs/implementation/operating-board.md',
     cli: 'docs/implementation/OPERATE-SPEC-007.md',
@@ -308,6 +317,23 @@ export function validateOperation(operation) {
         errors.push(
           `${expected} repoLocalWorkItem does not exist: ${expectedWorkItem}`,
         );
+      } else if (workItemRoot && expectedWorkItem === CHANGELOG_WORK_ITEM) {
+        // A work item that is a whole-repository changelog would otherwise pass
+        // the existence check forever without saying anything about *this*
+        // release. Require the released version's own heading instead — a
+        // strictly stronger assertion than "a file is there", and one that binds
+        // the ledger to an artifact the project already publishes rather than to
+        // an internal process document minted per release.
+        const changelog = readFileSync(join(workItemRoot, expectedWorkItem), 'utf8');
+        const versionHeading = new RegExp(
+          `^#{1,3}\\s*v?${participant.targetVersion.replace(/\./g, '\\.')}\\s*$`,
+          'm',
+        );
+        if (!versionHeading.test(changelog)) {
+          errors.push(
+            `${expected} ${expectedWorkItem} has no heading for released version ${participant.targetVersion}`,
+          );
+        }
       }
       if (seen.has(participant?.component)) {
         errors.push(`duplicate participant: ${participant?.component}`);
