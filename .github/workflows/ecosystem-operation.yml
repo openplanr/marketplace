@@ -17,6 +17,7 @@ on:
       - 'examples/agent-native-operate-durable-orchestration-operation.json'
       - 'examples/agent-native-operate-installed-tuple-reconciliation-operation.json'
       - 'examples/agent-native-operate-workflow-convergence-operation.json'
+      - 'examples/agent-native-operate-devex-release-operation.json'
       - 'operations/**'
       - 'schemas/ecosystem-operation.schema.json'
       - 'scripts/generate-ecosystem.mjs'
