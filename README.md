@@ -104,6 +104,28 @@ work item. This is a coordinated saga, not a claim of cross-provider atomicity:
 the coordinator reconciles actual GitHub/npm state on resume and uses a
 forward-fix after publication.
 
+### One pull request per cycle
+
+A cycle used to need two pull requests. The marketplace participant records the
+merge commit, tag, and archive digest of the commit that *contains* the ledger —
+facts that cannot exist while it is being written — so the first PR staged a
+`drafted` ledger and a second, after the tag existed, wrote those facts back and
+flipped it to `verified`. Between the two the manifest advertised the previous
+tuple.
+
+A ledger may instead **decline the self-reference**: the marketplace participant
+sets `commitSha`, `tag`, and `tarballDigest` to `null` and names the still-open
+ledger PR. Nothing outside this repository reads those fields, and each is
+recoverable from git at read time — the ledger is in the commit, the tag points at
+it, and `git archive` of that commit reproduces the digest. Such a ledger verifies
+in a single pull request, and merging it advances the manifest immediately.
+
+The exemption is all-or-nothing and applies only to the marketplace participant: a
+ledger that claims one of the three must claim all three, and pipeline, CLI, and
+skills describe artifacts that exist independently of this file, so they are always
+recorded. The two-step form remains valid and every previously recorded ledger is
+unaffected.
+
 The strict contract is
 [`schemas/ecosystem-operation.schema.json`](./schemas/ecosystem-operation.schema.json);
 [`examples/ecosystem-operation.json`](./examples/ecosystem-operation.json)
