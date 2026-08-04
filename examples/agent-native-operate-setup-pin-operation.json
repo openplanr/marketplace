@@ -8,13 +8,17 @@
   "title": "Re-align the advertised CLI after the setup pin fix",
   "capability": "agenticOperatingBoard",
   "createdAt": "2026-08-04T19:07:00.000Z",
-  "updatedAt": "2026-08-04T19:07:00.000Z",
-  "state": "drafted",
+  "updatedAt": "2026-08-04T19:20:00.000Z",
+  "state": "verified",
   "ledger": {
     "kind": "marketplace-draft-pr",
     "repository": "openplanr/marketplace",
     "headRef": "ecosystem-release/operate-spec-013",
-    "pullRequest": null
+    "pullRequest": {
+      "number": 116,
+      "url": "https://github.com/openplanr/marketplace/pull/116",
+      "state": "merged"
+    }
   },
   "participantOrder": [
     "pipeline",
@@ -30,7 +34,7 @@
       "repository": "openplanr/planr-pipeline",
       "currentVersion": "0.41.0",
       "targetVersion": "0.41.0",
-      "phase": "published",
+      "phase": "verified",
       "branch": "release/0.41.0",
       "targetBranch": "main",
       "commitSha": "99ec3db1974b6ac9598b9c9a84c3fa60c0dfa0d7",
@@ -59,7 +63,15 @@
           "url": "https://github.com/openplanr/planr-pipeline/actions/runs/30930875323"
         }
       ],
-      "approvals": [],
+      "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-08-04T19:20:00.000Z",
+          "digest": "sha256:8eff58284ab0597274914b8e4fe320ca476d56ed26a5443594160cf0f38dda9b"
+        }
+      ],
       "prerequisites": [],
       "compensation": "forward-fix",
       "nextSafeAction": "Unchanged participant: no pipeline change in this operation; the published 0.41.0 artifacts carry forward from OPERATE-SPEC-012."
@@ -71,7 +83,7 @@
       "repository": "openplanr/OpenPlanr",
       "currentVersion": "1.25.0",
       "targetVersion": "1.25.1",
-      "phase": "published",
+      "phase": "verified",
       "branch": "changeset-release/main",
       "targetBranch": "main",
       "commitSha": "78d7b48a28ecdbef606f8bcb863ef2afcb03ac1f",
@@ -100,7 +112,15 @@
           "url": "https://github.com/openplanr/OpenPlanr/actions/runs/30941209711"
         }
       ],
-      "approvals": [],
+      "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-08-04T19:20:00.000Z",
+          "digest": "sha256:8eff58284ab0597274914b8e4fe320ca476d56ed26a5443594160cf0f38dda9b"
+        }
+      ],
       "prerequisites": [
         "pipeline"
       ],
@@ -114,7 +134,7 @@
       "repository": "openplanr/skills",
       "currentVersion": "1.26.1",
       "targetVersion": "1.26.1",
-      "phase": "published",
+      "phase": "verified",
       "branch": "release/1.26.1",
       "targetBranch": "main",
       "commitSha": "98d7b0660336b3dbd59dfbcaaa9491433c07b3f4",
@@ -138,7 +158,15 @@
           "url": "https://github.com/openplanr/skills/actions/runs/30933405756"
         }
       ],
-      "approvals": [],
+      "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-08-04T19:20:00.000Z",
+          "digest": "sha256:8eff58284ab0597274914b8e4fe320ca476d56ed26a5443594160cf0f38dda9b"
+        }
+      ],
       "prerequisites": [
         "pipeline",
         "cli"
@@ -153,29 +181,51 @@
       "repository": "openplanr/marketplace",
       "currentVersion": "1.12.0",
       "targetVersion": "1.13.0",
-      "phase": "pending",
+      "phase": "verified",
       "branch": "ecosystem-release/operate-spec-013",
       "targetBranch": "main",
-      "commitSha": null,
-      "pullRequest": null,
+      "commitSha": "a7f4ba25c3235ab7758a614dd15a0ae3ece072a5",
+      "pullRequest": {
+        "number": 116,
+        "url": "https://github.com/openplanr/marketplace/pull/116",
+        "state": "merged"
+      },
       "package": null,
-      "tag": null,
-      "tarballDigest": null,
+      "tag": "v1.13.0",
+      "tarballDigest": "sha256:1fd41d724890664b3e338223729d41597d5162c6540d359d240bb20166e73b83",
       "checks": [
+        {
+          "name": "check",
+          "status": "passed",
+          "url": "https://github.com/openplanr/marketplace/actions/runs/30942520546"
+        },
+        {
+          "name": "operation-ledger",
+          "status": "passed",
+          "url": "https://github.com/openplanr/marketplace/actions/runs/30942519071"
+        },
         {
           "name": "real-runtime-canary",
           "status": "passed",
           "url": "https://github.com/openplanr/marketplace/actions/runs/30941819193"
         }
       ],
-      "approvals": [],
+      "approvals": [
+        {
+          "gate": "release",
+          "actor": "Asem",
+          "status": "approved",
+          "timestamp": "2026-08-04T19:20:00.000Z",
+          "digest": "sha256:8eff58284ab0597274914b8e4fe320ca476d56ed26a5443594160cf0f38dda9b"
+        }
+      ],
       "prerequisites": [
         "pipeline",
         "cli",
         "skills"
       ],
       "compensation": "withhold-manifest",
-      "nextSafeAction": "Merge this staging ledger, tag the merge commit v1.13.0, then finalize so the advertised tuple advances to 0.41.0/1.25.1/1.26.1/1.13.0 and the published-drift check returns to green."
+      "nextSafeAction": "Verified at v1.13.0 after the real-runtime canary passed on the 1.25.1 tuple; the published-drift check clears with this manifest advance."
     }
   ],
   "releaseEvidence": [
@@ -215,18 +265,18 @@
       "checkedAt": "2026-08-04T19:05:00.000Z"
     }
   ],
-  "prepareDigest": null,
-  "confirmationDigest": null,
+  "prepareDigest": "sha256:400c2312cd420b1e380f6083053ef8a4946f39e1a0aa98af93389f5ebfbd3a13",
+  "confirmationDigest": "sha256:2aada7ea6be158c8669346b30a6ef93f34a57152e8a8679147992791ca208635",
   "blockedReason": null,
-  "nextSafeAction": "Merge this staging ledger, then tag the merge commit v1.13.0 and finalize so the manifest advertises the published tuple.",
+  "nextSafeAction": "Archive the verified setup-pin operation; the advertised tuple now aligns installs to 0.41.0/1.25.1/1.26.1/1.13.0 and the published-drift check is green.",
   "recovery": {
     "mode": "forward-fix",
     "reason": "openplanr 1.25.1 is a public npm package; the ledger reconciles the manifest and cannot roll it back.",
     "nextSafeAction": "Do not rewrite or unpublish any released artifact; withhold the manifest until the ledger verifies."
   },
   "reconciliation": {
-    "status": "pending",
-    "checkedAt": "2026-08-04T19:07:00.000Z",
+    "status": "matched",
+    "checkedAt": "2026-08-04T19:20:00.000Z",
     "sources": [
       "github-pr",
       "git-commit",
@@ -237,7 +287,7 @@
       "operating-canary"
     ],
     "drift": [],
-    "nextSafeAction": "Reconcile after the staging ledger merges and the marketplace tag is placed."
+    "nextSafeAction": "Pipeline 0.41.0, OpenPlanr 1.25.1, skills 1.26.1, marketplace 1.13.0, npm state, and the canary evidence match."
   },
   "history": [
     {
@@ -248,6 +298,24 @@
       "participant": "marketplace",
       "digest": "sha256:8eff58284ab0597274914b8e4fe320ca476d56ed26a5443594160cf0f38dda9b",
       "note": "Staged the setup-pin re-alignment after openplanr 1.25.1 published and the six-leg real-runtime canary passed. Pipeline and skills are unchanged participants. The published-drift check is red by design since 1.25.1 published; this operation clears it."
+    },
+    {
+      "eventId": "f2c81b47-9d63-4e05-a71f-3b6094ce2d18",
+      "timestamp": "2026-08-04T19:20:00.000Z",
+      "type": "reconciliation.recorded",
+      "actor": "Release coordinator",
+      "participant": "marketplace",
+      "digest": "sha256:2aada7ea6be158c8669346b30a6ef93f34a57152e8a8679147992791ca208635",
+      "note": "Merged PRs, tags, the published 1.25.1 npm artifact, the generated manifest, and the six-leg canary all matched. The fix was additionally verified on the published package: a clean-HOME install of openplanr@1.25.1 completes planr setup."
+    },
+    {
+      "eventId": "a94e70d3-15cb-4f82-b6e0-8d217fc5309b",
+      "timestamp": "2026-08-04T19:20:00.000Z",
+      "type": "operation.verified",
+      "actor": "Release coordinator",
+      "participant": "marketplace",
+      "digest": "sha256:8eff58284ab0597274914b8e4fe320ca476d56ed26a5443594160cf0f38dda9b",
+      "note": "The setup-pin tuple is verified for ecosystem availability; planr setup works from a fresh install."
     }
   ]
 }
