@@ -91,7 +91,12 @@ export async function buildOperation({
     if (!currentVersion) throw new Error(`cannot determine ${component} currentVersion`);
 
     const selfReferential = component === 'marketplace';
-    const facts = declared.pullRequest
+    // A participant that declines self-reference derives nothing: its commit,
+    // tag, and archive digest describe the commit that will CONTAIN this ledger.
+    // Collecting them would resolve a merge commit that does not exist while the
+    // pull request is open, and `git archive` would fail on a tree the local
+    // repository has never seen.
+    const facts = !selfReferential && declared.pullRequest
       ? await collectParticipantFacts({
           component,
           version: declared.targetVersion,

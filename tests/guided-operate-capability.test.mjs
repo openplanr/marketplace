@@ -176,14 +176,14 @@ test('verified compatibility promotes the default native cycle after reconciliat
     marketplace: '1.3.1',
   });
   assert.deepEqual(ecosystem.components, {
-    cli: { version: '1.25.1', pipelineRange: '^0.41.0' },
-    pipeline: { version: '0.41.0', cliRange: '^1.25.1' },
-    skills: { version: '1.26.1', cliRange: '^1.25.1' },
-    marketplace: { version: '1.13.0' },
+    cli: { version: '1.25.3', pipelineRange: '^0.42.0' },
+    pipeline: { version: '0.42.0', cliRange: '^1.25.3' },
+    skills: { version: '1.26.2', cliRange: '^1.25.3' },
+    marketplace: { version: '1.14.0' },
   });
 });
 
-test('the setup-pin tuple is available after its ledger verifies', async () => {
+test('the cycle-findings tuple is available after its ledger verifies', async () => {
   const ecosystem = await readJson('../ecosystem.json');
   const agentic = ecosystem.capabilities.agenticOperatingBoard;
   // Verified: the canary certified the 1.25.1 tuple, so the advertised CLI
@@ -193,10 +193,10 @@ test('the setup-pin tuple is available after its ledger verifies', async () => {
   assert.deepEqual(agentic.missing, []);
   assert.equal(agentic.protocolRange, '^1.4.0');
   assert.deepEqual(agentic.components, {
-    pipeline: '0.41.0',
-    cli: '1.25.1',
-    skills: '1.26.1',
-    marketplace: '1.13.0',
+    pipeline: '0.42.0',
+    cli: '1.25.3',
+    skills: '1.26.2',
+    marketplace: '1.14.0',
   });
   assert.deepEqual(agentic.advisorDispatch, {
     'claude-code': 'native-agent',
@@ -204,7 +204,7 @@ test('the setup-pin tuple is available after its ledger verifies', async () => {
     cursor: 'sequential-native',
   });
   assert.deepEqual(agentic.certifiedRuntimes, ['claude-code', 'codex', 'cursor']);
-  assert.equal(agentic.releaseOperation.operationId, 'OPERATE-SPEC-013');
+  assert.equal(agentic.releaseOperation.operationId, 'OPERATE-SPEC-014');
   assert.equal(agentic.releaseOperation.state, 'verified');
   assert.equal(agentic.releaseOperation.reconciliation, 'matched');
 });

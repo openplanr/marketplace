@@ -53,6 +53,18 @@ export async function replayOperation({
       results.push({ component: participant.component, skipped: 'no pull request recorded' });
       continue;
     }
+    // A participant that declined self-reference claims no commit, tag, or
+    // digest, so there is nothing to disagree with — and deriving them would
+    // resolve a merge commit that does not exist while its own pull request is
+    // open. Nothing claimed, nothing to replay.
+    if (
+      participant.commitSha === null &&
+      participant.tag === null &&
+      participant.tarballDigest === null
+    ) {
+      results.push({ component: participant.component, skipped: 'self-reference declined' });
+      continue;
+    }
     const derived = await collectParticipantFacts({
       component: participant.component,
       version: participant.targetVersion,

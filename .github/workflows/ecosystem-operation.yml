@@ -19,6 +19,7 @@ on:
       - 'examples/agent-native-operate-workflow-convergence-operation.json'
       - 'examples/agent-native-operate-devex-release-operation.json'
       - 'examples/agent-native-operate-setup-pin-operation.json'
+      - 'examples/operate-spec-014-operation.json'
       - 'operations/**'
       - 'schemas/ecosystem-operation.schema.json'
       - 'scripts/generate-ecosystem.mjs'
