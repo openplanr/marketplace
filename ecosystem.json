@@ -1,6 +1,6 @@
 {
   "schemaVersion": "1.1.0",
-  "generatedAt": "2026-08-04T19:18:02.609Z",
+  "generatedAt": "2026-08-05T14:50:33.203Z",
   "protocol": {
     "current": "1.4.0",
     "supported": [
@@ -13,27 +13,27 @@
   },
   "components": {
     "cli": {
-      "version": "1.25.1",
-      "pipelineRange": "^0.41.0"
+      "version": "1.25.3",
+      "pipelineRange": "^0.42.0"
     },
     "pipeline": {
-      "version": "0.41.0",
-      "cliRange": "^1.25.1"
+      "version": "0.42.0",
+      "cliRange": "^1.25.3"
     },
     "skills": {
-      "version": "1.26.1",
-      "cliRange": "^1.25.1"
+      "version": "1.26.2",
+      "cliRange": "^1.25.3"
     },
     "marketplace": {
-      "version": "1.13.0"
+      "version": "1.14.0"
     }
   },
   "adapters": [
     {
       "runtime": "claude-code",
-      "version": "0.41.0",
+      "version": "0.42.0",
       "capabilityLevel": "product",
-      "pipelineRange": "^0.41.0",
+      "pipelineRange": "^0.42.0",
       "operatingBoard": {
         "declared": true,
         "available": true,
@@ -44,9 +44,9 @@
     },
     {
       "runtime": "codex",
-      "version": "0.41.0",
+      "version": "0.42.0",
       "capabilityLevel": "workflow",
-      "pipelineRange": "^0.41.0",
+      "pipelineRange": "^0.42.0",
       "operatingBoard": {
         "declared": true,
         "available": true,
@@ -57,9 +57,9 @@
     },
     {
       "runtime": "cursor",
-      "version": "0.41.0",
+      "version": "0.42.0",
       "capabilityLevel": "workflow",
-      "pipelineRange": "^0.41.0",
+      "pipelineRange": "^0.42.0",
       "operatingBoard": {
         "declared": true,
         "available": true,
@@ -75,10 +75,10 @@
       "command": "planr operate",
       "protocolRange": "^1.2.0",
       "components": {
-        "pipeline": "0.41.0",
-        "cli": "1.25.1",
-        "skills": "1.26.1",
-        "marketplace": "1.13.0"
+        "pipeline": "0.42.0",
+        "cli": "1.25.3",
+        "skills": "1.26.2",
+        "marketplace": "1.14.0"
       },
       "certifiedRuntimes": [
         "claude-code",
@@ -126,10 +126,10 @@
       "command": "planr operate",
       "protocolRange": "^1.4.0",
       "components": {
-        "pipeline": "0.41.0",
-        "cli": "1.25.1",
-        "skills": "1.26.1",
-        "marketplace": "1.13.0"
+        "pipeline": "0.42.0",
+        "cli": "1.25.3",
+        "skills": "1.26.2",
+        "marketplace": "1.14.0"
       },
       "certifiedRuntimes": [
         "claude-code",
@@ -143,8 +143,8 @@
       },
       "missing": [],
       "releaseOperation": {
-        "operationId": "OPERATE-SPEC-013",
-        "operationDigest": "sha256:8eff58284ab0597274914b8e4fe320ca476d56ed26a5443594160cf0f38dda9b",
+        "operationId": "OPERATE-SPEC-014",
+        "operationDigest": "sha256:3400c5287eb4ccf01ee6192027a745f926b36134c4522505ab0bcbec7534a36c",
         "state": "verified",
         "reconciliation": "matched"
       }
