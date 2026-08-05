@@ -31,6 +31,12 @@ const repositoryDirectories = {
 export const CHANGELOG_WORK_ITEM = 'CHANGELOG.md';
 
 export const repoLocalWorkItems = {
+  'OPERATE-SPEC-014': {
+    pipeline: 'docs/implementation/operating-board.md',
+    cli: 'CHANGELOG.md',
+    skills: 'docs/implementation/operating-board.md',
+    marketplace: 'docs/implementation/OPERATE-SPEC-014.md',
+  },
   'OPERATE-SPEC-007': {
     pipeline: 'docs/implementation/operating-board.md',
     cli: 'docs/implementation/OPERATE-SPEC-007.md',
