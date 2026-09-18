@@ -5,25 +5,17 @@
     "name": "OpenPlanr",
     "url": "https://github.com/openplanr"
   },
-  "description": "OpenPlanr's official Claude Code metadata plus the resolved cross-runtime ecosystem compatibility manifest.",
+  "metadata": {
+    "version": "2.2.2",
+    "description": "Official OpenPlanr Claude Code plugin marketplace. The planr plugin is generated from the openplanr npm package of the same version."
+  },
   "plugins": [
     {
-      "name": "planr-pipeline",
-      "description": "Complete PO → Design → Review → DEV → QA workflow with feature-local planning, Protocol operating contracts, universal HTML artifact review, private sharing, boards, sync, dashboard, and native Claude Code enforcement.",
-      "source": {
-        "source": "github",
-        "repo": "openplanr/planr-pipeline"
-      },
-      "version": "0.42.0"
-    },
-    {
-      "name": "openplanr",
-      "description": "Reusable operating, planning, artifact review, PLAN, Design, SHIP, dashboard, sync, and doctor skills with truthful product and runtime routing.",
-      "source": {
-        "source": "github",
-        "repo": "openplanr/skills"
-      },
-      "version": "1.26.2"
+      "name": "planr",
+      "source": "./plugins/planr",
+      "version": "2.2.2",
+      "description": "Host-native OpenPlanr planning, delivery, review, design, and operating skills.",
+      "strict": true
     }
   ]
 }
