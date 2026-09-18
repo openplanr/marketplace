@@ -28,8 +28,7 @@ Then install any of the plugins below:
 <!-- plugin-table:start -->
 | Plugin | Version | Description |
 |---|---|---|
-| [`planr-pipeline`](https://github.com/openplanr/planr-pipeline) | 0.42.0 | Complete PO, Design, Review, DEV, and QA workflow with universal HTML artifact review and private sharing. |
-| [`openplanr`](https://github.com/openplanr/skills) | 1.26.2 | Unified operating, planning, artifact review, and delivery workflow skills for the certified runtimes. |
+| [`planr`](https://github.com/openplanr/OpenPlanr/tree/openplanr@2.2.2/packages/cli) | 2.2.2 | Host-native OpenPlanr planning, delivery, review, design, and operating skills. Generated from [`openplanr@2.2.2`](https://www.npmjs.com/package/openplanr/v/2.2.2). |
 <!-- plugin-table:end -->
 
 Versions in this README mirror `.claude-plugin/marketplace.json`; keep both in the same release-train change.
