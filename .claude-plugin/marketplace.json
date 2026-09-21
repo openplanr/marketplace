@@ -6,14 +6,14 @@
     "url": "https://github.com/openplanr"
   },
   "metadata": {
-    "version": "2.2.2",
+    "version": "2.5.0",
     "description": "Official OpenPlanr Claude Code plugin marketplace. The planr plugin is generated from the openplanr npm package of the same version."
   },
   "plugins": [
     {
       "name": "planr",
       "source": "./plugins/planr",
-      "version": "2.2.2",
+      "version": "2.5.0",
       "description": "Host-native OpenPlanr planning, delivery, review, design, and operating skills.",
       "strict": true
     }
