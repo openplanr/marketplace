@@ -8,7 +8,7 @@
   "files": [
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:f78e5406bd3f766995141623cd1f07cb318b0ea20ec8cef6db848a25ebf386df"
+      "digest": "sha256:8064b98946ccfb3736a555df6a51f8b26edfcc094a562f598331b0d00a082b9f"
     },
     {
       "path": "agents/planr-backend.md",
@@ -1291,5 +1291,5 @@
       "digest": "sha256:53698324b62f43b672ce8fe1654c526c96fb202e313442f09c6fc1e72268677e"
     }
   ],
-  "contentDigest": "sha256:2bb0b669bbe13a515f89033b55b369b08f12b7ab62f2dbbfd353eea972fbabaa"
+  "contentDigest": "sha256:46246b06dfa5a025cbb2c8f0468e0bf81c5ab796b42b714d5ae85d1a05149f0f"
 }
