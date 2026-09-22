@@ -8,13 +8,29 @@ Official Claude Code plugin marketplace for [OpenPlanr](https://github.com/openp
 /plugin marketplace add openplanr/marketplace
 ```
 
-Then install any of the plugins below:
+Then install the generated OpenPlanr plugin:
 
 ```
-/plugin install <plugin-name>@openplanr
+/plugin install planr@openplanr
 ```
 
-## Plugins
+## Plugin
+
+<!-- plugin-table:start -->
+| Plugin | Version | Description |
+|---|---|---|
+| [`planr`](https://github.com/openplanr/OpenPlanr/tree/openplanr@2.6.0/packages/cli) | 2.6.0 | Host-native OpenPlanr planning, delivery, review, design, and operating skills. Generated from [`openplanr@2.6.0`](https://www.npmjs.com/package/openplanr/v/2.6.0). |
+<!-- plugin-table:end -->
+
+Versions in this README mirror `.claude-plugin/marketplace.json`; keep both in the same release-train change.
+
+## Archived pre-consolidation release ledger
+
+The compatibility record below is preserved for the historical multi-repository
+release operations in this repository. Current CLI, pipeline, Protocol, skills,
+and host packages are versioned and generated from the
+[`openplanr/OpenPlanr`](https://github.com/openplanr/OpenPlanr) monorepo. It is
+not an installation matrix for the current `planr` plugin.
 
 <!-- ecosystem-table:start -->
 | Component | Version | Compatibility |
@@ -24,14 +40,6 @@ Then install any of the plugins below:
 | Runtime skills | 1.26.2 | CLI ^1.25.3 |
 | Protocol | 1.4.0 | reads v1.0 artifacts; additive capabilities through v1.4.0 |
 <!-- ecosystem-table:end -->
-
-<!-- plugin-table:start -->
-| Plugin | Version | Description |
-|---|---|---|
-| [`planr`](https://github.com/openplanr/OpenPlanr/tree/openplanr@2.6.0/packages/cli) | 2.6.0 | Host-native OpenPlanr planning, delivery, review, design, and operating skills. Generated from [`openplanr@2.6.0`](https://www.npmjs.com/package/openplanr/v/2.6.0). |
-<!-- plugin-table:end -->
-
-Versions in this README mirror `.claude-plugin/marketplace.json`; keep both in the same release-train change.
 
 ## Operating Board capability
 
@@ -238,8 +246,7 @@ The web installer installs only the CLI. Guided setup runs separately in an
 interactive terminal, displays detected coding agents, and defaults to safe
 user scope. Project scope requires a Git or initialized OpenPlanr project.
 When Claude Code is selected at user scope, the confirmed setup refreshes this
-marketplace and installs or updates `openplanr@openplanr` and
-`planr-pipeline@openplanr` to compatible versions. `planr doctor` reports
+marketplace and installs or updates `planr@openplanr`. `planr doctor` reports
 version or plugin-identity drift read-only; restart Claude Code after an update.
 
 ## Artifact review and private sharing
@@ -270,7 +277,7 @@ only and the decryption key remains in the URL fragment at
 and Cursor all route artifact actions through the public `planr` command rather
 than requiring the nested pipeline executable on `PATH`.
 
-Compatibility matrix: [`openplanr/planr-pipeline/docs/compatibility-matrix.md`](https://github.com/openplanr/planr-pipeline/blob/main/docs/compatibility-matrix.md). Protocol spec: [`openplanr/planr-pipeline/docs/protocol/`](https://github.com/openplanr/planr-pipeline/tree/main/docs/protocol).
+Compatibility matrix: [`packages/pipeline/docs/compatibility-matrix.md`](https://github.com/openplanr/OpenPlanr/blob/main/packages/pipeline/docs/compatibility-matrix.md). Protocol contracts: [`packages/protocol/`](https://github.com/openplanr/OpenPlanr/tree/main/packages/protocol).
 
 ## License
 

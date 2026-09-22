@@ -3,10 +3,18 @@ import { readFileSync } from 'node:fs';
 const manifest = JSON.parse(readFileSync(new URL('../.claude-plugin/marketplace.json', import.meta.url), 'utf8'));
 const ecosystem = JSON.parse(readFileSync(new URL('../ecosystem.json', import.meta.url), 'utf8'));
 const packageJson = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const pluginManifest = JSON.parse(
+  readFileSync(new URL('../plugins/planr/.claude-plugin/plugin.json', import.meta.url), 'utf8'),
+);
 const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
 const errors = [];
 
-for (const plugin of manifest.plugins || []) {
+const plugins = manifest.plugins || [];
+if (plugins.length !== 1 || plugins[0]?.name !== 'planr') {
+  errors.push('Marketplace must expose exactly one generated planr plugin');
+}
+
+for (const plugin of plugins) {
   const row = readme
     .split('\n')
     .find((line) => line.includes(`[\`${plugin.name}\`]`));
@@ -21,13 +29,16 @@ for (const plugin of manifest.plugins || []) {
   }
 }
 
-const pipelinePlugin = manifest.plugins?.find((plugin) => plugin.name === 'planr-pipeline');
-const skillsPlugin = manifest.plugins?.find((plugin) => plugin.name === 'openplanr');
-if (pipelinePlugin?.version !== ecosystem.components?.pipeline?.version) {
-  errors.push('Pipeline plugin version does not match ecosystem.json');
+const planrPlugin = plugins.find((plugin) => plugin.name === 'planr');
+if (planrPlugin?.source !== './plugins/planr' || planrPlugin?.strict !== true) {
+  errors.push('planr must resolve strictly from ./plugins/planr');
 }
-if (skillsPlugin?.version !== ecosystem.components?.skills?.version) {
-  errors.push('Skills plugin version does not match ecosystem.json');
+if (
+  manifest.metadata?.version !== planrPlugin?.version ||
+  pluginManifest.name !== 'planr' ||
+  pluginManifest.version !== planrPlugin?.version
+) {
+  errors.push('Marketplace, catalog entry, and packaged planr manifest versions must match');
 }
 if (packageJson.version !== ecosystem.components?.marketplace?.version) {
   errors.push('Marketplace package version does not match ecosystem.json');
