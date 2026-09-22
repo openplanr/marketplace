@@ -29,6 +29,12 @@ question UI. Write one digestless Protocol 1.6 diagram draft from the bundled
 contract, then run the command below. The CLI validates it and adds the
 canonical digest; the skill must not calculate that digest itself.
 
+For "who does what, and when" between actors, use a lane grammar (`swimlane`
+or `process`): one lane per actor with its `members`, `left-right` so lanes
+read as rows, and relations for the handoffs. For a board (`kanban`,
+`story-map`), use `top-down` so lanes read as columns and leave `relations`
+empty; members stack in declared order.
+
 ```sh
 planr diagram render <file>.planr-diagram.json --json
 ```
@@ -49,6 +55,23 @@ a source branch of an existing generated set; rerender its manifest with
   primitives, and layout families. Read the
   [fidelity guide](references/diagram-fidelity.md) when choosing an editable
   projection or explaining an omitted one.
+
+## Look before you hand over
+
+Every manifest result carries a `quality` object — `status`, `failedChecks`,
+`warningChecks`. Treat anything other than `pass` as unfinished work. An
+`invalid` set returns no `nextAction`: restructure and render again rather than
+opening the studio. A missing `quality` object means the report could not be
+read, which `warnings` explains; that set is unverified, not verified.
+
+A `pass` quality status is necessary, not sufficient. After every render, open
+the PNG or SVG the command lists and check four signatures: a label that reads as
+another node's caption, rectangles that overlap, a connector crossing the whole
+canvas, and a node drawn below a step it precedes. Any `warning` check, in
+particular `label-foreign-node`, names the first of these. When one appears,
+restructure using the [layout heuristics](references/diagram-intent-to-ir.md)
+(fewer relations per node, no back edge, no groups, shorter labels) and render
+again before starting the studio. Report which signatures you checked.
 
 After a successful render or rerender, run the returned `nextAction` to start
 the native diagram studio (one SVG canvas, outline, pan/zoom, comments, and
