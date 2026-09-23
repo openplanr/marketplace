@@ -8,7 +8,7 @@
   "files": [
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:8064b98946ccfb3736a555df6a51f8b26edfcc094a562f598331b0d00a082b9f"
+      "digest": "sha256:998c286eee3bb61dcba08b8c3b9f6d0b631aae3663a215f59ef3ef682d0006f7"
     },
     {
       "path": "agents/planr-backend.md",
@@ -424,7 +424,7 @@
     },
     {
       "path": "skills/design-loop/scripts/design.mjs",
-      "digest": "sha256:3fec9a1d47bc41c0caf4909a2c4b9d00205da630c015a46f6921caf2a4d7a2d2"
+      "digest": "sha256:e368470cc9863cd20f5d5815c1d1df30a0f8432cbc09160f5b445fdb5420d4be"
     },
     {
       "path": "skills/design-loop/scripts/runtime/notices/entities.txt",
@@ -472,7 +472,7 @@
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:005fd84b459d0673203781da7693ffb28b379ef73096213fd6df5c2606617730"
+      "digest": "sha256:6e51f9d61b978532cd129f442a4e88f9f3900e58a7239427ec264c34a1337ac3"
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/protocol/registry/artifact-theme.json",
@@ -612,7 +612,7 @@
     },
     {
       "path": "skills/design-review/scripts/design.mjs",
-      "digest": "sha256:3fec9a1d47bc41c0caf4909a2c4b9d00205da630c015a46f6921caf2a4d7a2d2"
+      "digest": "sha256:e368470cc9863cd20f5d5815c1d1df30a0f8432cbc09160f5b445fdb5420d4be"
     },
     {
       "path": "skills/design-review/scripts/runtime/notices/entities.txt",
@@ -660,7 +660,7 @@
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:005fd84b459d0673203781da7693ffb28b379ef73096213fd6df5c2606617730"
+      "digest": "sha256:6e51f9d61b978532cd129f442a4e88f9f3900e58a7239427ec264c34a1337ac3"
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/protocol/registry/artifact-theme.json",
@@ -800,7 +800,7 @@
     },
     {
       "path": "skills/design/scripts/design.mjs",
-      "digest": "sha256:3fec9a1d47bc41c0caf4909a2c4b9d00205da630c015a46f6921caf2a4d7a2d2"
+      "digest": "sha256:e368470cc9863cd20f5d5815c1d1df30a0f8432cbc09160f5b445fdb5420d4be"
     },
     {
       "path": "skills/design/scripts/runtime/notices/entities.txt",
@@ -848,7 +848,7 @@
     },
     {
       "path": "skills/design/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:005fd84b459d0673203781da7693ffb28b379ef73096213fd6df5c2606617730"
+      "digest": "sha256:6e51f9d61b978532cd129f442a4e88f9f3900e58a7239427ec264c34a1337ac3"
     },
     {
       "path": "skills/design/scripts/runtime/packages/protocol/registry/artifact-theme.json",
@@ -1048,7 +1048,7 @@
     },
     {
       "path": "skills/plan/scripts/design.mjs",
-      "digest": "sha256:3fec9a1d47bc41c0caf4909a2c4b9d00205da630c015a46f6921caf2a4d7a2d2"
+      "digest": "sha256:e368470cc9863cd20f5d5815c1d1df30a0f8432cbc09160f5b445fdb5420d4be"
     },
     {
       "path": "skills/plan/scripts/planning-ids.mjs",
@@ -1100,7 +1100,7 @@
     },
     {
       "path": "skills/plan/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:005fd84b459d0673203781da7693ffb28b379ef73096213fd6df5c2606617730"
+      "digest": "sha256:6e51f9d61b978532cd129f442a4e88f9f3900e58a7239427ec264c34a1337ac3"
     },
     {
       "path": "skills/plan/scripts/runtime/packages/protocol/registry/artifact-theme.json",
@@ -1291,5 +1291,5 @@
       "digest": "sha256:53698324b62f43b672ce8fe1654c526c96fb202e313442f09c6fc1e72268677e"
     }
   ],
-  "contentDigest": "sha256:46246b06dfa5a025cbb2c8f0468e0bf81c5ab796b42b714d5ae85d1a05149f0f"
+  "contentDigest": "sha256:a24289064375999fc4a45bb6ab86d2f3d82e03230318d1ab653dd4c971785fae"
 }
