@@ -19,7 +19,7 @@ Then install the generated OpenPlanr plugin:
 <!-- plugin-table:start -->
 | Plugin | Version | Description |
 |---|---|---|
-| [`planr`](https://github.com/openplanr/OpenPlanr/tree/openplanr@2.6.1/packages/cli) | 2.6.1 | Host-native OpenPlanr planning, delivery, review, design, and operating skills. Generated from [`openplanr@2.6.1`](https://www.npmjs.com/package/openplanr/v/2.6.1). |
+| [`planr`](https://github.com/openplanr/OpenPlanr/tree/openplanr@2.2639.1/packages/cli) | 2.2639.1 | Host-native OpenPlanr planning, delivery, review, design, and operating skills. Generated from [`openplanr@2.2639.1`](https://www.npmjs.com/package/openplanr/v/2.2639.1). |
 <!-- plugin-table:end -->
 
 Versions in this README mirror `.claude-plugin/marketplace.json`; keep both in the same release-train change.
