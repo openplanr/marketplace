@@ -14910,6 +14910,7 @@ function createArtifactReviewServer({
     throw artifactError(ARTIFACT_ERROR_CODES.LOOPBACK_STATE, "Artifact review instance id is invalid.");
   }
   const sessions = /* @__PURE__ */ new Map();
+  const ownerSessions = /* @__PURE__ */ new Map();
   let port = null;
   let closePromise = null;
   let pendingRegistrations = 0;
@@ -14917,7 +14918,7 @@ function createArtifactReviewServer({
   let draining = false;
   let emptyTimer = null;
   const stageRuntime = () => readFileSync11(STAGE_RUNTIME_PATH, "utf8");
-  const idle = () => sessions.size === 0 && pendingRegistrations === 0 && activeRequests === 0;
+  const idle = () => sessions.size === 0 && ownerSessions.size === 0 && pendingRegistrations === 0 && activeRequests === 0;
   const scheduleEmpty = () => {
     if (emptyTimer || draining || typeof onEmpty !== "function") return;
     emptyTimer = setTimeout(async () => {
@@ -15040,6 +15041,55 @@ function createArtifactReviewServer({
           return;
         }
         notFound(res, { head });
+        return;
+      }
+      if (segments[0] === "o") {
+        const owner = safeSessionId(segments[1]) && ownerSessions.get(segments[1]);
+        if (draining || !sessionMatches(owner, segments[2])) {
+          notFound(res, { head });
+          return;
+        }
+        if (segments.length === 3 && !trailingSlash && ["GET", "HEAD"].includes(req.method)) {
+          send(res, 308, "", { location: `/o/${owner.id}/${owner.capability}/` }, { head });
+          return;
+        }
+        const request2 = Promise.resolve().then(() => owner.handleRequest({
+          req,
+          segments: segments.slice(3),
+          head,
+          origin: `http://${LOOPBACK_HOST}:${port}`,
+          recoveryScope: owner.recoveryScope
+        }));
+        owner.pending.add(request2);
+        let response;
+        try {
+          response = await request2;
+        } finally {
+          owner.pending.delete(request2);
+        }
+        if (!response) {
+          notFound(res, { head });
+          return;
+        }
+        if (response.kind === "asset") {
+          const mediaTypes = { document: "text/html", runtime: "text/javascript", stylesheet: "text/css" };
+          if (!Object.hasOwn(mediaTypes, response.asset) || typeof response.body !== "string") throw new Error("Invalid owner asset response.");
+          send(res, response.status, response.body, {
+            ...parentHeaders(),
+            "content-type": `${mediaTypes[response.asset]}; charset=utf-8`,
+            "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          }, { head });
+          return;
+        }
+        send(res, response.status, JSON.stringify(response.body), {
+          // Rejections may precede body consumption (for example Content-Length
+          // above the limit). Do not reuse a socket containing unread body bytes.
+          ...response.status >= 400 ? { connection: "close" } : {},
+          "content-type": "application/json; charset=utf-8",
+          "cross-origin-resource-policy": "same-origin",
+          "content-security-policy": "default-src 'none'; frame-ancestors 'none'",
+          "x-frame-options": "DENY"
+        }, { head });
         return;
       }
       if (segments.length < 3 || segments[0] !== "r" || !safeSessionId(segments[1])) {
@@ -15200,6 +15250,32 @@ function createArtifactReviewServer({
     controlToken,
     instanceId,
     sessionCount: () => sessions.size,
+    /** Trusted local authority only; this operation has no HTTP control route. */
+    registerOwnerSession({ handleRequest } = {}) {
+      if (draining || closePromise || typeof handleRequest !== "function") {
+        throw artifactError(ARTIFACT_ERROR_CODES.LOOPBACK_STATE, "Local owner session cannot be registered.");
+      }
+      const id4 = mintCapabilityToken({ bytes: SESSION_ID_BYTES });
+      const owner = {
+        id: id4,
+        capability: mintCapabilityToken({ bytes: SESSION_TOKEN_BYTES }),
+        recoveryScope: `diagram-owner_${id4}`,
+        handleRequest,
+        pending: /* @__PURE__ */ new Set()
+      };
+      ownerSessions.set(id4, owner);
+      return Object.freeze({
+        sessionId: id4,
+        capability: owner.capability,
+        recoveryScope: owner.recoveryScope,
+        path: `/o/${id4}/${owner.capability}/`,
+        async close() {
+          ownerSessions.delete(id4);
+          await Promise.allSettled([...owner.pending]);
+          if (idle()) scheduleEmpty();
+        }
+      });
+    },
     isIdle: idle,
     accepting: () => !draining && !closePromise,
     beginCloseIfIdle() {
@@ -15224,6 +15300,9 @@ function createArtifactReviewServer({
       emptyTimer = null;
       closePromise = (async () => {
         sessions.clear();
+        const pendingOwners = [...ownerSessions.values()].flatMap((owner) => [...owner.pending]);
+        ownerSessions.clear();
+        await Promise.allSettled(pendingOwners);
         await closeHttpServer(server);
       })();
       return closePromise;
