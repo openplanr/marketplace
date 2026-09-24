@@ -1,6 +1,6 @@
 {
   "name": "@openplanr/protocol",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "type": "module",
   "description": "Canonical OpenPlanr schemas, registries, typed errors, and portable contract validation",
   "license": "MIT",
@@ -83,6 +83,10 @@
     "./enterprise-contracts": {
       "types": "./src/enterprise-contracts.d.mts",
       "import": "./src/enterprise-contracts.mjs"
+    },
+    "./diagram-authoring-contracts": {
+      "types": "./src/diagram-authoring-contracts.d.mts",
+      "import": "./src/diagram-authoring-contracts.mjs"
     }
   },
   "files": [
