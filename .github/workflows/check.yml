@@ -6,16 +6,28 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node: [20, 22]
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
-      - run: npm run check
-      - run: npm test
+          node-version: 22
+      # Pinned so a Claude Code release cannot change the verdict on an unchanged mirror.
+      - run: npm install --global @anthropic-ai/claude-code@2.1.280
+      - name: Validate the marketplace manifest
+        run: claude plugin validate --strict .
+      - name: Validate the planr plugin
+        run: claude plugin validate --strict plugins/planr
+      - name: Check the README plugin table
+        run: |
+          version=$(node -p "require('./.claude-plugin/marketplace.json').plugins[0].version")
+          grep -qF "| $version |" README.md || {
+            echo "README.md plugin table does not list planr $version from .claude-plugin/marketplace.json"
+            exit 1
+          }
