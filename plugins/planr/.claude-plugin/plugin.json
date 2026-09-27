@@ -1,9 +1,19 @@
 {
   "name": "planr",
-  "version": "2.2639.2",
+  "displayName": "OpenPlanr",
+  "version": "2.2639.3",
   "description": "Host-native OpenPlanr planning, delivery, review, design, and operating skills.",
   "author": {
     "name": "AsemDevs"
   },
-  "license": "MIT"
+  "homepage": "https://openplanr.dev",
+  "repository": "https://github.com/openplanr/OpenPlanr",
+  "license": "MIT",
+  "keywords": [
+    "planning",
+    "specification",
+    "delivery",
+    "code-review",
+    "design"
+  ]
 }
