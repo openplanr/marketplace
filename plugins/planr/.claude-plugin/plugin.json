@@ -1,10 +1,11 @@
 {
   "name": "planr",
   "displayName": "OpenPlanr",
-  "version": "2.2639.5",
+  "version": "2.2640.0",
   "description": "Host-native OpenPlanr planning, delivery, review, design, and operating skills.",
   "author": {
-    "name": "AsemDevs"
+    "name": "OpenPlanr",
+    "url": "https://openplanr.dev"
   },
   "homepage": "https://openplanr.dev",
   "repository": "https://github.com/openplanr/OpenPlanr",
@@ -15,5 +16,9 @@
     "delivery",
     "code-review",
     "design"
-  ]
+  ],
+  "privacyPolicyUrl": "https://openplanr.dev/privacy",
+  "termsOfServiceUrl": "https://openplanr.dev/terms",
+  "supportUrl": "https://github.com/openplanr/OpenPlanr/blob/main/SUPPORT.md",
+  "documentationUrl": "https://github.com/openplanr/OpenPlanr/blob/main/docs/getting-started.md"
 }
