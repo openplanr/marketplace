@@ -19,7 +19,8 @@ jobs:
         with:
           node-version: 22
       # Pinned so a Claude Code release cannot change the verdict on an unchanged mirror.
-      - run: npm install --global @anthropic-ai/claude-code@2.1.280
+      # 2.1.281 is the first release whose --strict accepts directory listing fields such as privacyPolicyUrl.
+      - run: npm install --global @anthropic-ai/claude-code@2.1.284
       - name: Validate the marketplace manifest
         run: claude plugin validate --strict .
       - name: Validate the planr plugin
