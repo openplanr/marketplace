@@ -7,8 +7,12 @@
   "roleCount": 9,
   "files": [
     {
+      "path": ".claude-plugin/icon.svg",
+      "digest": "sha256:75fac2fbc96f8b3599c6aafc8cc61a46e1c1e65b9533e1b5cba6add060e2a734"
+    },
+    {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:f955796cc795381d4e7aa0266d98070cb214212f6d0e23cfc62ae011e1199896"
+      "digest": "sha256:dadfd9439f163027d994c4cd990d9efb313ed8f63b8524ece96c7280668b66ee"
     },
     {
       "path": "agents/planr-backend.md",
@@ -48,7 +52,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:a1d6ac0d4b9ceca3d46c4a1b856682c71b1ea16ef7f3db4249d7fe693674fa6c"
+      "digest": "sha256:4fc3fba2c92ba523cb919b418ab37627455ddecbce5b347616e0de52eaef377a"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -204,7 +208,7 @@
     },
     {
       "path": "skills/ceo-review/SKILL.md",
-      "digest": "sha256:fa0e64563962c9c5232b78693fdb330e87f5474815721427cfdafb11a6fef265"
+      "digest": "sha256:9c51ceb66d20f49ca417da1213441d4824cba8206d88f33b2481ed6eea51a399"
     },
     {
       "path": "skills/chair-review/openplanr.skill.json",
@@ -228,7 +232,7 @@
     },
     {
       "path": "skills/chair-review/SKILL.md",
-      "digest": "sha256:3336fb4b44874e421d57ce42ef49620873289b2ede6fdf7b4431f787c61c3be7"
+      "digest": "sha256:fcc1f07dff8de8bd104a0176a4265fb71e380a9a3dbbcbc0c21e4a113f38acfd"
     },
     {
       "path": "skills/challenger-review/openplanr.skill.json",
@@ -252,7 +256,7 @@
     },
     {
       "path": "skills/challenger-review/SKILL.md",
-      "digest": "sha256:9e2f5356100826c7e526bd57c3a09deca1f303cbd0a31591fd2ab1bfa5a5378b"
+      "digest": "sha256:7eb97bc94201cd9aff3751430437ea116b15a8d1347269ce3b0cbbd9cbf0d8c7"
     },
     {
       "path": "skills/cmo-review/openplanr.skill.json",
@@ -280,7 +284,7 @@
     },
     {
       "path": "skills/cmo-review/SKILL.md",
-      "digest": "sha256:425c71f6fec8a60db7a25017237fa136808a4b66d2f6e19ae259fe943b8467eb"
+      "digest": "sha256:31112e8deae357bbde9d51d9707400f63e16563bf08f4774acb52e2f5ccdfa2a"
     },
     {
       "path": "skills/coo-review/openplanr.skill.json",
@@ -308,7 +312,7 @@
     },
     {
       "path": "skills/coo-review/SKILL.md",
-      "digest": "sha256:48c80085871d3a19825120ba18828587347a8877b16b016ca65cea7cc1a87736"
+      "digest": "sha256:8d6b132b39e41d249961602e002035f4748f1ad4299984952f00d6b16485a678"
     },
     {
       "path": "skills/cpo-review/openplanr.skill.json",
@@ -336,7 +340,7 @@
     },
     {
       "path": "skills/cpo-review/SKILL.md",
-      "digest": "sha256:bf26e686965921029fed599fa7d597686dc42ce44f8000e0a2b36a6d5f5174de"
+      "digest": "sha256:77d2f464f9102515ab842fc5afe76feae7a12c9ecde150c2392a599b50186cf4"
     },
     {
       "path": "skills/cto-review/openplanr.skill.json",
@@ -364,7 +368,7 @@
     },
     {
       "path": "skills/cto-review/SKILL.md",
-      "digest": "sha256:978cb42db8fa3e23a9ca7717806cd5e73cb7df74e4ac56b3d6352602f999f44f"
+      "digest": "sha256:7addd0afdd7a17032f24c54c11dfc80beef516f0d7d90dfa11392a9556245b1e"
     },
     {
       "path": "skills/dashboard/openplanr.skill.json",
@@ -376,7 +380,7 @@
     },
     {
       "path": "skills/design-loop/openplanr.skill.json",
-      "digest": "sha256:56dc09a795ee2a2cfb98b4a2f023f8fe83d044a7e5a4778d906c78116ba78bd5"
+      "digest": "sha256:4dc9b54a53a6a1e591f5e31bf68088caaccfbac18d45061e4af2940fcdfbb8e4"
     },
     {
       "path": "skills/design-loop/references/craft.md",
@@ -427,8 +431,40 @@
       "digest": "sha256:402b25238f93f8269b98697bf77fa11dda1fd284f44e41d73cdb813f5244a4e0"
     },
     {
+      "path": "skills/design-loop/scripts/design-artifact-shell.mjs",
+      "digest": "sha256:9245a86f8e3f20f6ec4c705d1364d2d6d3e639b34a7d41162769a0f490dd39df"
+    },
+    {
+      "path": "skills/design-loop/scripts/design-document.mjs",
+      "digest": "sha256:7e15b9f9e9afd29be2a2558fad9e57b5df85e494a586180d5afe23015cdbcfb7"
+    },
+    {
+      "path": "skills/design-loop/scripts/design-entities.mjs",
+      "digest": "sha256:376ec35d0f184deac31b639f2c0918e6b0f165e19984ed1c89ba2cfad6af9b80"
+    },
+    {
+      "path": "skills/design-loop/scripts/design-parse5-parser.mjs",
+      "digest": "sha256:a9bfeecae4d31155a6935455c82ea8348da25f8585216b531d00c6599b8196e4"
+    },
+    {
+      "path": "skills/design-loop/scripts/design-parse5-tokenizer.mjs",
+      "digest": "sha256:f655474fb8d0bed732f01ace5b67102f849b73cb40831a57f1fb7b61180fbde9"
+    },
+    {
+      "path": "skills/design-loop/scripts/design-review-handoff.mjs",
+      "digest": "sha256:1d04e0d821738f3934fb3fbd314b161fb557f4459cf2da2d1921c99d27d7d861"
+    },
+    {
+      "path": "skills/design-loop/scripts/design-sandbox-guards.mjs",
+      "digest": "sha256:dcc7aa1971da47018a198bfe7520c05e3e5ba21fe2d9c8fffcaad882ded5bbbb"
+    },
+    {
+      "path": "skills/design-loop/scripts/design-share.mjs",
+      "digest": "sha256:b10d7ce9cdb3eb48b9aca803e4d2ecc4f8e477e91f4a0c6a3ae17a1f7985aa06"
+    },
+    {
       "path": "skills/design-loop/scripts/design.mjs",
-      "digest": "sha256:ddfb2d5791eca8381984bd7ae73604fb85f086db0f6e6861253c8ef7e425dc08"
+      "digest": "sha256:ab33412cab749120e07359983f85bcb64038026844c06ff9f464c4f371d6d6ca"
     },
     {
       "path": "skills/design-loop/scripts/runtime/notices/entities.txt",
@@ -468,7 +504,7 @@
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:ca01a1ee8e3530a54ffd64013d2e06eef2a129b899ebadfce5a2435a5fdb1c3e"
+      "digest": "sha256:931a50e413656f4dcd95db2451b5fc63c985b13494b4b01b492d8292529f4fcb"
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -556,7 +592,7 @@
     },
     {
       "path": "skills/design-review/openplanr.skill.json",
-      "digest": "sha256:2dbcbfe72ca6092a1eb3adc5782d314b04211f64ac64833aa2191265267d319f"
+      "digest": "sha256:5abf56388a0cae2fc5c2135ce01538e46b7131e9c82a1eae479852b92435ea92"
     },
     {
       "path": "skills/design-review/references/craft.md",
@@ -607,8 +643,40 @@
       "digest": "sha256:402b25238f93f8269b98697bf77fa11dda1fd284f44e41d73cdb813f5244a4e0"
     },
     {
+      "path": "skills/design-review/scripts/design-artifact-shell.mjs",
+      "digest": "sha256:9245a86f8e3f20f6ec4c705d1364d2d6d3e639b34a7d41162769a0f490dd39df"
+    },
+    {
+      "path": "skills/design-review/scripts/design-document.mjs",
+      "digest": "sha256:7e15b9f9e9afd29be2a2558fad9e57b5df85e494a586180d5afe23015cdbcfb7"
+    },
+    {
+      "path": "skills/design-review/scripts/design-entities.mjs",
+      "digest": "sha256:376ec35d0f184deac31b639f2c0918e6b0f165e19984ed1c89ba2cfad6af9b80"
+    },
+    {
+      "path": "skills/design-review/scripts/design-parse5-parser.mjs",
+      "digest": "sha256:a9bfeecae4d31155a6935455c82ea8348da25f8585216b531d00c6599b8196e4"
+    },
+    {
+      "path": "skills/design-review/scripts/design-parse5-tokenizer.mjs",
+      "digest": "sha256:f655474fb8d0bed732f01ace5b67102f849b73cb40831a57f1fb7b61180fbde9"
+    },
+    {
+      "path": "skills/design-review/scripts/design-review-handoff.mjs",
+      "digest": "sha256:1d04e0d821738f3934fb3fbd314b161fb557f4459cf2da2d1921c99d27d7d861"
+    },
+    {
+      "path": "skills/design-review/scripts/design-sandbox-guards.mjs",
+      "digest": "sha256:dcc7aa1971da47018a198bfe7520c05e3e5ba21fe2d9c8fffcaad882ded5bbbb"
+    },
+    {
+      "path": "skills/design-review/scripts/design-share.mjs",
+      "digest": "sha256:b10d7ce9cdb3eb48b9aca803e4d2ecc4f8e477e91f4a0c6a3ae17a1f7985aa06"
+    },
+    {
       "path": "skills/design-review/scripts/design.mjs",
-      "digest": "sha256:ddfb2d5791eca8381984bd7ae73604fb85f086db0f6e6861253c8ef7e425dc08"
+      "digest": "sha256:ab33412cab749120e07359983f85bcb64038026844c06ff9f464c4f371d6d6ca"
     },
     {
       "path": "skills/design-review/scripts/runtime/notices/entities.txt",
@@ -648,7 +716,7 @@
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:ca01a1ee8e3530a54ffd64013d2e06eef2a129b899ebadfce5a2435a5fdb1c3e"
+      "digest": "sha256:931a50e413656f4dcd95db2451b5fc63c985b13494b4b01b492d8292529f4fcb"
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -736,7 +804,7 @@
     },
     {
       "path": "skills/design/openplanr.skill.json",
-      "digest": "sha256:36772da092a70a0e83f331723926d9dd58fa82d3b81d112179dfb3d7ab60bc1f"
+      "digest": "sha256:d44c329b3754caa65cd0209f39fa31327f6ff68257f0de8c6f3ab26c3be9cc6c"
     },
     {
       "path": "skills/design/references/craft.md",
@@ -787,8 +855,40 @@
       "digest": "sha256:402b25238f93f8269b98697bf77fa11dda1fd284f44e41d73cdb813f5244a4e0"
     },
     {
+      "path": "skills/design/scripts/design-artifact-shell.mjs",
+      "digest": "sha256:9245a86f8e3f20f6ec4c705d1364d2d6d3e639b34a7d41162769a0f490dd39df"
+    },
+    {
+      "path": "skills/design/scripts/design-document.mjs",
+      "digest": "sha256:7e15b9f9e9afd29be2a2558fad9e57b5df85e494a586180d5afe23015cdbcfb7"
+    },
+    {
+      "path": "skills/design/scripts/design-entities.mjs",
+      "digest": "sha256:376ec35d0f184deac31b639f2c0918e6b0f165e19984ed1c89ba2cfad6af9b80"
+    },
+    {
+      "path": "skills/design/scripts/design-parse5-parser.mjs",
+      "digest": "sha256:a9bfeecae4d31155a6935455c82ea8348da25f8585216b531d00c6599b8196e4"
+    },
+    {
+      "path": "skills/design/scripts/design-parse5-tokenizer.mjs",
+      "digest": "sha256:f655474fb8d0bed732f01ace5b67102f849b73cb40831a57f1fb7b61180fbde9"
+    },
+    {
+      "path": "skills/design/scripts/design-review-handoff.mjs",
+      "digest": "sha256:1d04e0d821738f3934fb3fbd314b161fb557f4459cf2da2d1921c99d27d7d861"
+    },
+    {
+      "path": "skills/design/scripts/design-sandbox-guards.mjs",
+      "digest": "sha256:dcc7aa1971da47018a198bfe7520c05e3e5ba21fe2d9c8fffcaad882ded5bbbb"
+    },
+    {
+      "path": "skills/design/scripts/design-share.mjs",
+      "digest": "sha256:b10d7ce9cdb3eb48b9aca803e4d2ecc4f8e477e91f4a0c6a3ae17a1f7985aa06"
+    },
+    {
       "path": "skills/design/scripts/design.mjs",
-      "digest": "sha256:ddfb2d5791eca8381984bd7ae73604fb85f086db0f6e6861253c8ef7e425dc08"
+      "digest": "sha256:ab33412cab749120e07359983f85bcb64038026844c06ff9f464c4f371d6d6ca"
     },
     {
       "path": "skills/design/scripts/runtime/notices/entities.txt",
@@ -828,7 +928,7 @@
     },
     {
       "path": "skills/design/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:ca01a1ee8e3530a54ffd64013d2e06eef2a129b899ebadfce5a2435a5fdb1c3e"
+      "digest": "sha256:931a50e413656f4dcd95db2451b5fc63c985b13494b4b01b492d8292529f4fcb"
     },
     {
       "path": "skills/design/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -1004,7 +1104,7 @@
     },
     {
       "path": "skills/plan/openplanr.skill.json",
-      "digest": "sha256:1f83ec18d867ab0e02d687a1b83398c2a527585b9f369fee1c3dc86f16731f05"
+      "digest": "sha256:1feb1a6f4b5e57226f067f4be7f5bb427bbe99c52ef3b192885e07a0afc3f558"
     },
     {
       "path": "skills/plan/references/artifact-contract.md",
@@ -1027,8 +1127,40 @@
       "digest": "sha256:402b25238f93f8269b98697bf77fa11dda1fd284f44e41d73cdb813f5244a4e0"
     },
     {
+      "path": "skills/plan/scripts/design-artifact-shell.mjs",
+      "digest": "sha256:9245a86f8e3f20f6ec4c705d1364d2d6d3e639b34a7d41162769a0f490dd39df"
+    },
+    {
+      "path": "skills/plan/scripts/design-document.mjs",
+      "digest": "sha256:7e15b9f9e9afd29be2a2558fad9e57b5df85e494a586180d5afe23015cdbcfb7"
+    },
+    {
+      "path": "skills/plan/scripts/design-entities.mjs",
+      "digest": "sha256:376ec35d0f184deac31b639f2c0918e6b0f165e19984ed1c89ba2cfad6af9b80"
+    },
+    {
+      "path": "skills/plan/scripts/design-parse5-parser.mjs",
+      "digest": "sha256:a9bfeecae4d31155a6935455c82ea8348da25f8585216b531d00c6599b8196e4"
+    },
+    {
+      "path": "skills/plan/scripts/design-parse5-tokenizer.mjs",
+      "digest": "sha256:f655474fb8d0bed732f01ace5b67102f849b73cb40831a57f1fb7b61180fbde9"
+    },
+    {
+      "path": "skills/plan/scripts/design-review-handoff.mjs",
+      "digest": "sha256:1d04e0d821738f3934fb3fbd314b161fb557f4459cf2da2d1921c99d27d7d861"
+    },
+    {
+      "path": "skills/plan/scripts/design-sandbox-guards.mjs",
+      "digest": "sha256:dcc7aa1971da47018a198bfe7520c05e3e5ba21fe2d9c8fffcaad882ded5bbbb"
+    },
+    {
+      "path": "skills/plan/scripts/design-share.mjs",
+      "digest": "sha256:b10d7ce9cdb3eb48b9aca803e4d2ecc4f8e477e91f4a0c6a3ae17a1f7985aa06"
+    },
+    {
       "path": "skills/plan/scripts/design.mjs",
-      "digest": "sha256:ddfb2d5791eca8381984bd7ae73604fb85f086db0f6e6861253c8ef7e425dc08"
+      "digest": "sha256:ab33412cab749120e07359983f85bcb64038026844c06ff9f464c4f371d6d6ca"
     },
     {
       "path": "skills/plan/scripts/planning-ids.mjs",
@@ -1072,7 +1204,7 @@
     },
     {
       "path": "skills/plan/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:ca01a1ee8e3530a54ffd64013d2e06eef2a129b899ebadfce5a2435a5fdb1c3e"
+      "digest": "sha256:931a50e413656f4dcd95db2451b5fc63c985b13494b4b01b492d8292529f4fcb"
     },
     {
       "path": "skills/plan/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -1256,12 +1388,12 @@
     },
     {
       "path": "skills/sync/scripts/sync.mjs",
-      "digest": "sha256:42fb430add6e96c73a8d1c5ea5df7a6ce0bdffc20b9c375eff9333c6c741b308"
+      "digest": "sha256:005397d703d8df70f346a789d15c665a44329449418b39e807bb0dff927153da"
     },
     {
       "path": "skills/sync/SKILL.md",
-      "digest": "sha256:53698324b62f43b672ce8fe1654c526c96fb202e313442f09c6fc1e72268677e"
+      "digest": "sha256:06048f24128098919931db60272e0e14fe51bcbeba4b499db587e3b89d7bb3b9"
     }
   ],
-  "contentDigest": "sha256:c3de690db6e660081f020e1c64bc444a075049cad024ccae4f2eea586dae5acb"
+  "contentDigest": "sha256:a21fbc2f6db94d01be05e1888d25effbedb46fb38fd67bca689891b626fe8cde"
 }
