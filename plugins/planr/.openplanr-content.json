@@ -12,7 +12,7 @@
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:dadfd9439f163027d994c4cd990d9efb313ed8f63b8524ece96c7280668b66ee"
+      "digest": "sha256:d749a2376c6dfb3941ef0dcbdd97f79001dcd9a53e80ffcb81605e2f67b21403"
     },
     {
       "path": "agents/planr-backend.md",
@@ -52,7 +52,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:4fc3fba2c92ba523cb919b418ab37627455ddecbce5b347616e0de52eaef377a"
+      "digest": "sha256:a7db7ad9d25dc97d79b62bd14a6439903000a90c7483cf15fa1fb9ab2810a3f5"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -159,10 +159,6 @@
       "digest": "sha256:ad0ad7152695d09f3fd5730d963f1327b80f0af9928c9a0ba9d948c0afcb38c3"
     },
     {
-      "path": "skills/artifact/openplanr.skill.json",
-      "digest": "sha256:08ad4b7dcdfe70e63a319dcb78ff6c53f0086391f6d6d45094a793fe4d9c41ce"
-    },
-    {
       "path": "skills/artifact/references/company-review.md",
       "digest": "sha256:b31bb74501fd24ae388294a4ccf2b9161b128f0288b2fb03c99a762595e0eaba"
     },
@@ -175,16 +171,8 @@
       "digest": "sha256:743676b2a88716aecb7b3f8abc77cba0358ae6bc4c84bd9ab9686f1a8d513cbb"
     },
     {
-      "path": "skills/browser-qa/openplanr.skill.json",
-      "digest": "sha256:8eb5f92c064a9ede1e9aaef780fdb0e117026ec8b5de9c7685d32f78bfe79a58"
-    },
-    {
       "path": "skills/browser-qa/SKILL.md",
       "digest": "sha256:bd9e25a240f706df8b735b918d1bf0fab7b9118424a811525c1413f5519e9987"
-    },
-    {
-      "path": "skills/ceo-review/openplanr.skill.json",
-      "digest": "sha256:d7f9f95a21b36b1234f4021be3c49938af260eebf31cc05032f24af73df1b6d2"
     },
     {
       "path": "skills/ceo-review/references/operate-advisor-contract.md",
@@ -208,11 +196,7 @@
     },
     {
       "path": "skills/ceo-review/SKILL.md",
-      "digest": "sha256:9c51ceb66d20f49ca417da1213441d4824cba8206d88f33b2481ed6eea51a399"
-    },
-    {
-      "path": "skills/chair-review/openplanr.skill.json",
-      "digest": "sha256:dc4457f878c232190454045dc46253e553cf27d50fe8c99b23e3def191d55917"
+      "digest": "sha256:fb25892b6a1226d3a22881327083a9f883428cc16d059f28e782d9533e46d02c"
     },
     {
       "path": "skills/chair-review/scripts/errors.mjs",
@@ -235,10 +219,6 @@
       "digest": "sha256:fcc1f07dff8de8bd104a0176a4265fb71e380a9a3dbbcbc0c21e4a113f38acfd"
     },
     {
-      "path": "skills/challenger-review/openplanr.skill.json",
-      "digest": "sha256:11866161f07f103b4c7882c42d9fa2e7d1f91019828d19c1f93946a396050bb5"
-    },
-    {
       "path": "skills/challenger-review/scripts/errors.mjs",
       "digest": "sha256:6c02fdf441b22fc101a764c928bb0e98fa0a93a602183463c44adc3f8e1d7f79"
     },
@@ -256,11 +236,7 @@
     },
     {
       "path": "skills/challenger-review/SKILL.md",
-      "digest": "sha256:7eb97bc94201cd9aff3751430437ea116b15a8d1347269ce3b0cbbd9cbf0d8c7"
-    },
-    {
-      "path": "skills/cmo-review/openplanr.skill.json",
-      "digest": "sha256:07345a7dac8d62678426fb65c7a4870269a7ecd40f2e97a9b8c04a25d67cce6a"
+      "digest": "sha256:e45f867a3b4e3e6db11f1e8c8851830286a166b8097b8fdfdd7aabf885b846cd"
     },
     {
       "path": "skills/cmo-review/references/operate-advisor-contract.md",
@@ -284,11 +260,7 @@
     },
     {
       "path": "skills/cmo-review/SKILL.md",
-      "digest": "sha256:31112e8deae357bbde9d51d9707400f63e16563bf08f4774acb52e2f5ccdfa2a"
-    },
-    {
-      "path": "skills/coo-review/openplanr.skill.json",
-      "digest": "sha256:1744385f6b9ecc1194a7169c9184001b1b45a4054e9b7ef498f97e570e327458"
+      "digest": "sha256:dba38caa522b5b2950b8411a6f54586c77181e77a5e804084c5325599e459cf2"
     },
     {
       "path": "skills/coo-review/references/operate-advisor-contract.md",
@@ -312,11 +284,7 @@
     },
     {
       "path": "skills/coo-review/SKILL.md",
-      "digest": "sha256:8d6b132b39e41d249961602e002035f4748f1ad4299984952f00d6b16485a678"
-    },
-    {
-      "path": "skills/cpo-review/openplanr.skill.json",
-      "digest": "sha256:00f18f89c17015b78708ef669c03f666376711c286915f35e03d845931f41e4d"
+      "digest": "sha256:6803af22180794e1e90a41cfc6d5ae292a089e3ac952c28ed6421e6bb80eccd1"
     },
     {
       "path": "skills/cpo-review/references/operate-advisor-contract.md",
@@ -340,11 +308,7 @@
     },
     {
       "path": "skills/cpo-review/SKILL.md",
-      "digest": "sha256:77d2f464f9102515ab842fc5afe76feae7a12c9ecde150c2392a599b50186cf4"
-    },
-    {
-      "path": "skills/cto-review/openplanr.skill.json",
-      "digest": "sha256:3d56d29f1d5b67a6219f9ae3f0fc7bc82146b69f7ccb8af883c57b529f3937b5"
+      "digest": "sha256:46edf7f1f4a52e988280cc38f45c4c0f7814a91726e9ac33a13bda19d6288d60"
     },
     {
       "path": "skills/cto-review/references/operate-advisor-contract.md",
@@ -368,19 +332,11 @@
     },
     {
       "path": "skills/cto-review/SKILL.md",
-      "digest": "sha256:7addd0afdd7a17032f24c54c11dfc80beef516f0d7d90dfa11392a9556245b1e"
-    },
-    {
-      "path": "skills/dashboard/openplanr.skill.json",
-      "digest": "sha256:5e75b9659de7397dd2db2cba75351a6def5a0e85ce4e1c0730616bcbc57904d9"
+      "digest": "sha256:24bd606cb4f5d942efb935ed5be88a49c8fc736dfe90ce0ae85843dfc0fa1504"
     },
     {
       "path": "skills/dashboard/SKILL.md",
       "digest": "sha256:1d414e702df0efd8276f9fc083de3f2cfdeaad69078f73f6a416a61fd825d71c"
-    },
-    {
-      "path": "skills/design-loop/openplanr.skill.json",
-      "digest": "sha256:4dc9b54a53a6a1e591f5e31bf68088caaccfbac18d45061e4af2940fcdfbb8e4"
     },
     {
       "path": "skills/design-loop/references/craft.md",
@@ -591,10 +547,6 @@
       "digest": "sha256:bd41f8077c0ee2ffab6bc95f931e929d57f4dc2144914857dbac7085da1785cf"
     },
     {
-      "path": "skills/design-review/openplanr.skill.json",
-      "digest": "sha256:5abf56388a0cae2fc5c2135ce01538e46b7131e9c82a1eae479852b92435ea92"
-    },
-    {
       "path": "skills/design-review/references/craft.md",
       "digest": "sha256:8763005ea080093d4b5ff2835ec9bf1f9e750d39254db5013eae778f7bd74e3e"
     },
@@ -801,10 +753,6 @@
     {
       "path": "skills/design-review/SKILL.md",
       "digest": "sha256:1abdbeffe66b6afadb51d3719486665ee374f8aba9bf17ddf54ac4e1f185dc23"
-    },
-    {
-      "path": "skills/design/openplanr.skill.json",
-      "digest": "sha256:d44c329b3754caa65cd0209f39fa31327f6ff68257f0de8c6f3ab26c3be9cc6c"
     },
     {
       "path": "skills/design/references/craft.md",
@@ -1015,10 +963,6 @@
       "digest": "sha256:3265e760e594a16eadc88d46045a3c80546797fcc5cd11985b9c7ccfd89df014"
     },
     {
-      "path": "skills/diagram/openplanr.skill.json",
-      "digest": "sha256:1d8b8127914dd7a637ea475257c109a72544f860ddf5ec40c3a78563831a9906"
-    },
-    {
       "path": "skills/diagram/references/diagram-document.md",
       "digest": "sha256:4d303f1e333a0e278bbe4a5dcbefd8c578a6cfda27211f9b1f3b687938ff0248"
     },
@@ -1035,10 +979,6 @@
       "digest": "sha256:c60ac43750eea0c7fdb30a64d7553b766ce6ae54636e737264166ff5215b7d74"
     },
     {
-      "path": "skills/doctor/openplanr.skill.json",
-      "digest": "sha256:0c0782a891ed2ef02929173e790f5f5261e6bc0ce491c91f307da75d13bf8b01"
-    },
-    {
       "path": "skills/doctor/references/upgrade.md",
       "digest": "sha256:b105aadfa437d8f9beb9c6fb4167c9f3275d85d96b1125fdb8e80fa7da284387"
     },
@@ -1047,32 +987,16 @@
       "digest": "sha256:cbcd59f2ae4fad802f7391b0d7663410d33b380b639fe5a385551aeb1482ba99"
     },
     {
-      "path": "skills/investigate/openplanr.skill.json",
-      "digest": "sha256:95d7f4c4b7fb5455b612ed02ab2e87de741c356e242e70a5f976fa0502a06f5d"
-    },
-    {
       "path": "skills/investigate/SKILL.md",
       "digest": "sha256:f753b750fc09b39ebc3a87d88faacd232b2de38b7a615dadd56238ca6d7d78db"
-    },
-    {
-      "path": "skills/land/openplanr.skill.json",
-      "digest": "sha256:9bf07b642676ab40a162455bf5fca5ac640eeb11cc0f32518b4ac386844d7c70"
     },
     {
       "path": "skills/land/SKILL.md",
       "digest": "sha256:04d2deb6b7d4c161f94580f7b6481c51ca60b55afe6f5d510fd640d57f569c2d"
     },
     {
-      "path": "skills/openplanr/openplanr.skill.json",
-      "digest": "sha256:f14e20b843f7f51688ded299fbeb773eab1d244429e7baaaff5a14713bde72be"
-    },
-    {
       "path": "skills/openplanr/SKILL.md",
       "digest": "sha256:f1e2daabc532519e6e9b83e49bddae8948d234bdf1be0e858528c2d0ecf65bc5"
-    },
-    {
-      "path": "skills/operate/openplanr.skill.json",
-      "digest": "sha256:daa8c7683675c88996da7803dee168d9e880aad880870d650e34035cd89f1dd7"
     },
     {
       "path": "skills/operate/scripts/errors.mjs",
@@ -1095,16 +1019,8 @@
       "digest": "sha256:e7f4e6e62a1a12e72b7aeb196a824103e7f828ff899a69277e74ae29201d5526"
     },
     {
-      "path": "skills/plan-review/openplanr.skill.json",
-      "digest": "sha256:dfffd0c8bdf83a84f02b28c73f6957c58dd580bfa495b9b45a3f33256e33b542"
-    },
-    {
       "path": "skills/plan-review/SKILL.md",
       "digest": "sha256:6982caf8cf8807282372d31b6ce57a7b58e778363f4a78877f54c0469fde63d9"
-    },
-    {
-      "path": "skills/plan/openplanr.skill.json",
-      "digest": "sha256:1feb1a6f4b5e57226f067f4be7f5bb427bbe99c52ef3b192885e07a0afc3f558"
     },
     {
       "path": "skills/plan/references/artifact-contract.md",
@@ -1299,10 +1215,6 @@
       "digest": "sha256:1df30e771be3406685cc11c006430638b557066c387516a48321b901e6d14c92"
     },
     {
-      "path": "skills/release/openplanr.skill.json",
-      "digest": "sha256:1680f712dac64d1e429b07e77899590b96b6b48b6655e64438358f5e8b1e9cf0"
-    },
-    {
       "path": "skills/release/references/cadence.md",
       "digest": "sha256:c9d0e67e35aaa4db563a8f520dc3ff441be8a8c54b86be274b44a20dfa363077"
     },
@@ -1323,10 +1235,6 @@
       "digest": "sha256:2c236b728862ef4df116504b07b887e6f3241db551d0f3db5cef7a9e273e2159"
     },
     {
-      "path": "skills/ship/openplanr.skill.json",
-      "digest": "sha256:4ad07e8b30a574bd7f12f87fe3852103c20241dd1e73dfcdb25e250c6b7d28f4"
-    },
-    {
       "path": "skills/ship/references/design-lineage.md",
       "digest": "sha256:0cf8cce235b6e258c066e65dcc25480f10aca6f0c3200de332fc278e3b7975a9"
     },
@@ -1343,20 +1251,12 @@
       "digest": "sha256:fdf8113b3f5564d5ddd5a4d93d47ec2994c3e8fefa94fa37bc1e5efbe6798c9c"
     },
     {
-      "path": "skills/spec/openplanr.skill.json",
-      "digest": "sha256:6244befe1e387bc099bc5b819ef19eba22cea6ea8a65e2392c51b60c01b814db"
-    },
-    {
       "path": "skills/spec/references/specification-contract.md",
       "digest": "sha256:c64ae73e88eff2cd2456b418add6de2658a10ec3230e99f37e298386cb8bba4b"
     },
     {
       "path": "skills/spec/SKILL.md",
       "digest": "sha256:a046aed2e39c309173c47f66ca9d6182ca2a7dc0d34b1a7cc04e4fae67dfeb27"
-    },
-    {
-      "path": "skills/sprint/openplanr.skill.json",
-      "digest": "sha256:8083ebeb2c89a73d127b99fc299e6ee4d2891b56740c4e266b52450f55a01794"
     },
     {
       "path": "skills/sprint/references/refinement-contract.md",
@@ -1375,16 +1275,8 @@
       "digest": "sha256:8ffa44b0f3ce532cada1841ad781294c5b6c9c84c87caa9e4c8aa9f259946c9f"
     },
     {
-      "path": "skills/status/openplanr.skill.json",
-      "digest": "sha256:72b7c2e904df948b7a5e325d741db001083fe028dc1968341fc4870aefe04128"
-    },
-    {
       "path": "skills/status/SKILL.md",
       "digest": "sha256:d92ebb6e4c1197b4965273cefc9b0bda78d207a06abb4e7f44d76c373daf9123"
-    },
-    {
-      "path": "skills/sync/openplanr.skill.json",
-      "digest": "sha256:7d7f55dc40b0cf927dc654e10da18b530ecf3564bfb42fdda21c67e2fa9dd802"
     },
     {
       "path": "skills/sync/scripts/sync.mjs",
@@ -1395,5 +1287,5 @@
       "digest": "sha256:06048f24128098919931db60272e0e14fe51bcbeba4b499db587e3b89d7bb3b9"
     }
   ],
-  "contentDigest": "sha256:a21fbc2f6db94d01be05e1888d25effbedb46fb38fd67bca689891b626fe8cde"
+  "contentDigest": "sha256:b459499d0f3309a09f2897e450e7dac9ac7411fdc1e6aced70cd3505c69ca748"
 }
