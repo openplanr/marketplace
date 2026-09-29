@@ -1,8 +1,8 @@
 {
   "name": "planr",
   "displayName": "OpenPlanr",
-  "version": "2.2640.0",
-  "description": "Host-native OpenPlanr planning, delivery, review, design, and operating skills.",
+  "version": "2.2640.1",
+  "description": "Close the loop from intent to delivery. Plan, design, build, review, and operate from durable context in your repository.",
   "author": {
     "name": "OpenPlanr",
     "url": "https://openplanr.dev"
