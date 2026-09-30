@@ -595,9 +595,10 @@ function createArtifactReviewServer({
           const mediaTypes = {
             document: "text/html",
             runtime: "text/javascript",
-            stylesheet: "text/css"
+            stylesheet: "text/css",
+            font: "font/ttf"
           };
-          if (!Object.hasOwn(mediaTypes, response.asset) || typeof response.body !== "string")
+          if (!Object.hasOwn(mediaTypes, response.asset) || (response.asset === "font" ? !Buffer.isBuffer(response.body) : typeof response.body !== "string"))
             throw new Error("Invalid owner asset response.");
           send(
             res,
@@ -605,7 +606,7 @@ function createArtifactReviewServer({
             response.body,
             {
               ...parentHeaders(),
-              "content-type": `${mediaTypes[response.asset]}; charset=utf-8`,
+              "content-type": response.asset === "font" ? mediaTypes.font : `${mediaTypes[response.asset]}; charset=utf-8`,
               "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
             },
             { head }
