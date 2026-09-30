@@ -12,7 +12,7 @@
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:7ebe51f3f98c7182134f635c7b2597ade19a53ca321e9efa0006706489624529"
+      "digest": "sha256:c851369ea7e66072fc2289aa3fe3b04048a79b0e5c7dbe6af24aa799f63d82de"
     },
     {
       "path": "agents/planr-backend.md",
@@ -52,7 +52,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:0319481680d92f2098e86f15cfda89d5db2a4cbc08aaf8157eb94a3f8ccf8f51"
+      "digest": "sha256:2a68b4412e6247bd42055e0138eed6741aee5694dd0aed9e9c058505a6c89bb5"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -460,7 +460,7 @@
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:931a50e413656f4dcd95db2451b5fc63c985b13494b4b01b492d8292529f4fcb"
+      "digest": "sha256:bb969da90f0482f19b3afc21b4b35e4c00efff42c69ec61d9c5c07395e2bfd69"
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -668,7 +668,7 @@
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:931a50e413656f4dcd95db2451b5fc63c985b13494b4b01b492d8292529f4fcb"
+      "digest": "sha256:bb969da90f0482f19b3afc21b4b35e4c00efff42c69ec61d9c5c07395e2bfd69"
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -876,7 +876,7 @@
     },
     {
       "path": "skills/design/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:931a50e413656f4dcd95db2451b5fc63c985b13494b4b01b492d8292529f4fcb"
+      "digest": "sha256:bb969da90f0482f19b3afc21b4b35e4c00efff42c69ec61d9c5c07395e2bfd69"
     },
     {
       "path": "skills/design/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -980,7 +980,7 @@
     },
     {
       "path": "skills/doctor/references/upgrade.md",
-      "digest": "sha256:b105aadfa437d8f9beb9c6fb4167c9f3275d85d96b1125fdb8e80fa7da284387"
+      "digest": "sha256:415456942ec2c3f13a71ba9ea44e07533a7871acf072d677b59d410ab5704ad8"
     },
     {
       "path": "skills/doctor/SKILL.md",
@@ -1120,7 +1120,7 @@
     },
     {
       "path": "skills/plan/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:931a50e413656f4dcd95db2451b5fc63c985b13494b4b01b492d8292529f4fcb"
+      "digest": "sha256:bb969da90f0482f19b3afc21b4b35e4c00efff42c69ec61d9c5c07395e2bfd69"
     },
     {
       "path": "skills/plan/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -1287,5 +1287,5 @@
       "digest": "sha256:06048f24128098919931db60272e0e14fe51bcbeba4b499db587e3b89d7bb3b9"
     }
   ],
-  "contentDigest": "sha256:51f073cac301cb22db40ad0e24187bab94c9937a4a759365ab015d5eb121e06b"
+  "contentDigest": "sha256:93f808cc8a0b0719d52fa3d0a9bd6cc5536187c494d269d4c6405129a7ef3d42"
 }
