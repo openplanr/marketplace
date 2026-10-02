@@ -12,7 +12,7 @@
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:c851369ea7e66072fc2289aa3fe3b04048a79b0e5c7dbe6af24aa799f63d82de"
+      "digest": "sha256:3635e54a46deadee41df4178e18e306be863da02228361b1871feca2e4471f0e"
     },
     {
       "path": "agents/planr-backend.md",
@@ -52,7 +52,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:2a68b4412e6247bd42055e0138eed6741aee5694dd0aed9e9c058505a6c89bb5"
+      "digest": "sha256:d56564195b147abfb1473d9e5312ef3fdc50c5ecf373619d4fff6ea6ccdb30f6"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -416,7 +416,7 @@
     },
     {
       "path": "skills/design-loop/scripts/design-share.mjs",
-      "digest": "sha256:b10d7ce9cdb3eb48b9aca803e4d2ecc4f8e477e91f4a0c6a3ae17a1f7985aa06"
+      "digest": "sha256:11de427bd02b89fdf6df5b3d8eaffa7c2025ab841712c7dfc0da6e5a3e41ca36"
     },
     {
       "path": "skills/design-loop/scripts/design.mjs",
@@ -624,7 +624,7 @@
     },
     {
       "path": "skills/design-review/scripts/design-share.mjs",
-      "digest": "sha256:b10d7ce9cdb3eb48b9aca803e4d2ecc4f8e477e91f4a0c6a3ae17a1f7985aa06"
+      "digest": "sha256:11de427bd02b89fdf6df5b3d8eaffa7c2025ab841712c7dfc0da6e5a3e41ca36"
     },
     {
       "path": "skills/design-review/scripts/design.mjs",
@@ -832,7 +832,7 @@
     },
     {
       "path": "skills/design/scripts/design-share.mjs",
-      "digest": "sha256:b10d7ce9cdb3eb48b9aca803e4d2ecc4f8e477e91f4a0c6a3ae17a1f7985aa06"
+      "digest": "sha256:11de427bd02b89fdf6df5b3d8eaffa7c2025ab841712c7dfc0da6e5a3e41ca36"
     },
     {
       "path": "skills/design/scripts/design.mjs",
@@ -1072,7 +1072,7 @@
     },
     {
       "path": "skills/plan/scripts/design-share.mjs",
-      "digest": "sha256:b10d7ce9cdb3eb48b9aca803e4d2ecc4f8e477e91f4a0c6a3ae17a1f7985aa06"
+      "digest": "sha256:11de427bd02b89fdf6df5b3d8eaffa7c2025ab841712c7dfc0da6e5a3e41ca36"
     },
     {
       "path": "skills/plan/scripts/design.mjs",
@@ -1287,5 +1287,5 @@
       "digest": "sha256:06048f24128098919931db60272e0e14fe51bcbeba4b499db587e3b89d7bb3b9"
     }
   ],
-  "contentDigest": "sha256:93f808cc8a0b0719d52fa3d0a9bd6cc5536187c494d269d4c6405129a7ef3d42"
+  "contentDigest": "sha256:6f6a89edee4d50fce3783c637e4331d5a0fdd0e6fb251ce05f725b216d879519"
 }
