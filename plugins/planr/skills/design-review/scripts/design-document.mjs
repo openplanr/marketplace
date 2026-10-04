@@ -1,4 +1,8 @@
 import {
+  acquireStartLock,
+  isProcessAlive
+} from "./design-planr-home.mjs";
+import {
   Parser,
   defaultTreeAdapter
 } from "./design-parse5-parser.mjs";
@@ -10,16 +14,26 @@ import {
 import {
   AA_NORMAL,
   ARTIFACT_ERROR_CODES,
+  ARTIFACT_MAX_SOURCES,
+  ARTIFACT_MAX_VIEWS,
+  MAX_ARTIFACT_HTML_BYTES,
   PipelineError,
   contrastRatio,
-  createArtifactEnvelope,
+  createSharedArtifactEnvelope,
   digestArtifactEnvelope,
   embedJson,
   escapeHtml,
   renderArtifactShellDocument,
   renderPlanrMark,
-  validateJson
+  resolveArtifactHtml
 } from "./design-artifact-shell.mjs";
+import {
+  DESIGN_REVIEW_BUNDLE_SCHEMA,
+  assertDesignDocument,
+  canonicalizeJson,
+  sha256Hex,
+  validateJson
+} from "./design-bounded-json-data.mjs";
 import {
   ARTIFACT_FRAME_GUARD_TEMPLATE,
   ARTIFACT_HOST_GUARD_TEMPLATE,
@@ -27,482 +41,30 @@ import {
 } from "./design-sandbox-guards.mjs";
 
 // packages/design/lib/design/document.mjs
-import { createHash as createHash4, randomUUID } from "node:crypto";
+import { createHash as createHash5, randomUUID } from "node:crypto";
 import {
   closeSync,
   existsSync as existsSync3,
-  mkdirSync as mkdirSync2,
+  mkdirSync,
   openSync,
   readFileSync as readFileSync6,
   realpathSync as realpathSync3,
-  renameSync as renameSync2,
-  rmSync as rmSync2,
-  writeFileSync as writeFileSync2
-} from "node:fs";
-import { dirname as dirname4, join as join4, resolve as resolve4 } from "node:path";
-
-// packages/artifact/lib/artifact/bridge.mjs
-import { randomBytes as randomBytes3 } from "node:crypto";
-
-// node_modules/entities/dist/escape.js
-var getCodePoint = typeof String.prototype.codePointAt === "function" ? (input, index) => input.codePointAt(index) : (
-  // http://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
-  (c, index) => (c.charCodeAt(index) & 64512) === 55296 ? (c.charCodeAt(index) - 55296) * 1024 + c.charCodeAt(index + 1) - 56320 + 65536 : c.charCodeAt(index)
-);
-function getEscaper(regex, map) {
-  return function escape(data) {
-    let match;
-    let lastIndex = 0;
-    let result = "";
-    while (match = regex.exec(data)) {
-      if (lastIndex !== match.index) {
-        result += data.substring(lastIndex, match.index);
-      }
-      result += map.get(match[0].charCodeAt(0));
-      lastIndex = match.index + 1;
-    }
-    return result + data.substring(lastIndex);
-  };
-}
-var escapeAttribute = /* @__PURE__ */ getEscaper(/["&\u00A0]/g, /* @__PURE__ */ new Map([
-  [34, "&quot;"],
-  [38, "&amp;"],
-  [160, "&nbsp;"]
-]));
-var escapeText = /* @__PURE__ */ getEscaper(/[&<>\u00A0]/g, /* @__PURE__ */ new Map([
-  [38, "&amp;"],
-  [60, "&lt;"],
-  [62, "&gt;"],
-  [160, "&nbsp;"]
-]));
-
-// node_modules/parse5/dist/serializer/index.js
-var VOID_ELEMENTS = /* @__PURE__ */ new Set([
-  TAG_NAMES.AREA,
-  TAG_NAMES.BASE,
-  TAG_NAMES.BASEFONT,
-  TAG_NAMES.BGSOUND,
-  TAG_NAMES.BR,
-  TAG_NAMES.COL,
-  TAG_NAMES.EMBED,
-  TAG_NAMES.FRAME,
-  TAG_NAMES.HR,
-  TAG_NAMES.IMG,
-  TAG_NAMES.INPUT,
-  TAG_NAMES.KEYGEN,
-  TAG_NAMES.LINK,
-  TAG_NAMES.META,
-  TAG_NAMES.PARAM,
-  TAG_NAMES.SOURCE,
-  TAG_NAMES.TRACK,
-  TAG_NAMES.WBR
-]);
-function isVoidElement(node, options) {
-  return options.treeAdapter.isElementNode(node) && options.treeAdapter.getNamespaceURI(node) === NS.HTML && VOID_ELEMENTS.has(options.treeAdapter.getTagName(node));
-}
-var defaultOpts = { treeAdapter: defaultTreeAdapter, scriptingEnabled: true };
-function serialize(node, options) {
-  const opts = { ...defaultOpts, ...options };
-  if (isVoidElement(node, opts)) {
-    return "";
-  }
-  return serializeChildNodes(node, opts);
-}
-function serializeChildNodes(parentNode, options) {
-  let html = "";
-  const container = options.treeAdapter.isElementNode(parentNode) && options.treeAdapter.getTagName(parentNode) === TAG_NAMES.TEMPLATE && options.treeAdapter.getNamespaceURI(parentNode) === NS.HTML ? options.treeAdapter.getTemplateContent(parentNode) : parentNode;
-  const childNodes = options.treeAdapter.getChildNodes(container);
-  if (childNodes) {
-    for (const currentNode of childNodes) {
-      html += serializeNode(currentNode, options);
-    }
-  }
-  return html;
-}
-function serializeNode(node, options) {
-  if (options.treeAdapter.isElementNode(node)) {
-    return serializeElement(node, options);
-  }
-  if (options.treeAdapter.isTextNode(node)) {
-    return serializeTextNode(node, options);
-  }
-  if (options.treeAdapter.isCommentNode(node)) {
-    return serializeCommentNode(node, options);
-  }
-  if (options.treeAdapter.isDocumentTypeNode(node)) {
-    return serializeDocumentTypeNode(node, options);
-  }
-  return "";
-}
-function serializeElement(node, options) {
-  const tn = options.treeAdapter.getTagName(node);
-  return `<${tn}${serializeAttributes(node, options)}>${isVoidElement(node, options) ? "" : `${serializeChildNodes(node, options)}</${tn}>`}`;
-}
-function serializeAttributes(node, { treeAdapter }) {
-  let html = "";
-  for (const attr2 of treeAdapter.getAttrList(node)) {
-    html += " ";
-    if (attr2.namespace) {
-      switch (attr2.namespace) {
-        case NS.XML: {
-          html += `xml:${attr2.name}`;
-          break;
-        }
-        case NS.XMLNS: {
-          if (attr2.name !== "xmlns") {
-            html += "xmlns:";
-          }
-          html += attr2.name;
-          break;
-        }
-        case NS.XLINK: {
-          html += `xlink:${attr2.name}`;
-          break;
-        }
-        default: {
-          html += `${attr2.prefix}:${attr2.name}`;
-        }
-      }
-    } else {
-      html += attr2.name;
-    }
-    html += `="${escapeAttribute(attr2.value)}"`;
-  }
-  return html;
-}
-function serializeTextNode(node, options) {
-  const { treeAdapter } = options;
-  const content = treeAdapter.getTextNodeContent(node);
-  const parent = treeAdapter.getParentNode(node);
-  const parentTn = parent && treeAdapter.isElementNode(parent) && treeAdapter.getTagName(parent);
-  return parentTn && treeAdapter.getNamespaceURI(parent) === NS.HTML && hasUnescapedText(parentTn, options.scriptingEnabled) ? content : escapeText(content);
-}
-function serializeCommentNode(node, { treeAdapter }) {
-  return `<!--${treeAdapter.getCommentNodeContent(node)}-->`;
-}
-function serializeDocumentTypeNode(node, { treeAdapter }) {
-  return `<!DOCTYPE ${treeAdapter.getDocumentTypeNodeName(node)}>`;
-}
-
-// node_modules/parse5/dist/index.js
-function parse(html, options) {
-  return Parser.parse(html, options);
-}
-function parseFragment(fragmentContext, html, options) {
-  if (typeof fragmentContext === "string") {
-    options = html;
-    html = fragmentContext;
-    fragmentContext = null;
-  }
-  const parser = Parser.getFragmentParser(fragmentContext, options);
-  parser.tokenizer.write(html, true);
-  return parser.getFragment();
-}
-
-// packages/artifact/lib/artifact/internal/board-token.mjs
-import { randomBytes as randomBytes2, timingSafeEqual } from "node:crypto";
-
-// packages/artifact/lib/artifact/internal/planr-home.mjs
-import { homedir } from "node:os";
-import { join, resolve } from "node:path";
-var WARNED = /* @__PURE__ */ Symbol.for("openplanr.home-variable-warning");
-function nonBlank(value) {
-  return typeof value === "string" && value.trim() ? value : void 0;
-}
-function warnOnce(message) {
-  if (globalThis[WARNED]) return;
-  globalThis[WARNED] = true;
-  process.stderr.write(`Warning: ${message}
-`);
-}
-function homeVariables(env) {
-  const home = nonBlank(env.PLANR_HOME);
-  const legacy = nonBlank(env.OPENPLANR_HOME);
-  if (legacy === void 0) return { home, legacy };
-  const legacyHome = join(legacy, ".planr");
-  if (home === void 0) {
-    warnOnce(`OPENPLANR_HOME is deprecated; set PLANR_HOME=${legacyHome} instead.`);
-    return { home, legacy };
-  }
-  warnOnce(
-    resolve(home) === resolve(legacyHome) ? "OPENPLANR_HOME is deprecated and ignored because PLANR_HOME is set; unset OPENPLANR_HOME." : `PLANR_HOME=${home} and OPENPLANR_HOME=${legacy} name different OpenPlanr homes; using PLANR_HOME. OPENPLANR_HOME is deprecated; unset it.`
-  );
-  return { home, legacy: void 0 };
-}
-function configuredPlanrHome(env = process.env) {
-  const { home, legacy } = homeVariables(env);
-  return home ?? (legacy === void 0 ? void 0 : join(legacy, ".planr"));
-}
-function planrHome(env = process.env) {
-  return configuredPlanrHome(env) ?? join(homedir(), ".planr");
-}
-
-// packages/artifact/lib/artifact/internal/server-util.mjs
-import { randomBytes } from "node:crypto";
-import {
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  readdirSync,
-  readFileSync,
   renameSync,
   rmSync,
   writeFileSync
 } from "node:fs";
-import { dirname, join as join2 } from "node:path";
-var LOOPBACK_HOST = "127.0.0.1";
-function codedError(code, message, details) {
-  const error = new Error(message);
-  error.code = code;
-  if (details !== void 0) error.details = details;
-  return error;
-}
-function readJsonState(path) {
-  try {
-    const value = JSON.parse(readFileSync(path, "utf8"));
-    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
-  } catch {
-    return null;
-  }
-}
-function writePrivateJsonState(path, value, { mode = 384 } = {}) {
-  mkdirSync(dirname(path), { recursive: true, mode: 448 });
-  const temporary = `${path}.${process.pid}.${randomBytes(8).toString("hex")}.tmp`;
-  try {
-    writeFileSync(temporary, `${JSON.stringify(value, null, 2)}
-`, { mode, flag: "wx" });
-    renameSync(temporary, path);
-  } finally {
-    rmSync(temporary, { force: true });
-  }
-}
-function isProcessAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (err) {
-    return err && err.code === "EPERM";
-  }
-}
-function listenLoopback(server, port = 0, { host = LOOPBACK_HOST } = {}) {
-  if (host !== LOOPBACK_HOST) {
-    return Promise.reject(
-      codedError("E_LOOPBACK_HOST", `Refusing non-loopback bind host: ${host}`)
-    );
-  }
-  if (!Number.isInteger(port) || port < 0 || port > 65535) {
-    return Promise.reject(codedError("E_LOOPBACK_PORT", `Invalid loopback port: ${String(port)}`));
-  }
-  return new Promise((resolveListen, reject) => {
-    const onError = (error) => {
-      server.off("listening", onListening);
-      reject(error);
-    };
-    const onListening = () => {
-      server.off("error", onError);
-      const address = server.address();
-      if (!address || typeof address === "string" || address.address !== LOOPBACK_HOST) {
-        closeHttpServer(server).finally(
-          () => reject(
-            codedError(
-              "E_LOOPBACK_BIND",
-              "Server did not bind to the required IPv4 loopback interface."
-            )
-          )
-        );
-        return;
-      }
-      resolveListen(address.port);
-    };
-    server.once("error", onError);
-    server.once("listening", onListening);
-    server.listen({ port, host, exclusive: true });
-  });
-}
-function closeHttpServer(server) {
-  if (!server?.listening) return Promise.resolve();
-  return new Promise((resolveClose, reject) => {
-    server.close((error) => error ? reject(error) : resolveClose());
-    server.closeIdleConnections?.();
-    server.closeAllConnections?.();
-  });
-}
-function readRequestBody(req, { maxBytes, encoding = null } = {}) {
-  if (!Number.isInteger(maxBytes) || maxBytes < 1) {
-    return Promise.reject(
-      codedError("E_REQUEST_BODY_LIMIT", "A positive request byte limit is required.")
-    );
-  }
-  const declared = Number(req.headers?.["content-length"]);
-  if (Number.isFinite(declared) && declared > maxBytes) {
-    req.resume?.();
-    return Promise.reject(
-      codedError("E_REQUEST_BODY_LIMIT", `Request body exceeds ${maxBytes} bytes.`, {
-        maxBytes,
-        declaredBytes: declared
-      })
-    );
-  }
-  return new Promise((resolveBody, reject) => {
-    const chunks = [];
-    let bytes = 0;
-    let settled = false;
-    const rejectOnce = (error) => {
-      if (settled) return;
-      settled = true;
-      reject(error);
-    };
-    req.on("data", (chunk) => {
-      const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
-      bytes += buffer.byteLength;
-      if (bytes > maxBytes) {
-        chunks.length = 0;
-        rejectOnce(
-          codedError("E_REQUEST_BODY_LIMIT", `Request body exceeds ${maxBytes} bytes.`, {
-            maxBytes,
-            receivedBytes: bytes
-          })
-        );
-        return;
-      }
-      if (!settled) chunks.push(buffer);
-    });
-    req.on("end", () => {
-      if (settled) return;
-      settled = true;
-      const body = Buffer.concat(chunks, bytes);
-      resolveBody(encoding ? body.toString(encoding) : body);
-    });
-    req.on("error", rejectOnce);
-    req.on(
-      "aborted",
-      () => rejectOnce(codedError("E_REQUEST_ABORTED", "Request body was aborted."))
-    );
-  });
-}
-function assertLoopbackRequest(req, { port, mutating = false, internal = false, hosts = [LOOPBACK_HOST] } = {}) {
-  const allowedHosts = new Set(hosts);
-  const hostHeaders = req.headersDistinct?.host;
-  const receivedHost = req.headers?.host;
-  const separator = typeof receivedHost === "string" ? receivedHost.lastIndexOf(":") : -1;
-  const receivedName = separator > 0 ? receivedHost.slice(0, separator) : "";
-  const receivedPort = separator > 0 ? receivedHost.slice(separator + 1) : "";
-  const expectedHost = `${receivedName}:${port}`;
-  const expectedOrigin = `http://${expectedHost}`;
-  if (!allowedHosts.has(receivedName) || receivedPort !== String(port) || Array.isArray(hostHeaders) && hostHeaders.length !== 1) {
-    throw codedError("E_LOOPBACK_HOST", "Loopback Host header rejected.");
-  }
-  const origin = req.headers?.origin;
-  if (origin !== void 0 && origin !== expectedOrigin) {
-    throw codedError("E_LOOPBACK_ORIGIN", "Loopback Origin header rejected.");
-  }
-  if (mutating && !internal && origin !== expectedOrigin) {
-    throw codedError(
-      "E_LOOPBACK_ORIGIN",
-      "State-changing browser requests require the exact loopback origin."
-    );
-  }
-  if (internal && origin !== void 0) {
-    throw codedError(
-      "E_LOOPBACK_ORIGIN",
-      "Internal control requests must not carry a browser Origin."
-    );
-  }
-  const fetchSite = String(req.headers?.["sec-fetch-site"] ?? "").toLowerCase();
-  if (fetchSite && !["none", "same-origin"].includes(fetchSite)) {
-    throw codedError("E_LOOPBACK_FETCH_SITE", "Cross-site loopback request rejected.");
-  }
-  return { expectedHost, expectedOrigin };
-}
-var wait = (milliseconds) => new Promise((resolveWait) => setTimeout(resolveWait, milliseconds));
-async function acquireStartLock(path, {
-  timeout = 5e3,
-  poll = 25,
-  pid = process.pid,
-  now = () => Date.now(),
-  isAlive = isProcessAlive,
-  waitImpl = wait
-} = {}) {
-  mkdirSync(dirname(path), { recursive: true, mode: 448 });
-  const started = now();
-  if (existsSync(path)) {
-    throw codedError(
-      "E_START_LOCK_LEGACY",
-      `A legacy startup lock must be cleared after confirming its owner is stopped: ${path}`
-    );
-  }
-  const directory = `${path}.writers`;
-  mkdirSync(directory, { recursive: true, mode: 448 });
-  const directoryInfo = lstatSync(directory);
-  if (!directoryInfo.isDirectory() || directoryInfo.isSymbolicLink()) {
-    throw codedError("E_START_LOCK_UNSAFE", `Startup lock directory is unsafe: ${directory}`);
-  }
-  const owner = randomBytes(16).toString("hex");
-  const name = `${pid}-${owner}.json`;
-  const recordPath = join2(directory, name);
-  const announce = (ticket) => writePrivateJsonState(recordPath, { pid, owner, ticket });
-  const writers = () => {
-    const result = [];
-    for (const entry of readdirSync(directory)) {
-      if (!entry.endsWith(".json")) continue;
-      const match = /^([1-9]\d*)-([a-f0-9]{32})\.json$/u.exec(entry);
-      if (!match)
-        throw codedError("E_START_LOCK_UNSAFE", `Startup lock record is invalid: ${entry}`);
-      const entryPath = join2(directory, entry);
-      let info;
-      try {
-        info = lstatSync(entryPath);
-      } catch (error) {
-        if (error?.code === "ENOENT") continue;
-        throw error;
-      }
-      if (!info.isFile() || info.isSymbolicLink() || info.size > 1024) {
-        throw codedError("E_START_LOCK_UNSAFE", `Startup lock record is unsafe: ${entry}`);
-      }
-      const value = readJsonState(entryPath);
-      if (value?.pid !== Number(match[1]) || value?.owner !== match[2] || !Number.isSafeInteger(value.ticket) || value.ticket < 0)
-        throw codedError("E_START_LOCK_UNSAFE", `Startup lock record is invalid: ${entry}`);
-      if (!isAlive(value.pid)) {
-        rmSync(entryPath, { force: true });
-        continue;
-      }
-      result.push({ ...value, name: entry });
-    }
-    return result;
-  };
-  try {
-    announce(0);
-    const ticket = Math.max(0, ...writers().map((writer) => writer.ticket)) + 1;
-    if (!Number.isSafeInteger(ticket)) {
-      throw codedError("E_START_LOCK_UNSAFE", "Startup lock ticket limit reached.");
-    }
-    announce(ticket);
-    while (now() - started <= timeout) {
-      const blocked = writers().some(
-        (writer) => writer.name !== name && (writer.ticket === 0 || writer.ticket < ticket || writer.ticket === ticket && writer.name < name)
-      );
-      if (!blocked) {
-        return () => {
-          const current = readJsonState(recordPath);
-          if (current?.owner === owner && current?.pid === pid) rmSync(recordPath, { force: true });
-        };
-      }
-      await waitImpl(poll);
-    }
-    throw codedError("E_START_LOCK_TIMEOUT", `Timed out waiting for startup lock: ${path}`);
-  } catch (error) {
-    rmSync(recordPath, { force: true });
-    throw error;
-  }
-}
+import { dirname as dirname3, join as join2, resolve as resolve4 } from "node:path";
+
+// packages/artifact/lib/artifact/bridge.mjs
+import { randomBytes as randomBytes2 } from "node:crypto";
 
 // packages/artifact/lib/artifact/internal/board-token.mjs
+import { randomBytes, timingSafeEqual } from "node:crypto";
 var BASE64URL_TOKEN_RE = /^[A-Za-z0-9_-]+$/;
 function mintCapabilityToken({
   bytes = 32,
   encoding = "base64url",
-  randomBytesImpl = randomBytes2
+  randomBytesImpl = randomBytes
 } = {}) {
   if (!Number.isInteger(bytes) || bytes < 12 || bytes > 64) {
     throw new RangeError("Capability tokens require 12 through 64 random bytes.");
@@ -570,20 +132,20 @@ function normalizeArtifactViewportPan(value) {
     return null;
   return Object.freeze({ deltaX, deltaY });
 }
-function createArtifactViewportGestures(window, emit) {
-  const add = window.addEventListener.bind(window), remove = window.removeEventListener.bind(window);
-  const schedule = window.setTimeout.bind(window), cancel = window.clearTimeout.bind(window);
-  const prevent = window.Event.prototype.preventDefault, stop = window.Event.prototype.stopImmediatePropagation;
+function createArtifactViewportGestures(window2, emit) {
+  const add = window2.addEventListener.bind(window2), remove = window2.removeEventListener.bind(window2);
+  const schedule = window2.setTimeout.bind(window2), cancel = window2.clearTimeout.bind(window2);
+  const prevent = window2.Event.prototype.preventDefault, stop = window2.Event.prototype.stopImmediatePropagation;
   const getter = (prototype, name) => Object.getOwnPropertyDescriptor(prototype, name)?.get;
   const native = {
-    x: getter(window.MouseEvent.prototype, "clientX"),
-    y: getter(window.MouseEvent.prototype, "clientY"),
-    ctrl: getter(window.MouseEvent.prototype, "ctrlKey"),
-    meta: getter(window.MouseEvent.prototype, "metaKey"),
-    shift: getter(window.MouseEvent.prototype, "shiftKey"),
-    deltaX: getter(window.WheelEvent.prototype, "deltaX"),
-    deltaY: getter(window.WheelEvent.prototype, "deltaY"),
-    mode: getter(window.WheelEvent.prototype, "deltaMode")
+    x: getter(window2.MouseEvent.prototype, "clientX"),
+    y: getter(window2.MouseEvent.prototype, "clientY"),
+    ctrl: getter(window2.MouseEvent.prototype, "ctrlKey"),
+    meta: getter(window2.MouseEvent.prototype, "metaKey"),
+    shift: getter(window2.MouseEvent.prototype, "shiftKey"),
+    deltaX: getter(window2.WheelEvent.prototype, "deltaX"),
+    deltaY: getter(window2.WheelEvent.prototype, "deltaY"),
+    mode: getter(window2.WheelEvent.prototype, "deltaMode")
   };
   let enabled = false, disposed = false, timer = 0, pending = null, pendingType = "";
   const clear = () => {
@@ -615,8 +177,8 @@ function createArtifactViewportGestures(window, emit) {
       return;
     }
     if (!Number.isFinite(deltaX) || !Number.isFinite(deltaY)) return;
-    const scaleX = mode === 1 ? 16 : mode === 2 ? window.innerWidth : 1;
-    const scaleY = mode === 1 ? 16 : mode === 2 ? window.innerHeight : 1;
+    const scaleX = mode === 1 ? 16 : mode === 2 ? window2.innerWidth : 1;
+    const scaleY = mode === 1 ? 16 : mode === 2 ? window2.innerHeight : 1;
     deltaX *= scaleX;
     deltaY *= scaleY;
     let type;
@@ -629,7 +191,7 @@ function createArtifactViewportGestures(window, emit) {
       );
       value = normalizeArtifactViewportZoom(
         { x, y, deltaY },
-        { width: window.innerWidth, height: window.innerHeight }
+        { width: window2.innerWidth, height: window2.innerHeight }
       );
     } else {
       type = "viewport.pan";
@@ -802,23 +364,23 @@ function normalizeArtifactBridgeToolResult(requestType, message, viewport) {
   }
   return { valid: false };
 }
-function createArtifactBridgeTools(document2, window) {
+function createArtifactBridgeTools(document2, window2) {
   const fromPoint = document2.elementFromPoint.bind(document2);
   const query = document2.querySelectorAll.bind(document2);
-  const attr2 = window.Element.prototype.getAttribute;
-  const closest = window.Element.prototype.closest;
-  const bounds = window.Element.prototype.getBoundingClientRect;
-  const computed = window.getComputedStyle.bind(window);
-  const cloneNode = window.Node.prototype.cloneNode;
-  const append = window.Node.prototype.appendChild;
+  const attr2 = window2.Element.prototype.getAttribute;
+  const closest = window2.Element.prototype.closest;
+  const bounds = window2.Element.prototype.getBoundingClientRect;
+  const computed = window2.getComputedStyle.bind(window2);
+  const cloneNode = window2.Node.prototype.cloneNode;
+  const append = window2.Node.prototype.appendChild;
   const create = document2.createElement.bind(document2);
-  const setAttribute = window.Element.prototype.setAttribute;
-  const serialize3 = window.XMLSerializer.prototype.serializeToString;
-  const Image = window.Image;
-  const Serializer = window.XMLSerializer;
+  const setAttribute = window2.Element.prototype.setAttribute;
+  const serialize2 = window2.XMLSerializer.prototype.serializeToString;
+  const Image = window2.Image;
+  const Serializer = window2.XMLSerializer;
   const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
   const get = (element2, key) => attr2.call(element2, key);
-  const validId = (id3) => typeof id3 === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,511}$/.test(id3);
+  const validId = (id2) => typeof id2 === "string" && /^[A-Za-z0-9][A-Za-z0-9._:-]{0,511}$/.test(id2);
   const screen = (element2) => {
     const owner = closest.call(element2, "[data-planr-screen]");
     const value = owner && get(owner, "data-planr-screen");
@@ -826,10 +388,10 @@ function createArtifactBridgeTools(document2, window) {
   };
   const clean = (value) => String(value || "").replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, 256);
   const inspectElement = (element2) => {
-    if (!(element2 instanceof window.Element)) return null;
+    if (!(element2 instanceof window2.Element)) return null;
     const tagName = element2.localName;
     if (typeof tagName !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(tagName)) return null;
-    const rect = bounds.call(element2), width = window.innerWidth, height = window.innerHeight;
+    const rect = bounds.call(element2), width = window2.innerWidth, height = window2.innerHeight;
     const x = clamp(rect.left, 0, width), y = clamp(rect.top, 0, height);
     const owner = closest.call(element2, "[data-planr-id]");
     const planrId = owner && get(owner, "data-planr-id");
@@ -864,7 +426,7 @@ function createArtifactBridgeTools(document2, window) {
   let capturing = false;
   return Object.freeze({
     inspectAt(x, y) {
-      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > window.innerWidth || y > window.innerHeight)
+      if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0 || x > window2.innerWidth || y > window2.innerHeight)
         return null;
       return inspectElement(fromPoint(x, y));
     },
@@ -885,7 +447,7 @@ function createArtifactBridgeTools(document2, window) {
       let image;
       try {
         const deadline = Date.now() + 2400;
-        const width = window.innerWidth, height = window.innerHeight;
+        const width = window2.innerWidth, height = window2.innerHeight;
         if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 16384 || height > 16384)
           throw new Error("Thumbnail dimensions are unavailable.");
         let count = 0, contentSize = 0;
@@ -931,7 +493,7 @@ function createArtifactBridgeTools(document2, window) {
         };
         const clone = cloneStyled(document2.documentElement);
         setAttribute.call(clone, "xmlns", "http://www.w3.org/1999/xhtml");
-        const markup = serialize3.call(new Serializer(), clone);
+        const markup = serialize2.call(new Serializer(), clone);
         if (markup.length > 4 * 1024 * 1024) throw new Error("Thumbnail markup limit exceeded.");
         const scale = Math.min(1, ARTIFACT_THUMBNAIL_MAX_EDGE / Math.max(width, height));
         const outputWidth = Math.max(1, Math.round(width * scale)), outputHeight = Math.max(1, Math.round(height * scale));
@@ -986,7 +548,449 @@ ${createArtifactViewportGestures.toString()}
 ${createArtifactBridgeTools.toString()}`;
 }
 
-// packages/artifact/lib/artifact/bridge.mjs
+// node_modules/entities/dist/escape.js
+var getCodePoint = typeof String.prototype.codePointAt === "function" ? (input, index) => input.codePointAt(index) : (
+  // http://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+  (c, index) => (c.charCodeAt(index) & 64512) === 55296 ? (c.charCodeAt(index) - 55296) * 1024 + c.charCodeAt(index + 1) - 56320 + 65536 : c.charCodeAt(index)
+);
+function getEscaper(regex, map) {
+  return function escape(data) {
+    let match;
+    let lastIndex = 0;
+    let result = "";
+    while (match = regex.exec(data)) {
+      if (lastIndex !== match.index) {
+        result += data.substring(lastIndex, match.index);
+      }
+      result += map.get(match[0].charCodeAt(0));
+      lastIndex = match.index + 1;
+    }
+    return result + data.substring(lastIndex);
+  };
+}
+var escapeAttribute = /* @__PURE__ */ getEscaper(/["&\u00A0]/g, /* @__PURE__ */ new Map([
+  [34, "&quot;"],
+  [38, "&amp;"],
+  [160, "&nbsp;"]
+]));
+var escapeText = /* @__PURE__ */ getEscaper(/[&<>\u00A0]/g, /* @__PURE__ */ new Map([
+  [38, "&amp;"],
+  [60, "&lt;"],
+  [62, "&gt;"],
+  [160, "&nbsp;"]
+]));
+
+// node_modules/parse5/dist/serializer/index.js
+var VOID_ELEMENTS = /* @__PURE__ */ new Set([
+  TAG_NAMES.AREA,
+  TAG_NAMES.BASE,
+  TAG_NAMES.BASEFONT,
+  TAG_NAMES.BGSOUND,
+  TAG_NAMES.BR,
+  TAG_NAMES.COL,
+  TAG_NAMES.EMBED,
+  TAG_NAMES.FRAME,
+  TAG_NAMES.HR,
+  TAG_NAMES.IMG,
+  TAG_NAMES.INPUT,
+  TAG_NAMES.KEYGEN,
+  TAG_NAMES.LINK,
+  TAG_NAMES.META,
+  TAG_NAMES.PARAM,
+  TAG_NAMES.SOURCE,
+  TAG_NAMES.TRACK,
+  TAG_NAMES.WBR
+]);
+function isVoidElement(node, options) {
+  return options.treeAdapter.isElementNode(node) && options.treeAdapter.getNamespaceURI(node) === NS.HTML && VOID_ELEMENTS.has(options.treeAdapter.getTagName(node));
+}
+var defaultOpts = { treeAdapter: defaultTreeAdapter, scriptingEnabled: true };
+function serialize(node, options) {
+  const opts = { ...defaultOpts, ...options };
+  if (isVoidElement(node, opts)) {
+    return "";
+  }
+  return serializeChildNodes(node, opts);
+}
+function serializeChildNodes(parentNode, options) {
+  let html = "";
+  const container = options.treeAdapter.isElementNode(parentNode) && options.treeAdapter.getTagName(parentNode) === TAG_NAMES.TEMPLATE && options.treeAdapter.getNamespaceURI(parentNode) === NS.HTML ? options.treeAdapter.getTemplateContent(parentNode) : parentNode;
+  const childNodes = options.treeAdapter.getChildNodes(container);
+  if (childNodes) {
+    for (const currentNode of childNodes) {
+      html += serializeNode(currentNode, options);
+    }
+  }
+  return html;
+}
+function serializeNode(node, options) {
+  if (options.treeAdapter.isElementNode(node)) {
+    return serializeElement(node, options);
+  }
+  if (options.treeAdapter.isTextNode(node)) {
+    return serializeTextNode(node, options);
+  }
+  if (options.treeAdapter.isCommentNode(node)) {
+    return serializeCommentNode(node, options);
+  }
+  if (options.treeAdapter.isDocumentTypeNode(node)) {
+    return serializeDocumentTypeNode(node, options);
+  }
+  return "";
+}
+function serializeElement(node, options) {
+  const tn = options.treeAdapter.getTagName(node);
+  return `<${tn}${serializeAttributes(node, options)}>${isVoidElement(node, options) ? "" : `${serializeChildNodes(node, options)}</${tn}>`}`;
+}
+function serializeAttributes(node, { treeAdapter }) {
+  let html = "";
+  for (const attr2 of treeAdapter.getAttrList(node)) {
+    html += " ";
+    if (attr2.namespace) {
+      switch (attr2.namespace) {
+        case NS.XML: {
+          html += `xml:${attr2.name}`;
+          break;
+        }
+        case NS.XMLNS: {
+          if (attr2.name !== "xmlns") {
+            html += "xmlns:";
+          }
+          html += attr2.name;
+          break;
+        }
+        case NS.XLINK: {
+          html += `xlink:${attr2.name}`;
+          break;
+        }
+        default: {
+          html += `${attr2.prefix}:${attr2.name}`;
+        }
+      }
+    } else {
+      html += attr2.name;
+    }
+    html += `="${escapeAttribute(attr2.value)}"`;
+  }
+  return html;
+}
+function serializeTextNode(node, options) {
+  const { treeAdapter } = options;
+  const content = treeAdapter.getTextNodeContent(node);
+  const parent2 = treeAdapter.getParentNode(node);
+  const parentTn = parent2 && treeAdapter.isElementNode(parent2) && treeAdapter.getTagName(parent2);
+  return parentTn && treeAdapter.getNamespaceURI(parent2) === NS.HTML && hasUnescapedText(parentTn, options.scriptingEnabled) ? content : escapeText(content);
+}
+function serializeCommentNode(node, { treeAdapter }) {
+  return `<!--${treeAdapter.getCommentNodeContent(node)}-->`;
+}
+function serializeDocumentTypeNode(node, { treeAdapter }) {
+  return `<!DOCTYPE ${treeAdapter.getDocumentTypeNodeName(node)}>`;
+}
+
+// node_modules/parse5/dist/index.js
+function parse(html, options) {
+  return Parser.parse(html, options);
+}
+function parseFragment(fragmentContext, html, options) {
+  if (typeof fragmentContext === "string") {
+    options = html;
+    html = fragmentContext;
+    fragmentContext = null;
+  }
+  const parser = Parser.getFragmentParser(fragmentContext, options);
+  parser.tokenizer.write(html, true);
+  return parser.getFragment();
+}
+
+// packages/artifact/lib/artifact/ui/prototype-state.mjs
+function installPrototypeState(screenId, viewId, parentOrigin, nonce) {
+  if (!/^[A-Za-z0-9_-]{43}$/.test(nonce)) return;
+  const win = window;
+  let snapshot = { session: {}, forms: {} }, restoring = false;
+  let aliasFields = [];
+  let aliasRestoreType = "";
+  let aliasesConfigured = false;
+  const earlyFields = /* @__PURE__ */ new Map();
+  let sequence = 0, hostRevision = -1, acknowledgedSequence = 0, pendingReset = 0;
+  const documentId = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(32)))).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+  let generation = null;
+  const pendingSession = /* @__PURE__ */ new Map();
+  let pendingForm = null;
+  function valid(value) {
+    let keys = 0;
+    function visit(node, depth) {
+      if (depth > 6) return false;
+      if (node === null || typeof node === "boolean") return true;
+      if (typeof node === "number") return Number.isFinite(node);
+      if (typeof node === "string") return node.length <= 8192;
+      if (Array.isArray(node))
+        return node.length <= 128 && node.every((item2) => visit(item2, depth + 1));
+      if (!node || typeof node !== "object" || Object.getPrototypeOf(node) !== Object.prototype)
+        return false;
+      return Object.entries(node).every(
+        ([key, item2]) => ++keys <= 128 && key.length <= 256 && !["__proto__", "constructor", "prototype"].includes(key) && visit(item2, depth + 1)
+      );
+    }
+    try {
+      return !!value && Object.keys(value).every((key) => key === "session" || key === "forms") && !!value.session && !Array.isArray(value.session) && typeof value.session === "object" && !!value.forms && !Array.isArray(value.forms) && typeof value.forms === "object" && visit(value, 0) && new TextEncoder().encode(JSON.stringify(value)).byteLength <= 16384;
+    } catch {
+      return false;
+    }
+  }
+  const post = (type, update) => win.parent.postMessage(
+    {
+      type,
+      version: 1,
+      nonce,
+      screenId,
+      viewId,
+      documentId,
+      generation,
+      ...type === "openplanr:prototype-state" ? { state: snapshot, sequence, ...update } : {}
+    },
+    parentOrigin
+  );
+  const fields = () => [
+    ...document.querySelectorAll(
+      "input,textarea,select"
+    )
+  ].filter(
+    (field) => !["password", "file", "hidden", "submit", "button", "reset"].includes(field.type) && !field.hasAttribute("data-planr-state-private")
+  );
+  const fieldKey = (field, index) => (field.id || field.name || `field-${index}`).slice(0, 256) + (field.type === "radio" ? `:${field.value}` : "");
+  function capture(sessionValue = snapshot.session) {
+    if (restoring) return;
+    const form = {};
+    fields().forEach((field, index) => {
+      const input = field;
+      form[fieldKey(field, index)] = ["checkbox", "radio"].includes(field.type) ? input.checked : field instanceof HTMLSelectElement && field.multiple ? [...field.selectedOptions].map((option) => option.value) : field.value;
+    });
+    const session = { ...sessionValue };
+    for (const field of fields()) {
+      if (aliasesConfigured && aliasFields.includes(field.id) && typeof field.value === "string" && field.value.length <= 4e3)
+        session[field.id] = field.value;
+    }
+    const next = { session, forms: { ...snapshot.forms, [viewId]: form } };
+    return commit(next);
+  }
+  function commit(next, reset = false) {
+    if (!valid(next) || sequence === Number.MAX_SAFE_INTEGER) return false;
+    const keys = [
+      .../* @__PURE__ */ new Set([...Object.keys(snapshot.session), ...Object.keys(next.session)])
+    ].filter(
+      (key) => Object.hasOwn(snapshot.session, key) !== Object.hasOwn(next.session, key) || JSON.stringify(snapshot.session[key]) !== JSON.stringify(next.session[key])
+    );
+    const pending = new Map(pendingSession);
+    if (reset) pending.clear();
+    for (const key of keys)
+      pending.set(key, {
+        sequence: sequence + 1,
+        present: Object.hasOwn(next.session, key),
+        value: next.session[key]
+      });
+    if (pending.size > 256 || new TextEncoder().encode(JSON.stringify([...pending])).byteLength > 16384)
+      return false;
+    sequence++;
+    pendingSession.clear();
+    for (const [key, value] of pending) pendingSession.set(key, value);
+    if (reset) {
+      earlyFields.clear();
+      pendingReset = sequence;
+      pendingForm = null;
+    } else if (Object.hasOwn(next.forms, viewId))
+      pendingForm = { sequence, value: structuredClone(next.forms[viewId]) };
+    snapshot = structuredClone(next);
+    postPending();
+    return true;
+  }
+  function postPending() {
+    post("openplanr:prototype-state", {
+      sessionKeys: [...pendingSession.keys()],
+      sessionSequences: Object.fromEntries(
+        [...pendingSession].map(([key, update]) => [key, update.sequence])
+      ),
+      ...pendingReset ? { reset: true, resetSequence: pendingReset } : {}
+    });
+  }
+  function apply() {
+    const form = snapshot.forms[viewId];
+    if (!form) return;
+    restoring = true;
+    fields().forEach((field, index) => {
+      const value = form[fieldKey(field, index)];
+      if (value === void 0) return;
+      if (["checkbox", "radio"].includes(field.type) && typeof value === "boolean")
+        field.checked = value;
+      else if (field instanceof HTMLSelectElement && field.multiple && Array.isArray(value))
+        for (const option of field.options) option.selected = value.includes(option.value);
+      else if (typeof value === "string") field.value = value;
+    });
+    restoring = false;
+  }
+  win.__OPENPLANR_PROTOTYPE_STATE__ = Object.freeze({
+    get: () => structuredClone(snapshot.session),
+    set(value) {
+      const next = { session: value, forms: snapshot.forms };
+      if (!valid(next)) throw new TypeError("Prototype state exceeds its bounded JSON contract.");
+      if (!capture(structuredClone(value)))
+        throw new TypeError("Pending prototype edits exceed their bounded JSON contract.");
+      for (const key of Object.keys(value)) earlyFields.delete(key);
+    },
+    reset() {
+      if (!commit({ session: {}, forms: {} }, true))
+        throw new TypeError("Pending prototype edits exceed their bounded JSON contract.");
+    }
+  });
+  win.addEventListener("message", (event) => {
+    const data = event.data;
+    if (event.source === win.parent && (parentOrigin === "*" || event.origin === parentOrigin) && data?.nonce === nonce && aliasRestoreType && data.type === aliasRestoreType) {
+      data.state = Object.fromEntries(
+        aliasFields.flatMap((field) => {
+          const early = !aliasesConfigured ? earlyFields.get(field) : void 0;
+          const value = early?.value ?? snapshot.session[field];
+          return typeof value === "string" && value.length <= 4e3 ? [[field, value]] : [];
+        })
+      );
+      return;
+    }
+    if (event.source !== win.parent || parentOrigin !== "*" && event.origin !== parentOrigin || data?.type !== "openplanr:prototype-state:restore" || data.version !== 1 || data.nonce !== nonce || data.screenId !== screenId || data.viewId !== viewId || !valid(data.state))
+      return;
+    const configuring = generation === null && data.generation !== void 0;
+    if (data.generation !== void 0) {
+      if (typeof data.generation !== "string" || !/^[A-Za-z0-9_-][A-Za-z0-9._:-]{7,127}$/.test(data.generation))
+        return;
+      if (data.documentId === void 0) {
+        post("openplanr:prototype-state:ready");
+        return;
+      }
+      if (data.documentId !== documentId || generation !== null && data.generation !== generation)
+        return;
+    } else if (generation !== null) return;
+    if (data.revision !== void 0) {
+      if (!Number.isSafeInteger(data.revision) || data.revision < 0 || data.revision < hostRevision || !Number.isSafeInteger(data.acknowledgedSequence) || data.acknowledgedSequence < acknowledgedSequence || data.acknowledgedSequence > sequence)
+        return;
+    } else if (hostRevision >= 0) return;
+    const aliases = data.aliases;
+    aliasRestoreType = aliases?.version === 1 && typeof aliases.restoreType === "string" && /^[a-zA-Z][a-zA-Z0-9:_-]{0,127}$/.test(aliases.restoreType) && !aliases.restoreType.startsWith("openplanr:") ? aliases.restoreType : "";
+    aliasFields = aliases?.version === 1 && Array.isArray(aliases.fields) && aliases.fields.length <= 32 && aliases.fields.every(
+      (field) => typeof field === "string" && /^[a-zA-Z][a-zA-Z0-9_-]{0,127}$/.test(field) && !["constructor", "prototype", "__proto__"].includes(field)
+    ) ? aliases.fields : [];
+    const ack = data.revision === void 0 ? sequence : data.acknowledgedSequence;
+    const next = structuredClone(data.state);
+    if (pendingReset > ack) {
+      next.session = {};
+      next.forms = {};
+    }
+    for (const [key, update] of pendingSession) {
+      if (update.sequence <= ack) continue;
+      if (update.present && update.value !== void 0) next.session[key] = update.value;
+      else delete next.session[key];
+    }
+    if (pendingForm && pendingForm.sequence > ack) next.forms[viewId] = pendingForm.value;
+    if (!valid(next)) return;
+    for (const [field, early] of earlyFields)
+      if (early.sequence <= ack && JSON.stringify(data.state.forms[viewId]?.[early.fieldKey]) !== JSON.stringify(early.formValue))
+        earlyFields.delete(field);
+    hostRevision = data.revision ?? hostRevision;
+    if (data.generation !== void 0) generation = data.generation;
+    acknowledgedSequence = data.revision === void 0 ? 0 : ack;
+    if (pendingReset <= ack) pendingReset = 0;
+    for (const [key, update] of pendingSession)
+      if (update.sequence <= ack) pendingSession.delete(key);
+    if (pendingForm && pendingForm.sequence <= ack) pendingForm = null;
+    snapshot = next;
+    if (!aliasesConfigured && aliasRestoreType) {
+      const promoted = structuredClone(snapshot);
+      for (const field of aliasFields) {
+        const early = earlyFields.get(field);
+        if (!early || (pendingSession.get(field)?.sequence ?? 0) > early.sequence) continue;
+        promoted.session[field] = early.value;
+        promoted.forms[viewId] ??= {};
+        promoted.forms[viewId][early.fieldKey] = early.formValue;
+      }
+      if (!aliasFields.some((field) => earlyFields.has(field)) || commit(promoted)) {
+        aliasesConfigured = true;
+        earlyFields.clear();
+      }
+    }
+    apply();
+    win.dispatchEvent(
+      new CustomEvent("openplanr:prototype-state-restored", {
+        detail: structuredClone(snapshot.session)
+      })
+    );
+    if (data.revision !== void 0 && (pendingSession.size || pendingReset || pendingForm))
+      postPending();
+    else if (configuring) post("openplanr:prototype-state:ready");
+  });
+  const captureField = (event) => {
+    if (!capture() || aliasesConfigured) return;
+    const field = fields().find((candidate) => candidate === event.target);
+    if (!field || !/^[a-zA-Z][a-zA-Z0-9_-]{0,127}$/.test(field.id) || ["constructor", "prototype", "__proto__"].includes(field.id) || field.value.length > 4e3)
+      return;
+    const key = fieldKey(field, fields().indexOf(field));
+    const next = new Map(earlyFields);
+    next.set(field.id, {
+      value: field.value,
+      fieldKey: key,
+      formValue: snapshot.forms[viewId][key],
+      sequence
+    });
+    if (next.size > 128 || new TextEncoder().encode(JSON.stringify([...next])).byteLength > 16384)
+      return;
+    earlyFields.clear();
+    for (const [id2, value] of next) earlyFields.set(id2, value);
+  };
+  document.addEventListener("input", captureField, true);
+  document.addEventListener("change", captureField, true);
+  document.addEventListener("submit", () => capture(), true);
+  if (document.readyState === "loading")
+    document.addEventListener(
+      "DOMContentLoaded",
+      () => {
+        apply();
+        post("openplanr:prototype-state:ready");
+      },
+      { once: true }
+    );
+  else {
+    apply();
+    post("openplanr:prototype-state:ready");
+  }
+  post("openplanr:prototype-state:ready");
+  win.setTimeout(() => post("openplanr:prototype-state:ready"), 500);
+}
+function renderPrototypeStateInstaller() {
+  return installPrototypeState.toString();
+}
+
+// packages/artifact/lib/artifact/browser-sandbox.mjs
+function pipelineError(code, message, details) {
+  return new PipelineError(code, message, "", details);
+}
+function browserCapabilityToken({ bytes = 32 } = {}) {
+  const data = crypto.getRandomValues(new Uint8Array(bytes));
+  return btoa(String.fromCharCode(...data)).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+}
+function isCapabilityToken2(value) {
+  if (typeof value !== "string" || !/^[A-Za-z0-9_-]{43}$/u.test(value)) return false;
+  try {
+    const decoded = atob(value.replaceAll("-", "+").replaceAll("_", "/") + "=");
+    return decoded.length === 32 && btoa(decoded).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "") === value;
+  } catch {
+    return false;
+  }
+}
+function validHostedOrigin(origin) {
+  if (typeof origin !== "string") return false;
+  try {
+    const parsed = new URL(origin);
+    return parsed.protocol === "https:" && parsed.origin === origin && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
 var ARTIFACT_BRIDGE_CHANNEL = "openplanr.artifact-anchor";
 var ARTIFACT_BRIDGE_VERSION = "1.0.0";
 var ARTIFACT_BRIDGE_EVENT = "planr:artifact-anchor";
@@ -1033,16 +1037,16 @@ var URL_ATTRIBUTES = /* @__PURE__ */ new Set([
   "xlink:href"
 ]);
 var REMOTE_URL_RE = /^(?:https?:|file:|ftp:|wss?:|\/\/)/i;
-function pipelineError(code, message, details) {
-  return new PipelineError(code, message, "", details);
-}
 function getAttr(node, name) {
   return node.attrs?.find((attribute) => attribute.name.toLowerCase() === name)?.value;
 }
 function setAttr(node, name, value) {
   const existing = node.attrs?.find((attribute) => attribute.name.toLowerCase() === name);
   if (existing) existing.value = value;
-  else (node.attrs ??= []).push({ name, value });
+  else {
+    node.attrs ??= [];
+    node.attrs.push({ name, value });
+  }
 }
 function createElement(tagName) {
   return parseFragment(`<${tagName}></${tagName}>`).childNodes[0];
@@ -1054,9 +1058,9 @@ function descendants(node) {
   return [...node?.childNodes ?? [], ...node?.content?.childNodes ?? []];
 }
 function removeNode(node) {
-  const parent = node.parentNode;
-  const index = parent?.childNodes?.indexOf(node) ?? -1;
-  if (index >= 0) parent.childNodes.splice(index, 1);
+  const parent2 = node.parentNode;
+  const index = parent2?.childNodes?.indexOf(node) ?? -1;
+  if (index >= 0) parent2.childNodes.splice(index, 1);
 }
 function findElement(document2, tagName) {
   const queue = descendants(document2);
@@ -1066,9 +1070,6 @@ function findElement(document2, tagName) {
     queue.push(...descendants(node));
   }
   return null;
-}
-function createArtifactBridgeNonce({ randomBytesImpl = randomBytes3 } = {}) {
-  return mintCapabilityToken({ bytes: 32, randomBytesImpl });
 }
 function artifactContentSecurityPolicy(scriptNonce) {
   if (typeof scriptNonce !== "string" || !SCRIPT_NONCE_RE.test(scriptNonce)) {
@@ -1177,34 +1178,116 @@ var fillFrameGuard = sandboxGuardFiller("frame guard", ARTIFACT_FRAME_GUARD_TEMP
   "__PLANR_SANDBOX_WORKER_GUARD__",
   ...Object.keys(SANDBOX_GUARD_LIMITS)
 ]);
-var fillHostGuard = sandboxGuardFiller("host guard", ARTIFACT_HOST_GUARD_TEMPLATE, [
-  "__PLANR_SANDBOX_CONFIG__",
-  "__PLANR_SANDBOX_BRIDGE_TOOLS__;",
-  ...Object.keys(SANDBOX_GUARD_LIMITS)
-]);
-function artifactGuardAndBridgeSource({ artifactId, nonce, parentOrigin }) {
+function artifactGuardAndBridgeSource({
+  artifactId,
+  nonce,
+  parentOrigin,
+  prototypeState = false,
+  reviewSelection = false,
+  screenId = artifactId
+}) {
   const contract = JSON.stringify({
     channel: ARTIFACT_BRIDGE_CHANNEL,
     schemaVersion: ARTIFACT_BRIDGE_VERSION,
     artifactId,
     nonce,
-    parentOrigin
-  });
-  return fillFrameGuard({
-    __PLANR_SANDBOX_CONTRACT__: contract,
+    parentOrigin,
+    ...prototypeState ? { screenId } : {},
+    ...reviewSelection ? { reviewSelection: true } : {}
+  }).replace(/</gu, "\\u003c");
+  const guard = fillFrameGuard({
+    __PLANR_SANDBOX_CONTRACT__: prototypeState || reviewSelection ? "__openplanrPrototypeContract" : contract,
     "__PLANR_SANDBOX_BRIDGE_TOOLS__;": renderArtifactBridgeToolsSource(),
     __PLANR_SANDBOX_WORKER_GUARD__: JSON.stringify(ARTIFACT_WORKER_GUARD_SOURCE),
     ...SANDBOX_GUARD_LIMITS
   });
+  if (!prototypeState && !reviewSelection) return guard;
+  const prototypeInstaller = prototypeState ? `(${renderPrototypeStateInstaller()})(__openplanrPrototypeContract.screenId,__openplanrPrototypeContract.artifactId,__openplanrPrototypeContract.parentOrigin === 'null' ? '*' : __openplanrPrototypeContract.parentOrigin,__openplanrPrototypeContract.nonce);` : "";
+  return `(function(__openplanrPrototypeContract){${guard};${prototypeInstaller}(${installPreviewNavigation.toString()})(__openplanrPrototypeContract);})(${contract});`;
+}
+function installPreviewNavigation(contract) {
+  const trustedParent = parent, post = trustedParent.postMessage.bind(trustedParent), NativeElement = Element, svgRoots = [], svgClick = () => {
+  }, addListener = EventTarget.prototype.addEventListener, removeListener = EventTarget.prototype.removeEventListener, queryAll = Document.prototype.querySelectorAll, query = NativeElement.prototype.querySelector, closest = NativeElement.prototype.closest, attribute = NativeElement.prototype.getAttribute, preventDefault = Event.prototype.preventDefault, stopImmediatePropagation = Event.prototype.stopImmediatePropagation, descriptors = Object.getOwnPropertyDescriptors, prototype = Object.getPrototypeOf, objectPrototype = Object.prototype, keys = Reflect.ownKeys;
+  let selectionEnabled = false;
+  if (contract.reviewSelection === true)
+    addEventListener("message", (event) => {
+      if (event.source !== trustedParent || event.origin !== contract.parentOrigin) return;
+      const data = event.data;
+      if (!data || typeof data !== "object") return;
+      const dataPrototype = prototype(data);
+      if (dataPrototype !== objectPrototype && dataPrototype !== null) return;
+      const fields = descriptors(data), allowed = ["schemaVersion", "type", "channel", "viewId", "enabled"];
+      if (keys(fields).length !== allowed.length || allowed.some((key) => !fields[key]?.enumerable || !("value" in fields[key])))
+        return;
+      if (fields.schemaVersion.value !== "1.0.0" || fields.type.value !== "openplanr:review-selection" || fields.channel.value !== contract.nonce || fields.viewId.value !== contract.artifactId || typeof fields.enabled.value !== "boolean")
+        return;
+      selectionEnabled = fields.enabled.value;
+      for (const svg of svgRoots) removeListener.call(svg, "click", svgClick);
+      svgRoots.length = 0;
+      if (selectionEnabled)
+        for (const svg of queryAll.call(document, "svg")) {
+          if (!attribute.call(svg, "data-planr-id") && !attribute.call(svg, "data-element-id") && !query.call(svg, "[data-planr-id],[data-element-id]"))
+            continue;
+          addListener.call(svg, "click", svgClick);
+          svgRoots.push(svg);
+        }
+    });
+  document.addEventListener(
+    "click",
+    (event) => {
+      if (!(event.target instanceof NativeElement)) return;
+      if (selectionEnabled) {
+        const target2 = closest.call(event.target, "[data-planr-id],[data-element-id]"), elementId = target2 ? attribute.call(target2, "data-planr-id") ?? attribute.call(target2, "data-element-id") : null;
+        if (!elementId || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(elementId)) return;
+        preventDefault.call(event);
+        stopImmediatePropagation.call(event);
+        post(
+          {
+            schemaVersion: "1.0.0",
+            channel: contract.nonce,
+            type: "select",
+            viewId: contract.artifactId,
+            elementId
+          },
+          contract.parentOrigin === "null" ? "*" : contract.parentOrigin
+        );
+        return;
+      }
+      if (!contract.screenId) return;
+      const target = closest.call(
+        event.target,
+        "[data-design-target],[data-planr-navigate],[data-design-navigate]"
+      );
+      if (!target) return;
+      const screenId = target.getAttribute("data-design-target") || target.getAttribute("data-planr-navigate") || target.getAttribute("data-design-navigate");
+      if (!screenId || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(screenId)) return;
+      event.preventDefault();
+      post(
+        {
+          schemaVersion: "1.0.0",
+          channel: contract.nonce,
+          type: "navigate",
+          viewId: contract.artifactId,
+          screenId
+        },
+        contract.parentOrigin === "null" ? "*" : contract.parentOrigin
+      );
+    },
+    true
+  );
 }
 function prepareArtifactDocument({
   html,
   artifactId,
   nonce,
   parentOrigin,
-  scriptNonce = mintCapabilityToken({ bytes: 18 }),
+  scriptNonce = browserCapabilityToken({ bytes: 18 }),
   allowLocalForms = false,
-  portable = false
+  portable = false,
+  trustedParentOrigin,
+  screenId = artifactId,
+  prototypeState = false,
+  reviewSelection = false
 } = {}) {
   if (typeof html !== "string" || html.length === 0) {
     throw pipelineError(ARTIFACT_ERROR_CODES.SANDBOX_POLICY, "Artifact HTML is required.");
@@ -1212,15 +1295,30 @@ function prepareArtifactDocument({
   if (typeof artifactId !== "string" || !ID_RE.test(artifactId)) {
     throw pipelineError(ARTIFACT_ERROR_CODES.SANDBOX_POLICY, "Artifact id is invalid.");
   }
-  if (!isCapabilityToken(nonce)) {
+  if (!isCapabilityToken2(nonce)) {
     throw pipelineError(ARTIFACT_ERROR_CODES.SANDBOX_POLICY, "Artifact bridge nonce is invalid.");
   }
-  const originMatch = /^http:\/\/127\.0\.0\.1:(\d{1,5})$/.exec(parentOrigin ?? "");
-  const originPort = Number(originMatch?.[1]);
-  if (!(portable && parentOrigin === "null") && (!originMatch || !Number.isInteger(originPort) || originPort < 1 || originPort > 65535 || String(originPort) !== originMatch[1])) {
+  if (typeof reviewSelection !== "boolean")
     throw pipelineError(
       ARTIFACT_ERROR_CODES.SANDBOX_POLICY,
-      "Artifact parent origin must be IPv4 loopback."
+      "Artifact review selection option must be a boolean."
+    );
+  if (reviewSelection && artifactId.length > 128)
+    throw pipelineError(
+      ARTIFACT_ERROR_CODES.SANDBOX_POLICY,
+      "Review selection requires an artifact view id of at most 128 characters."
+    );
+  if (prototypeState && (typeof screenId !== "string" || !ID_RE.test(screenId)))
+    throw pipelineError(
+      ARTIFACT_ERROR_CODES.SANDBOX_POLICY,
+      "Prototype screen identity is invalid."
+    );
+  const originMatch = /^http:\/\/127\.0\.0\.1:(\d{1,5})$/.exec(parentOrigin ?? "");
+  const originPort = Number(originMatch?.[1]);
+  if (!(portable && parentOrigin === "null") && !(portable && parentOrigin === trustedParentOrigin && validHostedOrigin(parentOrigin)) && (!originMatch || !Number.isInteger(originPort) || originPort < 1 || originPort > 65535 || String(originPort) !== originMatch[1])) {
+    throw pipelineError(
+      ARTIFACT_ERROR_CODES.SANDBOX_POLICY,
+      "Artifact parent origin must be IPv4 loopback or an explicitly trusted HTTPS origin."
     );
   }
   const document2 = parse(html, { sourceCodeLocationInfo: false });
@@ -1258,7 +1356,17 @@ function prepareArtifactDocument({
   const bridge = createElement("script");
   setAttr(bridge, "nonce", scriptNonce);
   bridge.childNodes = [
-    createText(artifactGuardAndBridgeSource({ artifactId, nonce, parentOrigin }), bridge)
+    createText(
+      artifactGuardAndBridgeSource({
+        artifactId,
+        nonce,
+        parentOrigin,
+        prototypeState,
+        reviewSelection,
+        screenId
+      }),
+      bridge
+    )
   ];
   bridge.parentNode = head;
   const queue = descendants(document2);
@@ -1276,12 +1384,63 @@ function prepareArtifactDocument({
   ];
   return Object.freeze({ html: serialize(document2), csp, scriptNonce });
 }
+function prepareArtifactSourceTemplate(options = {}) {
+  const artifactId = `template-${browserCapabilityToken()}`;
+  const prepared = prepareArtifactDocument({
+    ...options,
+    artifactId,
+    portable: true,
+    parentOrigin: options.parentOrigin ?? "null"
+  });
+  const artifactIdToken = `"artifactId":${JSON.stringify(artifactId)}`;
+  if (prepared.html.split(artifactIdToken).length !== 2)
+    throw pipelineError(
+      ARTIFACT_ERROR_CODES.BRIDGE_INVALID,
+      "Shared source bridge identity is not unique."
+    );
+  return Object.freeze({ html: prepared.html, artifactIdToken });
+}
+
+// packages/artifact/lib/artifact/bridge.mjs
+var ID_RE2 = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,511}$/;
+function pipelineError2(code, message, details) {
+  return new PipelineError(code, message, "", details);
+}
+function createArtifactBridgeNonce({ randomBytesImpl = randomBytes2 } = {}) {
+  return mintCapabilityToken({ bytes: 32, randomBytesImpl });
+}
+var fillHostGuard = sandboxGuardFiller("host guard", ARTIFACT_HOST_GUARD_TEMPLATE, [
+  "__PLANR_SANDBOX_CONFIG__",
+  "__PLANR_SANDBOX_BRIDGE_TOOLS__;",
+  ...Object.keys(SANDBOX_GUARD_LIMITS)
+]);
+function validInlineSourcePool(sources, references) {
+  if (!sources || typeof sources !== "object" || Array.isArray(sources) || !references || typeof references !== "object" || Array.isArray(references))
+    return false;
+  const entries = Object.entries(sources), views = Object.entries(references);
+  if (!entries.length || entries.length > ARTIFACT_MAX_SOURCES || !views.length || views.length > ARTIFACT_MAX_VIEWS)
+    return false;
+  let bytes = 0;
+  for (const [id2, source] of entries) {
+    if (!ID_RE2.test(id2) || !source || Object.keys(source).length !== 2 || typeof source.html !== "string" || !/^"artifactId":"template-[A-Za-z0-9_-]{43}"$/u.test(source.artifactIdToken) || source.html.split(source.artifactIdToken).length !== 2)
+      return false;
+    bytes += Buffer.byteLength(source.html);
+    if (bytes > 100 * 1024 * 1024) return false;
+  }
+  return views.every(
+    ([id2, sourceId]) => ID_RE2.test(id2) && typeof sourceId === "string" && Object.hasOwn(sources, sourceId)
+  ) && new Set(Object.values(references)).size === entries.length;
+}
 function renderArtifactParentRuntime({
   artifactBaseUrl,
   stageRuntimeUrl,
   adapterRuntimeUrl,
   nonce,
-  inlineArtifacts
+  inlineArtifacts,
+  inlineSources,
+  inlineArtifactSources,
+  sourceTransport = "blob",
+  frameBudget
 } = {}) {
   const canonicalPath = (value, { trailingSlash = false } = {}) => {
     if (typeof value !== "string" || !value.startsWith("/") || value.startsWith("//") || value.includes("\\") || value.includes("?") || value.includes("#") || /[\u0000-\u001f]/.test(value) || /%(?:00|2f|5c)/i.test(value) || (trailingSlash ? !value.endsWith("/") : value.endsWith("/")))
@@ -1295,9 +1454,11 @@ function renderArtifactParentRuntime({
       return false;
     }
   };
-  const portable = inlineArtifacts && typeof inlineArtifacts === "object" && !Array.isArray(inlineArtifacts) && Object.values(inlineArtifacts).every((html) => typeof html === "string");
-  if (!portable && !canonicalPath(artifactBaseUrl, { trailingSlash: true }) || !(canonicalPath(stageRuntimeUrl) || portable && /^data:text\/javascript;base64,[A-Za-z0-9+/=]+$/u.test(stageRuntimeUrl)) || adapterRuntimeUrl !== void 0 && !canonicalPath(adapterRuntimeUrl) || !isCapabilityToken(nonce)) {
-    throw pipelineError(
+  const legacyPortable = inlineArtifacts && typeof inlineArtifacts === "object" && !Array.isArray(inlineArtifacts) && Object.values(inlineArtifacts).every((html) => typeof html === "string");
+  const pooledPortable = validInlineSourcePool(inlineSources, inlineArtifactSources);
+  const portable = legacyPortable || pooledPortable;
+  if ((inlineSources !== void 0 || inlineArtifactSources !== void 0) && (!pooledPortable || inlineArtifacts !== void 0) || !portable && !canonicalPath(artifactBaseUrl, { trailingSlash: true }) || !(canonicalPath(stageRuntimeUrl) || portable && /^data:text\/javascript;base64,[A-Za-z0-9+/=]+$/u.test(stageRuntimeUrl)) || adapterRuntimeUrl !== void 0 && !canonicalPath(adapterRuntimeUrl) || !isCapabilityToken(nonce) || !["blob", "srcdoc"].includes(sourceTransport) || frameBudget !== void 0 && (!Number.isInteger(frameBudget) || frameBudget < 1 || frameBudget > 8)) {
+    throw pipelineError2(
       ARTIFACT_ERROR_CODES.BRIDGE_INVALID,
       "Artifact parent runtime configuration is invalid."
     );
@@ -1307,7 +1468,10 @@ function renderArtifactParentRuntime({
     stageRuntimeUrl,
     adapterRuntimeUrl: adapterRuntimeUrl ?? null,
     nonce,
-    inlineArtifacts: portable ? inlineArtifacts : null,
+    inlineArtifacts: legacyPortable ? inlineArtifacts : null,
+    ...pooledPortable ? { inlineSources, inlineArtifactSources } : {},
+    sourceTransport,
+    ...frameBudget === void 0 ? {} : { frameBudget },
     channel: ARTIFACT_BRIDGE_CHANNEL,
     schemaVersion: ARTIFACT_BRIDGE_VERSION,
     anchorEvent: ARTIFACT_BRIDGE_EVENT,
@@ -1343,8 +1507,8 @@ function renderArtifactParentRuntime({
 
 // packages/artifact/lib/artifact/local-document.mjs
 import { createHash } from "node:crypto";
-import { readFileSync as readFileSync2, realpathSync, statSync } from "node:fs";
-import { dirname as dirname2, extname, isAbsolute, relative, resolve as resolve2 } from "node:path";
+import { readFileSync, realpathSync, statSync } from "node:fs";
+import { dirname, extname, isAbsolute, relative, resolve } from "node:path";
 import { Script } from "node:vm";
 var MIME = {
   ".png": "image/png",
@@ -1373,7 +1537,7 @@ function element(name, value) {
 function resolveLocalDocumentFile(root, path, from = root) {
   if (typeof path !== "string" || !path || /^(?:[a-z][a-z\d+.-]*:|\/|\\)/iu.test(path))
     throw new Error(`Expected a local relative asset: ${path}`);
-  const candidate = resolve2(from, path);
+  const candidate = resolve(from, path);
   const inside = (file) => {
     const r = relative(root, file);
     return r !== ".." && !r.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) && !isAbsolute(r);
@@ -1389,7 +1553,7 @@ function bundleLocalDocument({
   source,
   sharedStyles = [],
   screenId,
-  maxBytes = 100 * 1024 * 1024,
+  maxBytes = MAX_ARTIFACT_HTML_BYTES,
   readSource,
   passive = false
 }) {
@@ -1404,7 +1568,7 @@ function bundleLocalDocument({
     const checked = readSource?.(path, from);
     const file = checked?.file ?? resolveLocalDocumentFile(root, path, from);
     if (!files.has(file)) {
-      const value = checked?.value ?? readFileSync2(file);
+      const value = checked?.value ?? readFileSync(file);
       bytes += value.length;
       if (bytes > maxBytes || files.size >= 1e3)
         throw new Error("Design source exceeds the local asset budget.");
@@ -1433,7 +1597,7 @@ function bundleLocalDocument({
         throw new Error("Circular or excessively nested SVG media cannot be published.");
       mediaStack.add(file);
       try {
-        payload = Buffer.from(passiveSvg(value.toString("utf8"), dirname2(file)));
+        payload = Buffer.from(passiveSvg(value.toString("utf8"), dirname(file)));
       } finally {
         mediaStack.delete(file);
       }
@@ -1496,7 +1660,7 @@ function bundleLocalDocument({
         if (stack.has(next.file)) throw new Error(`Circular stylesheet import: ${ref}`);
         const expanded = css(
           next.value.toString("utf8"),
-          dirname2(next.file),
+          dirname(next.file),
           /* @__PURE__ */ new Set([...stack, next.file])
         );
         return media.trim() ? `@media ${media.trim()}{${expanded}}` : expanded;
@@ -1535,21 +1699,21 @@ function bundleLocalDocument({
       );
     if (node.tagName === "meta" && attr(node, "http-equiv")?.value.toLowerCase() === "refresh")
       throw new Error("Design screens cannot redirect.");
-    if (node.tagName === "style") setText(node, css(text(node), dirname2(input.file)));
+    if (node.tagName === "style") setText(node, css(text(node), dirname(input.file)));
     if (node.tagName === "link" && attr(node, "rel")?.value.toLowerCase().split(/\s+/u).includes("stylesheet")) {
-      const linked = read(attr(node, "href")?.value, dirname2(input.file));
+      const linked = read(attr(node, "href")?.value, dirname(input.file));
       node.tagName = "style";
       node.nodeName = "style";
       node.attrs = [];
       setText(
         node,
-        css(linked.value.toString("utf8"), dirname2(linked.file), /* @__PURE__ */ new Set([linked.file]))
+        css(linked.value.toString("utf8"), dirname(linked.file), /* @__PURE__ */ new Set([linked.file]))
       );
     }
     if (node.tagName === "script") {
       const src = attr(node, "src");
       if (passive) {
-        if (src) read(src.value, dirname2(input.file));
+        if (src) read(src.value, dirname(input.file));
         node.parentNode.childNodes = node.parentNode.childNodes.filter((child) => child !== node);
         continue;
       }
@@ -1557,7 +1721,7 @@ function bundleLocalDocument({
       if (type === "module")
         throw new Error("Compile module scripts before using them in a portable design.");
       if (!type || /(?:javascript|ecmascript)/u.test(type)) {
-        const linked = src ? read(src.value, dirname2(input.file)) : null;
+        const linked = src ? read(src.value, dirname(input.file)) : null;
         setText(
           node,
           js(linked ? linked.value.toString("utf8") : text(node), linked?.file ?? input.file)
@@ -1573,16 +1737,16 @@ function bundleLocalDocument({
     }
     if (passive) node.attrs = (node.attrs ?? []).filter((item2) => !/^on/iu.test(item2.name));
     for (const item2 of node.attrs ?? []) {
-      if (item2.name === "style") item2.value = css(item2.value, dirname2(input.file));
+      if (item2.name === "style") item2.value = css(item2.value, dirname(input.file));
       if (["src", "poster"].includes(item2.name))
-        item2.value = asset(item2.value, dirname2(input.file));
+        item2.value = asset(item2.value, dirname(input.file));
       if (item2.name === "srcset")
         throw new Error("Use a local src and responsive CSS for portable design images.");
       if (["action", "formaction", "target", "formtarget"].includes(item2.name) && item2.value.trim())
         throw new Error("Design forms must use local submit handlers without navigation targets.");
       if (item2.name === "href" && !item2.value.startsWith("#")) {
         if (node.tagName === "link" || node.namespaceURI === "http://www.w3.org/2000/svg")
-          item2.value = asset(item2.value, dirname2(input.file));
+          item2.value = asset(item2.value, dirname(input.file));
         else if (node.tagName === "a")
           throw new Error('Use data-design-navigate="screen-id" for prototype navigation.');
       }
@@ -1595,7 +1759,7 @@ function bundleLocalDocument({
     prepend.push(
       element(
         "style",
-        css(linked.value.toString("utf8"), dirname2(linked.file), /* @__PURE__ */ new Set([linked.file]))
+        css(linked.value.toString("utf8"), dirname(linked.file), /* @__PURE__ */ new Set([linked.file]))
       )
     );
   }
@@ -1630,603 +1794,15 @@ function bundleLocalDocument({
   };
 }
 
-// packages/protocol/src/design-contracts.mjs
-var DESIGN_DOCUMENT_VERSION = "1.0.0";
-var freeze = (value) => {
-  if (value && typeof value === "object") {
-    for (const nested of Object.values(value)) freeze(nested);
-    Object.freeze(value);
-  }
-  return value;
-};
-var DESIGN_DOCUMENT_SCHEMA = freeze({
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://openplanr.dev/schemas/v1.9.0/design-document.schema.json",
-  "x-openplanr-contract": { id: "design-document", version: "1.9.0" },
-  title: "OpenPlanr authored design document",
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "kind",
-    "schemaVersion",
-    "id",
-    "title",
-    "brief",
-    "frames",
-    "screens",
-    "screenOrder",
-    "variants",
-    "selectedVariant",
-    "defaultView"
-  ],
-  properties: {
-    kind: { const: "openplanr-design-document" },
-    schemaVersion: { const: DESIGN_DOCUMENT_VERSION },
-    id: { $ref: "#/$defs/id" },
-    title: { $ref: "#/$defs/text" },
-    brief: {
-      type: "object",
-      additionalProperties: false,
-      required: ["text", "source", "provenance"],
-      properties: {
-        text: { $ref: "#/$defs/text" },
-        source: { enum: ["spec", "png", "describe"] },
-        provenance: { enum: ["spec", "inferred"] },
-        references: { type: "array", items: { $ref: "#/$defs/text" }, uniqueItems: true }
-      }
-    },
-    designSystem: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        path: { $ref: "#/$defs/localPath" },
-        tokens: { $ref: "#/$defs/localPath" },
-        spacing: {
-          type: "array",
-          minItems: 1,
-          uniqueItems: true,
-          items: { type: "number", minimum: 0, maximum: 16384 }
-        }
-      }
-    },
-    assets: { $ref: "#/$defs/paths" },
-    frames: {
-      type: "array",
-      minItems: 1,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "label", "width", "height"],
-        properties: {
-          id: { $ref: "#/$defs/id" },
-          label: { $ref: "#/$defs/text" },
-          width: { type: "integer", minimum: 1, maximum: 16384 },
-          height: { type: "integer", minimum: 1, maximum: 16384 }
-        }
-      }
-    },
-    screens: {
-      type: "array",
-      minItems: 1,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "title", "source"],
-        properties: {
-          id: { $ref: "#/$defs/id" },
-          title: { $ref: "#/$defs/text" },
-          description: { $ref: "#/$defs/text" },
-          source: { $ref: "#/$defs/source" },
-          anchors: { $ref: "#/$defs/ids" }
-        }
-      }
-    },
-    screenOrder: { type: "array", minItems: 1, items: { $ref: "#/$defs/id" }, uniqueItems: true },
-    flows: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "title", "screens"],
-        properties: {
-          id: { $ref: "#/$defs/id" },
-          title: { $ref: "#/$defs/text" },
-          screens: { type: "array", minItems: 1, items: { $ref: "#/$defs/id" } }
-        }
-      }
-    },
-    variants: {
-      type: "array",
-      minItems: 1,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "label", "status"],
-        properties: {
-          id: { $ref: "#/$defs/id" },
-          label: { $ref: "#/$defs/text" },
-          description: { $ref: "#/$defs/text" },
-          status: { enum: ["ready", "failed"] },
-          issue: { $ref: "#/$defs/text" },
-          sources: { type: "object", additionalProperties: { $ref: "#/$defs/source" } }
-        },
-        if: { properties: { status: { const: "failed" } } },
-        then: { required: ["issue"] }
-      }
-    },
-    selectedVariant: { $ref: "#/$defs/id" },
-    defaultView: { enum: ["canvas", "prototype", "walkthrough"] }
-  },
-  $defs: {
-    id: { type: "string", minLength: 1, maxLength: 128, pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
-    text: { type: "string", minLength: 1, pattern: "\\S" },
-    ids: { type: "array", items: { $ref: "#/$defs/id" }, uniqueItems: true },
-    localPath: {
-      type: "string",
-      minLength: 1,
-      description: "Path relative to the authored document directory. No URL, traversal, encoded path, query or fragment.",
-      pattern: "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*[/ ]$)[^\\\\:\\u0000-\\u001F%?#]+$"
-    },
-    paths: { type: "array", items: { $ref: "#/$defs/localPath" }, uniqueItems: true },
-    source: {
-      type: "object",
-      additionalProperties: false,
-      required: ["html"],
-      properties: {
-        html: { $ref: "#/$defs/localPath" },
-        styles: { $ref: "#/$defs/paths" },
-        scripts: { $ref: "#/$defs/paths" }
-      }
-    }
-  }
-});
-function validateDesignDocument(value) {
-  const errors = validateJson(value, DESIGN_DOCUMENT_SCHEMA).map(
-    ({ path, detail }) => `${path}: ${detail}`
-  );
-  if (errors.length > 0) return { ok: false, errors };
-  for (const field of ["frames", "screens", "flows", "variants"]) {
-    const seen = /* @__PURE__ */ new Set();
-    for (const [index, item2] of (value[field] ?? []).entries()) {
-      if (seen.has(item2.id))
-        errors.push(`$.${field}[${index}].id: duplicate identity '${item2.id}'`);
-      seen.add(item2.id);
-    }
-  }
-  const screenIds = new Set(value.screens.map(({ id: id3 }) => id3));
-  const orderedIds = new Set(value.screenOrder);
-  for (const id3 of value.screenOrder) {
-    if (!screenIds.has(id3)) errors.push(`$.screenOrder: unknown screen '${id3}'`);
-  }
-  for (const id3 of screenIds) {
-    if (!orderedIds.has(id3)) errors.push(`$.screenOrder: missing screen '${id3}'`);
-  }
-  for (const [index, flow] of (value.flows ?? []).entries()) {
-    for (const id3 of flow.screens) {
-      if (!screenIds.has(id3)) errors.push(`$.flows[${index}].screens: unknown screen '${id3}'`);
-    }
-  }
-  for (const [index, variant] of value.variants.entries()) {
-    for (const id3 of Object.keys(variant.sources ?? {})) {
-      if (!screenIds.has(id3)) errors.push(`$.variants[${index}].sources: unknown screen '${id3}'`);
-    }
-  }
-  const selected = value.variants.find(({ id: id3 }) => id3 === value.selectedVariant);
-  if (!selected) errors.push(`$.selectedVariant: unknown variant '${value.selectedVariant}'`);
-  else if (selected.status !== "ready")
-    errors.push("$.selectedVariant: selected variant must be ready");
-  for (const [index, spacing] of (value.designSystem?.spacing ?? []).entries()) {
-    if (!Number.isFinite(spacing))
-      errors.push(`$.designSystem.spacing[${index}]: expected a finite spacing value`);
-  }
-  return { ok: errors.length === 0, errors };
-}
-function assertDesignDocument(value) {
-  const result = validateDesignDocument(value);
-  if (!result.ok) throw new TypeError(`Invalid design document:
-${result.errors.join("\n")}`);
-  return value;
-}
-
 // packages/design/lib/design/context.mjs
 import { createHash as createHash2 } from "node:crypto";
-import { existsSync as existsSync2, readdirSync as readdirSync2, readFileSync as readFileSync3, realpathSync as realpathSync2 } from "node:fs";
-import { dirname as dirname3, join as join3, resolve as resolve3 } from "node:path";
-
-// packages/protocol/src/canonical-json.mjs
-var hasOwn = (value, key) => Object.hasOwn(value, key);
-function assertUnicodeScalarString(value, path) {
-  for (let index = 0; index < value.length; index += 1) {
-    const code = value.charCodeAt(index);
-    if (code >= 55296 && code <= 56319) {
-      const next = value.charCodeAt(index + 1);
-      if (!(next >= 56320 && next <= 57343)) {
-        throw new TypeError(`JCS cannot canonicalize a lone high surrogate at ${path}.`);
-      }
-      index += 1;
-    } else if (code >= 56320 && code <= 57343) {
-      throw new TypeError(`JCS cannot canonicalize a lone low surrogate at ${path}.`);
-    }
-  }
-}
-function serialize2(value, path, seen) {
-  if (value === null) return "null";
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "string") {
-    assertUnicodeScalarString(value, path);
-    return JSON.stringify(value);
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new TypeError(`JCS requires a finite number at ${path}.`);
-    return JSON.stringify(value);
-  }
-  if (typeof value !== "object")
-    throw new TypeError(`JCS cannot canonicalize ${typeof value} at ${path}.`);
-  if (seen.has(value)) throw new TypeError(`JCS cannot canonicalize a cycle at ${path}.`);
-  seen.add(value);
-  try {
-    if (Array.isArray(value)) {
-      const entries2 = [];
-      for (let index = 0; index < value.length; index += 1) {
-        if (!hasOwn(value, index))
-          throw new TypeError(`JCS cannot canonicalize a sparse array at ${path}[${index}].`);
-        entries2.push(serialize2(value[index], `${path}[${index}]`, seen));
-      }
-      return `[${entries2.join(",")}]`;
-    }
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) {
-      throw new TypeError(`JCS requires a plain JSON object at ${path}.`);
-    }
-    const entries = Object.keys(value).sort().map((key) => {
-      assertUnicodeScalarString(key, `${path} key`);
-      return `${JSON.stringify(key)}:${serialize2(value[key], `${path}.${key}`, seen)}`;
-    });
-    return `{${entries.join(",")}}`;
-  } finally {
-    seen.delete(value);
-  }
-}
-function canonicalizeJson(value) {
-  return serialize2(value, "$", /* @__PURE__ */ new Set());
-}
-var SHA256_K = /* @__PURE__ */ new Uint32Array([
-  1116352408,
-  1899447441,
-  3049323471,
-  3921009573,
-  961987163,
-  1508970993,
-  2453635748,
-  2870763221,
-  3624381080,
-  310598401,
-  607225278,
-  1426881987,
-  1925078388,
-  2162078206,
-  2614888103,
-  3248222580,
-  3835390401,
-  4022224774,
-  264347078,
-  604807628,
-  770255983,
-  1249150122,
-  1555081692,
-  1996064986,
-  2554220882,
-  2821834349,
-  2952996808,
-  3210313671,
-  3336571891,
-  3584528711,
-  113926993,
-  338241895,
-  666307205,
-  773529912,
-  1294757372,
-  1396182291,
-  1695183700,
-  1986661051,
-  2177026350,
-  2456956037,
-  2730485921,
-  2820302411,
-  3259730800,
-  3345764771,
-  3516065817,
-  3600352804,
-  4094571909,
-  275423344,
-  430227734,
-  506948616,
-  659060556,
-  883997877,
-  958139571,
-  1322822218,
-  1537002063,
-  1747873779,
-  1955562222,
-  2024104815,
-  2227730452,
-  2361852424,
-  2428436474,
-  2756734187,
-  3204031479,
-  3329325298
-]);
-var rotr = (value, bits) => value >>> bits | value << 32 - bits;
-function sha256Hex(value) {
-  const candidate = typeof value === "string" ? new TextEncoder().encode(value) : value;
-  if (!ArrayBuffer.isView(candidate) || Object.prototype.toString.call(candidate) !== "[object Uint8Array]") {
-    throw new TypeError("sha256Hex expects a string or Uint8Array.");
-  }
-  const input = new Uint8Array(candidate.buffer, candidate.byteOffset, candidate.byteLength);
-  const paddedLength = Math.ceil((input.length + 9) / 64) * 64;
-  const bytes = new Uint8Array(paddedLength);
-  bytes.set(input);
-  bytes[input.length] = 128;
-  const view = new DataView(bytes.buffer);
-  const bitLength = BigInt(input.length) * 8n;
-  view.setUint32(paddedLength - 8, Number(bitLength >> 32n & 0xffffffffn));
-  view.setUint32(paddedLength - 4, Number(bitLength & 0xffffffffn));
-  let h0 = 1779033703;
-  let h1 = 3144134277;
-  let h2 = 1013904242;
-  let h3 = 2773480762;
-  let h4 = 1359893119;
-  let h5 = 2600822924;
-  let h6 = 528734635;
-  let h7 = 1541459225;
-  const words = new Uint32Array(64);
-  for (let offset = 0; offset < bytes.length; offset += 64) {
-    for (let index = 0; index < 16; index += 1) words[index] = view.getUint32(offset + index * 4);
-    for (let index = 16; index < 64; index += 1) {
-      const s0 = rotr(words[index - 15], 7) ^ rotr(words[index - 15], 18) ^ words[index - 15] >>> 3;
-      const s1 = rotr(words[index - 2], 17) ^ rotr(words[index - 2], 19) ^ words[index - 2] >>> 10;
-      words[index] = words[index - 16] + s0 + words[index - 7] + s1 >>> 0;
-    }
-    let a = h0;
-    let b = h1;
-    let c = h2;
-    let d = h3;
-    let e = h4;
-    let f = h5;
-    let g = h6;
-    let h = h7;
-    for (let index = 0; index < 64; index += 1) {
-      const s1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
-      const choice = e & f ^ ~e & g;
-      const temp1 = h + s1 + choice + SHA256_K[index] + words[index] >>> 0;
-      const s0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
-      const majority = a & b ^ a & c ^ b & c;
-      const temp2 = s0 + majority >>> 0;
-      h = g;
-      g = f;
-      f = e;
-      e = d + temp1 >>> 0;
-      d = c;
-      c = b;
-      b = a;
-      a = temp1 + temp2 >>> 0;
-    }
-    h0 = h0 + a >>> 0;
-    h1 = h1 + b >>> 0;
-    h2 = h2 + c >>> 0;
-    h3 = h3 + d >>> 0;
-    h4 = h4 + e >>> 0;
-    h5 = h5 + f >>> 0;
-    h6 = h6 + g >>> 0;
-    h7 = h7 + h >>> 0;
-  }
-  return [h0, h1, h2, h3, h4, h5, h6, h7].map((part) => part.toString(16).padStart(8, "0")).join("");
-}
-function deepFreeze(value) {
-  if (value && typeof value === "object" && !Object.isFrozen(value)) {
-    for (const nested of Object.values(value)) deepFreeze(nested);
-    Object.freeze(value);
-  }
-  return value;
-}
-function assertPlainDataAt(value, label, depth, seen) {
-  if (depth > 64) throw new TypeError(`${label} exceeds the maximum nesting depth.`);
-  if (value === null || ["string", "boolean"].includes(typeof value)) return;
-  if (typeof value === "number" && Number.isFinite(value)) return;
-  if (typeof value !== "object" || seen.has(value))
-    throw new TypeError(`${label} must be finite, acyclic JSON.`);
-  if (!Array.isArray(value) && ![Object.prototype, null].includes(Object.getPrototypeOf(value)))
-    throw new TypeError(`${label} must contain only plain JSON objects.`);
-  seen.add(value);
-  for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
-    if (["__proto__", "prototype", "constructor"].includes(key) || !Object.hasOwn(descriptor, "value"))
-      throw new TypeError(`${label} contains a forbidden property.`);
-    assertPlainDataAt(descriptor.value, label, depth + 1, seen);
-  }
-  seen.delete(value);
-}
-function assertPlainData(value, label) {
-  assertPlainDataAt(value, label, 0, /* @__PURE__ */ new Set());
-}
-
-// packages/protocol/src/workspace-contracts.mjs
-var DESIGN_WORKSPACE_VERSION = "1.0.0";
-var DESIGN_WORKSPACE_API = "/api/v1/design-workspaces";
-var DESIGN_WORKSPACE_MAX_BYTES = 5 * 1024 * 1024;
-var DESIGN_WORKSPACE_MAX_EVENT_BYTES = 256 * 1024;
-var DESIGN_WORKSPACE_ID_PATTERN = "^[A-Za-z0-9_-]{22,64}$";
-var id = { type: "string", pattern: DESIGN_WORKSPACE_ID_PATTERN };
-var digest = { type: "string", pattern: "^[a-f0-9]{64}$" };
-var b64 = { type: "string", pattern: "^[A-Za-z0-9_-]+$" };
-var epoch = { type: "integer", minimum: 1, maximum: 2147483647 };
-var cipherProperties = {
-  iv: { ...b64, minLength: 16, maxLength: 16 },
-  ciphertext: { ...b64, minLength: 22, maxLength: Math.ceil(DESIGN_WORKSPACE_MAX_BYTES * 4 / 3) }
-};
-var signature = { ...b64, minLength: 86, maxLength: 86 };
-var publicKey = {
-  type: "object",
-  additionalProperties: false,
-  required: ["kty", "crv", "x", "y"],
-  properties: {
-    kty: { const: "EC" },
-    crv: { const: "P-256" },
-    x: { ...b64, minLength: 43, maxLength: 43 },
-    y: { ...b64, minLength: 43, maxLength: 43 },
-    ext: { type: "boolean" },
-    key_ops: { type: "array", items: { const: "verify" }, maxItems: 1 }
-  }
-};
-var schema = (name, properties, required = Object.keys(properties)) => ({
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: `https://openplanr.dev/schemas/v1.9.0/${name}.schema.json`,
-  "x-openplanr-contract": { id: name, version: "1.9.0" },
-  type: "object",
-  additionalProperties: false,
-  properties,
-  required
-});
-var DESIGN_WORKSPACE_REVISION_SCHEMA = schema("design-workspace-revision", {
-  id,
-  epoch,
-  reviewOf: digest,
-  createdAt: { type: "string", format: "date-time" },
-  ...cipherProperties,
-  signature
-});
-var DESIGN_WORKSPACE_EVENT_SCHEMA = schema("design-workspace-event", {
-  id,
-  revisionId: id,
-  reviewOf: digest,
-  epoch,
-  ...cipherProperties,
-  publicKey,
-  signature
-});
-var sealed = {
-  type: "object",
-  additionalProperties: false,
-  required: ["iv", "ciphertext"],
-  properties: cipherProperties
-};
-var DESIGN_WORKSPACE_CREATE_SCHEMA = schema("design-workspace-create", {
-  schemaVersion: { const: DESIGN_WORKSPACE_VERSION },
-  id,
-  ownerPublicKey: publicKey,
-  ownerAuthHash: digest,
-  reviewerAuthHash: digest,
-  epoch: { const: 1 },
-  keyring: sealed,
-  revision: DESIGN_WORKSPACE_REVISION_SCHEMA,
-  operationId: id,
-  signature
-});
-var DESIGN_WORKSPACE_SCHEMA = schema("design-review-workspace", {
-  schemaVersion: { const: DESIGN_WORKSPACE_VERSION },
-  id,
-  version: epoch,
-  epoch,
-  currentRevision: id,
-  commentsPaused: { type: "boolean" },
-  ownerPublicKey: publicKey,
-  keyring: sealed
-});
-var designProperties = (
-  /** @type {Record<string, { items: { properties: Record<string, unknown>; required: string[] } }>} */
-  structuredClone(DESIGN_DOCUMENT_SCHEMA.properties)
-);
-for (const key of ["kind", "schemaVersion", "brief", "assets", "designSystem"])
-  delete designProperties[key];
-delete designProperties.screens.items.properties.source;
-designProperties.screens.items.required = ["id", "title"];
-delete designProperties.variants.items.properties.sources;
-var DESIGN_REVIEW_BUNDLE_SCHEMA = {
-  ...schema(
-    "design-review-bundle",
-    {
-      kind: { const: "openplanr-design-review-bundle" },
-      schemaVersion: { const: DESIGN_WORKSPACE_VERSION },
-      design: {
-        type: "object",
-        additionalProperties: false,
-        properties: designProperties,
-        required: [
-          "id",
-          "title",
-          "frames",
-          "screens",
-          "screenOrder",
-          "variants",
-          "selectedVariant",
-          "defaultView"
-        ]
-      },
-      envelope: { type: "object", required: ["schemaVersion", "artifacts", "viewer"] },
-      entries: {
-        type: "array",
-        minItems: 1,
-        maxItems: 256,
-        items: {
-          type: "object",
-          additionalProperties: false,
-          required: ["artifactId", "screenId", "variantId", "frameId"],
-          properties: Object.fromEntries(
-            ["artifactId", "screenId", "variantId", "frameId"].map((key) => [
-              key,
-              { type: "string", minLength: 1, maxLength: 128 }
-            ])
-          )
-        }
-      },
-      state: {
-        type: ["object", "null"],
-        additionalProperties: false,
-        properties: {
-          positions: {
-            type: "object",
-            additionalProperties: {
-              type: "object",
-              additionalProperties: false,
-              required: ["x", "y"],
-              properties: {
-                x: { type: "number", minimum: -1e7, maximum: 1e7 },
-                y: { type: "number", minimum: -1e7, maximum: 1e7 }
-              }
-            }
-          }
-        }
-      },
-      revision: { type: "string", minLength: 1, maxLength: 128 },
-      verification: {
-        type: ["object", "null"],
-        additionalProperties: false,
-        properties: { status: { enum: ["verified", "unverified", "failed", "pending"] } }
-      }
-    },
-    ["kind", "schemaVersion", "design", "envelope", "entries", "revision"]
-  ),
-  $defs: structuredClone(DESIGN_DOCUMENT_SCHEMA.$defs)
-};
-function assertWorkspaceContract(value, contract) {
-  const errors = validateJson(value, contract);
-  if (errors.length)
-    throw new TypeError(
-      `Invalid ${contract["x-openplanr-contract"].id}: ${errors.slice(0, 5).map(({ path, detail }) => `${path}: ${detail}`).join("; ")}`
-    );
-  return value;
-}
-var DESIGN_WORKSPACE_SCHEMAS = Object.freeze({
-  "design-review-workspace": DESIGN_WORKSPACE_SCHEMA,
-  "design-workspace-create": DESIGN_WORKSPACE_CREATE_SCHEMA,
-  "design-workspace-revision": DESIGN_WORKSPACE_REVISION_SCHEMA,
-  "design-workspace-event": DESIGN_WORKSPACE_EVENT_SCHEMA,
-  "design-review-bundle": DESIGN_REVIEW_BUNDLE_SCHEMA
-});
+import { existsSync, readdirSync, readFileSync as readFileSync2, realpathSync as realpathSync2 } from "node:fs";
+import { dirname as dirname2, join, resolve as resolve2 } from "node:path";
 
 // packages/protocol/src/review-experience-contracts.mjs
 var text2 = { type: "string", maxLength: 16384 };
-var id2 = { type: "string", minLength: 1, maxLength: 128 };
-var digest2 = { type: "string", pattern: "^[a-f0-9]{64}$" };
+var id = { type: "string", minLength: 1, maxLength: 128 };
+var digest = { type: "string", pattern: "^[a-f0-9]{64}$" };
 var texts = { type: "array", maxItems: 256, items: text2 };
 var closed = (properties, required = Object.keys(properties)) => ({
   type: "object",
@@ -2235,33 +1811,33 @@ var closed = (properties, required = Object.keys(properties)) => ({
   required
 });
 var list = (items, maxItems = 256) => ({ type: "array", maxItems, items });
-var schema2 = (name, properties, required) => ({
+var schema = (name, properties, required) => ({
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: `https://openplanr.dev/schemas/v1.10.0/${name}.schema.json`,
   "x-openplanr-contract": { id: name, version: "1.10.0" },
   ...closed(properties, required)
 });
-var DESIGN_REVIEW_CONTEXT_SCHEMA = schema2(
+var DESIGN_REVIEW_CONTEXT_SCHEMA = schema(
   "design-review-context",
   {
     kind: { const: "openplanr-design-review-context" },
     schemaVersion: { const: "1.0.0" },
-    designId: id2,
+    designId: id,
     brief: closed({ purpose: text2, requests: { ...texts, maxItems: 3 }, audience: text2 }, [
       "purpose",
       "requests"
     ]),
     revisionSummary: text2,
     implementation: closed({
-      tokens: list(closed({ name: id2, value: text2, description: text2 }, ["name", "value"]), 512),
+      tokens: list(closed({ name: id, value: text2, description: text2 }, ["name", "value"]), 512),
       components: list(
         closed(
           {
-            id: id2,
+            id,
             name: text2,
-            screenIds: list(id2),
-            anchorIds: list(id2),
-            states: list(closed({ name: id2, description: text2 })),
+            screenIds: list(id),
+            anchorIds: list(id),
+            states: list(closed({ name: id, description: text2 })),
             notes: text2,
             responsive: text2,
             accessibility: text2
@@ -2276,11 +1852,11 @@ var DESIGN_REVIEW_CONTEXT_SCHEMA = schema2(
   ["kind", "schemaVersion", "designId", "brief", "implementation"]
 );
 var DESIGN_FINGERPRINT_SCHEMA = closed({
-  screenId: id2,
-  variantId: id2,
-  frameId: id2,
-  contentDigest: digest2,
-  guidanceDigest: digest2
+  screenId: id,
+  variantId: id,
+  frameId: id,
+  contentDigest: digest,
+  guidanceDigest: digest
 });
 var bundleV11 = {
   .../** @type {MutableSchema} */
@@ -2291,22 +1867,43 @@ var bundleV11 = {
 Object.assign(bundleV11.properties, {
   schemaVersion: { const: "1.1.0" },
   reviewContext: DESIGN_REVIEW_CONTEXT_SCHEMA,
-  contextDigest: digest2,
+  contextDigest: digest,
   fingerprints: list(DESIGN_FINGERPRINT_SCHEMA)
 });
 bundleV11.required.push("reviewContext", "contextDigest", "fingerprints");
 var DESIGN_REVIEW_BUNDLE_V11_SCHEMA = bundleV11;
+var bundleV12 = (
+  /** @type {MutableSchema} */
+  structuredClone(DESIGN_REVIEW_BUNDLE_V11_SCHEMA)
+);
+bundleV12.$id = "https://openplanr.dev/schemas/v1.16.0/design-review-bundle.schema.json";
+bundleV12["x-openplanr-contract"] = { id: "design-review-bundle", version: "1.16.0" };
+Object.assign(bundleV12.properties, {
+  schemaVersion: { const: "1.2.0" },
+  envelope: {
+    type: "object",
+    required: ["schemaVersion", "sources", "artifacts", "viewer"],
+    properties: { schemaVersion: { const: "1.1.0" } }
+  },
+  entries: {
+    .../** @type {Record<string, unknown>} */
+    bundleV12.properties.entries,
+    maxItems: 4096
+  },
+  fingerprints: list(DESIGN_FINGERPRINT_SCHEMA, 4096)
+});
+var DESIGN_REVIEW_BUNDLE_V12_SCHEMA = bundleV12;
 var item = closed(
   {
-    pinId: id2,
-    reviewId: id2,
-    screenId: id2,
-    revisionId: id2,
+    pinId: id,
+    reviewId: id,
+    screenId: id,
+    revisionId: id,
     text: text2,
     refinement: text2,
     stale: { type: "boolean" },
     author: text2,
-    reviewOf: digest2,
+    reviewOf: digest,
     source: text2
   },
   ["pinId", "text"]
@@ -2318,7 +1915,7 @@ var DESIGN_HANDOFF_CONTENT_SCHEMA = closed({
   deferred: list(item, 1e4),
   rejected: list(item, 1e4)
 });
-var DESIGN_HANDOFF_SCHEMA = schema2(
+var DESIGN_HANDOFF_SCHEMA = schema(
   "design-review-handoff",
   {
     kind: { const: "openplanr-design-review-handoff" },
@@ -2327,22 +1924,22 @@ var DESIGN_HANDOFF_SCHEMA = schema2(
     version: { type: "integer", minimum: 1 },
     status: { enum: ["draft", "approved"] },
     basis: closed({
-      designId: id2,
-      sourceRevision: digest2,
-      contextDigest: digest2,
-      reviewOf: digest2,
-      selectedVariant: id2,
-      feedbackDigest: digest2,
-      verificationDigest: digest2,
+      designId: id,
+      sourceRevision: digest,
+      contextDigest: digest,
+      reviewOf: digest,
+      selectedVariant: id,
+      feedbackDigest: digest,
+      verificationDigest: digest,
       feedbackWatermark: { type: "integer", minimum: 0 }
     }),
     content: DESIGN_HANDOFF_CONTENT_SCHEMA,
-    contentHash: digest2,
+    contentHash: digest,
     markdown: { type: "string", maxLength: 2097152 },
-    affectedScreens: list(id2),
+    affectedScreens: list(id),
     verificationGaps: texts,
-    reviewNotes: list(closed({ reviewId: id2, text: text2 }), 1e4),
-    approval: closed({ contentHash: digest2, at: { type: "string", format: "date-time" } })
+    reviewNotes: list(closed({ reviewId: id, text: text2 }), 1e4),
+    approval: closed({ contentHash: digest, at: { type: "string", format: "date-time" } })
   },
   [
     "kind",
@@ -2360,14 +1957,14 @@ var DESIGN_HANDOFF_SCHEMA = schema2(
   ]
 );
 var DESIGN_REVIEW_METADATA_PAYLOAD_SCHEMA = {
-  ...schema2(
+  ...schema(
     "design-review-metadata-payload",
     {
       schemaVersion: { const: "1.0.0" },
       kind: { enum: ["category", "disposition"] },
       author: { ...text2, minLength: 1, maxLength: 160 },
-      reviewOf: digest2,
-      pinId: id2,
+      reviewOf: digest,
+      pinId: id,
       category: { enum: ["question", "suggestion", "blocker"] },
       disposition: { enum: ["accepted", "deferred", "rejected"] },
       reason: text2,
@@ -2414,9 +2011,9 @@ function assertDesignReviewMetadata(value) {
 function assertDesignReviewBundle(value) {
   assertReviewExperience(
     value,
-    value?.schemaVersion === "1.1.0" ? DESIGN_REVIEW_BUNDLE_V11_SCHEMA : DESIGN_REVIEW_BUNDLE_SCHEMA
+    value?.schemaVersion === "1.2.0" ? DESIGN_REVIEW_BUNDLE_V12_SCHEMA : value?.schemaVersion === "1.1.0" ? DESIGN_REVIEW_BUNDLE_V11_SCHEMA : DESIGN_REVIEW_BUNDLE_SCHEMA
   );
-  if (value.schemaVersion === "1.1.0") {
+  if (["1.1.0", "1.2.0"].includes(value.schemaVersion)) {
     if (value.reviewContext.designId !== value.design.id || value.contextDigest !== sha256Hex(canonicalizeJson(value.reviewContext)))
       throw new TypeError("Review context identity or digest does not match its published design.");
     const entries = new Set(
@@ -2453,10 +2050,10 @@ function emptyReviewContext(document2) {
   };
 }
 function loadReviewContext(root, document2, { readSource } = {}) {
-  const file = join3(root, "review-context.json");
-  if (!existsSync2(file)) return emptyReviewContext(document2);
+  const file = join(root, "review-context.json");
+  if (!existsSync(file)) return emptyReviewContext(document2);
   const context = JSON.parse(
-    readSource ? readSource("review-context.json", root).value.toString("utf8") : readFileSync3(resolveLocalDocumentFile(root, "review-context.json"), "utf8")
+    readSource ? readSource("review-context.json", root).value.toString("utf8") : readFileSync2(resolveLocalDocumentFile(root, "review-context.json"), "utf8")
   );
   assertReviewExperience(context, DESIGN_REVIEW_CONTEXT_SCHEMA);
   if (context.designId !== document2.id)
@@ -2466,7 +2063,7 @@ function loadReviewContext(root, document2, { readSource } = {}) {
   for (const component of context.implementation.components) {
     if (ids.has(component.id)) throw new Error("Review component identities must be unique.");
     ids.add(component.id);
-    if (component.screenIds?.some((id3) => !screens.has(id3)))
+    if (component.screenIds?.some((id2) => !screens.has(id2)))
       throw new Error(`Component ${component.id} references an unknown screen.`);
   }
   if (/(?:file:\/\/|\/(?:Users|home|private|tmp|var|etc|opt|Volumes)\/|[A-Za-z]:\\\\|\\\\\\\\)/u.test(
@@ -2511,7 +2108,7 @@ function bundleDesignRevision(current, state = {}) {
   const context = current.reviewContext ?? emptyReviewContext(document2);
   return {
     kind: "openplanr-design-review-bundle",
-    schemaVersion: "1.1.0",
+    schemaVersion: current.envelope.schemaVersion === "1.1.0" ? "1.2.0" : "1.1.0",
     design: {
       ...pick(document2, [
         "id",
@@ -2540,13 +2137,13 @@ function bundleDesignRevision(current, state = {}) {
     fingerprints: current.fingerprints ?? []
   };
 }
-var localRoot = (file) => realpathSync2(dirname3(resolve3(file)));
+var localRoot = (file) => realpathSync2(dirname2(resolve2(file)));
 function listDesignRevisions(file) {
   const root = localRoot(file);
-  const pointer = JSON.parse(readFileSync3(join3(root, ".design/current.json"), "utf8"));
-  const revisions = readdirSync2(join3(root, ".design/revisions")).filter((name) => /^[a-f0-9]{64}$/u.test(name)).map((revision) => {
+  const pointer = JSON.parse(readFileSync2(join(root, ".design/current.json"), "utf8"));
+  const revisions = readdirSync(join(root, ".design/revisions")).filter((name) => /^[a-f0-9]{64}$/u.test(name)).map((revision) => {
     const value = JSON.parse(
-      readFileSync3(join3(root, ".design/revisions", revision, "render.json"), "utf8")
+      readFileSync2(join(root, ".design/revisions", revision, "render.json"), "utf8")
     );
     return {
       revision,
@@ -2561,7 +2158,7 @@ function readDesignRevision(file, revision) {
   if (!/^[a-f0-9]{64}$/u.test(revision)) throw new Error("Invalid design revision identity.");
   const root = localRoot(file);
   const value = JSON.parse(
-    readFileSync3(
+    readFileSync2(
       resolveLocalDocumentFile(root, `.design/revisions/${revision}/render.json`),
       "utf8"
     )
@@ -2570,7 +2167,7 @@ function readDesignRevision(file, revision) {
 }
 
 // packages/design/lib/design/lint.mjs
-import { readFileSync as readFileSync4 } from "node:fs";
+import { readFileSync as readFileSync3 } from "node:fs";
 import { fileURLToPath } from "node:url";
 
 // packages/design/lib/design/tokens.mjs
@@ -2849,7 +2446,7 @@ if (isMain) {
   for (const file of files) {
     let html;
     try {
-      html = readFileSync4(file, "utf-8");
+      html = readFileSync3(file, "utf-8");
     } catch (e) {
       console.error(`\u2717 cannot read ${file}: ${e.message}`);
       totalErrors += 1;
@@ -2946,8 +2543,42 @@ function buildManifest({
 }
 
 // packages/design/lib/design/studio.mjs
-import { createHash as createHash3 } from "node:crypto";
+import { createHash as createHash4 } from "node:crypto";
 import { readFileSync as readFileSync5 } from "node:fs";
+
+// packages/artifact/lib/artifact/internal/runtime-asset.mjs
+import { createHash as createHash3 } from "node:crypto";
+import { existsSync as existsSync2, readFileSync as readFileSync4 } from "node:fs";
+import { resolve as resolve3 } from "node:path";
+import { pathToFileURL } from "node:url";
+var DIGEST = /^[a-f0-9]{64}$/u;
+var MAX_FRAGMENT_BYTES = 128 * 1024;
+function isRecord(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function readRuntimeAsset(file) {
+  const url = typeof file === "string" ? pathToFileURL(resolve3(file)) : file;
+  if (existsSync2(url)) return readFileSync4(url);
+  const basename = url.pathname.split("/").at(-1);
+  if (!basename) throw new Error("Studio runtime asset identity is invalid.");
+  const manifest = JSON.parse(
+    readFileSync4(new URL(`${basename}.parts.json`, url), "utf8")
+  );
+  if (!isRecord(manifest) || manifest.schemaVersion !== "1.0.0" || typeof manifest.sha256 !== "string" || !DIGEST.test(manifest.sha256) || !Array.isArray(manifest.parts) || !manifest.parts.length || manifest.parts.length > 64)
+    throw new Error("Studio runtime fragment manifest is invalid.");
+  const parts = manifest.parts.map((part, index) => {
+    if (!isRecord(part) || part.name !== `${basename}.part-${String(index + 1).padStart(3, "0")}` || typeof part.sha256 !== "string" || !DIGEST.test(part.sha256))
+      throw new Error("Studio runtime fragment identity is invalid.");
+    const bytes2 = readFileSync4(new URL(part.name, url));
+    if (bytes2.length > MAX_FRAGMENT_BYTES || createHash3("sha256").update(bytes2).digest("hex") !== part.sha256)
+      throw new Error("Studio runtime fragment failed integrity verification.");
+    return bytes2;
+  });
+  const bytes = Buffer.concat(parts);
+  if (createHash3("sha256").update(bytes).digest("hex") !== manifest.sha256)
+    throw new Error("Studio runtime failed integrity verification.");
+  return bytes;
+}
 
 // packages/design/lib/design/studio-render.mjs
 var DESIGN_STUDIO_VERSION = "1.9.0";
@@ -3021,6 +2652,7 @@ function toolbar(document2) {
   </div>
   <div class="planr-segment design-view-picker" role="group" aria-label="Design view">${["canvas", "prototype", "walkthrough"].map((view) => iconButton(view[0].toUpperCase() + view.slice(1), view, `data-design-view="${view}" aria-pressed="${document2.defaultView === view}"`)).join("")}</div>
   <div class="design-toolbar-trailing">
+    <span class="design-preview-state" role="status" data-design-preview-state>Loading preview</span>
     <span class="design-save-state" role="status" aria-live="polite" data-design-save-state>Loading studio</span>
     ${iconButton("Review", "right", 'data-planr-action="feedback" data-planr-review-label="Review" aria-controls="planr-review-rail" aria-expanded="true"', "planr-toolbar-action design-review-toggle")}
     ${iconButton("Share design", "share", 'data-planr-action="share" aria-haspopup="dialog"', "planr-toolbar-action design-share")}
@@ -3034,8 +2666,11 @@ function navigator(document2) {
   <div class="design-nav-title"><strong>Screens <span>${document2.screenOrder.length}</span></strong>${iconButton("Close screens", "left", 'data-design-toggle-nav aria-controls="design-navigator" aria-expanded="true"', "design-nav-close")}</div>
   <label class="design-field" for="design-variant">Direction<select id="design-variant" data-design-variant>${document2.variants.map((variant) => `<option value="${escapeHtml(variant.id)}"${variant.status !== "ready" ? " disabled" : ""}>${escapeHtml(variant.label)}${variant.status === "failed" ? " \u2014 unavailable" : ""}</option>`).join("")}</select></label>
   ${document2.variants.filter(({ status }) => status === "ready").length > 1 ? `<label class="design-compare"><input type="checkbox" data-design-compare> Compare directions</label>` : ""}
+  <label class="design-field design-screen-search">Find a screen<input type="search" data-design-screen-search placeholder="Search screens" aria-label="Search screens"></label>
+  ${document2.flows?.length ? `<label class="design-field">Journey<select data-design-screen-group aria-label="Filter screens by journey"><option value="">All screens</option>${document2.flows.map((flow) => `<option value="${escapeHtml(flow.id)}">${escapeHtml(flow.title)}</option>`).join("")}</select></label>` : ""}
+  <p data-design-search-empty hidden>No screens match this search.</p>
   <div class="design-screen-list">${document2.screenOrder.map((screenId, index) => {
-    const screen = document2.screens.find(({ id: id3 }) => id3 === screenId);
+    const screen = document2.screens.find(({ id: id2 }) => id2 === screenId);
     return `<button type="button" class="design-screen" data-design-screen="${escapeHtml(screen.id)}" aria-current="${index === 0 ? "page" : "false"}" title="${escapeHtml(screen.title)}"><span class="design-screen-number" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span><span>${escapeHtml(screen.title)}</span></button>`;
   }).join("")}</div>
   <div class="design-nav-footer"><span data-design-verification>Browser inspection pending</span><span class="design-local">Local workspace</span></div>
@@ -3050,10 +2685,10 @@ function designNotes(document2) {
   ).join("")}</div></details>`;
 }
 function stageDetails(document2) {
-  return `<div class="design-stage-context"><div><strong data-design-screen-title>${escapeHtml(document2.screens.find(({ id: id3 }) => id3 === document2.screenOrder[0]).title)}</strong><span data-design-stage-description>Every screen, one connected design</span></div><div class="design-stage-actions">${designNotes(document2)}<label class="design-frame-picker">Frame<select aria-label="Responsive frame" data-design-frame>${document2.frames.map((frame) => `<option value="${escapeHtml(frame.id)}">${escapeHtml(frame.label)} \xB7 ${frame.width} \xD7 ${frame.height}</option>`).join("")}</select></label></div></div>
-	  <div class="design-canvas-tools" role="group" aria-label="Canvas controls"><div class="planr-segment design-interaction-picker" role="group" aria-label="Review mode">${iconButton("Interact", "pointer", 'data-planr-mode="interact" aria-pressed="true" aria-keyshortcuts="I"')}${iconButton("Annotate", "comment", 'data-planr-mode="comment" aria-pressed="false" aria-keyshortcuts="C"')}</div><span></span>${button("\u2212", 'data-design-zoom="out" aria-label="Zoom out"')}${button("100%", 'data-design-zoom="reset" aria-label="Reset zoom"')}${button("+", 'data-design-zoom="in" aria-label="Zoom in"')}<span></span>${button("Fit", 'data-design-fit aria-label="Fit all visible artboards"')}${button("Pan", 'data-design-pan aria-pressed="false" aria-label="Pan canvas" aria-keyshortcuts="H Space" title="Pan canvas (H). Hold Space to pan temporarily; Escape returns to Interact."')}</div>
+  return `<div class="design-stage-context"><div><strong data-design-screen-title>${escapeHtml(document2.screens.find(({ id: id2 }) => id2 === document2.screenOrder[0]).title)}</strong><span data-design-stage-description>Every screen, one connected design</span></div><div class="design-stage-actions">${designNotes(document2)}<label class="design-frame-picker">Frame<select aria-label="Responsive frame" data-design-frame>${document2.frames.map((frame) => `<option value="${escapeHtml(frame.id)}">${escapeHtml(frame.label)} \xB7 ${frame.width} \xD7 ${frame.height}</option>`).join("")}</select></label></div></div>
+	  <div class="design-canvas-tools" role="group" aria-label="Canvas controls"><div class="planr-segment design-interaction-picker" role="group" aria-label="Review mode">${iconButton("Interact", "pointer", 'data-planr-mode="interact" aria-pressed="true" aria-keyshortcuts="I"')}${iconButton("Annotate", "comment", 'data-planr-mode="comment" aria-pressed="false" aria-keyshortcuts="C"')}</div><span></span>${button("\u2212", 'data-design-zoom="out" aria-label="Zoom out"')}${button("100%", 'data-design-zoom="reset" aria-label="Reset zoom"')}${button("+", 'data-design-zoom="in" aria-label="Zoom in"')}<span></span>${button("100%", 'data-design-actual-size aria-label="Inspect screen at actual size" aria-pressed="false"')}${button("Focus", 'data-design-focus aria-label="Focus on the preview"')}${button("Fit", 'data-design-fit aria-label="Fit all visible artboards"')}${button("Pan", 'data-design-pan aria-pressed="false" aria-label="Pan canvas" aria-keyshortcuts="H Space" title="Pan canvas (H). Hold Space to pan temporarily; Escape returns to Interact."')}</div>
   <div class="design-walkthrough-caption" hidden><div><span data-design-step></span><h2 data-design-narrative-title></h2><p data-design-narrative></p></div><div>${button("Previous", 'data-design-step-change="-1"')}${button("Next", 'data-design-step-change="1"')}</div></div>
-  <div class="design-notice" role="status" aria-live="polite" hidden></div>`;
+  <div class="design-notice" role="status" aria-live="polite" hidden><span data-design-notice-message></span><button type="button" data-design-dismiss-notice aria-label="Dismiss notification" title="Dismiss notification"><span aria-hidden="true">\xD7</span></button></div>`;
 }
 function directionDetails() {
   return `<section class="planr-domain-rail design-direction-review" data-planr-slot="domain-rail" aria-label="Direction review"><div><strong data-design-direction-label>Direction</strong><span data-design-selected-direction></span></div><div class="design-rating" role="group" aria-label="Rate this direction">${[1, 2, 3, 4, 5].map((rating) => button("\u2606", `data-design-rating="${rating}" aria-label="Rate ${rating} out of 5" aria-pressed="false"`)).join("")}</div>${button("Use this direction", "data-design-select-direction")}<details class="design-refinement"><summary>Refine this direction</summary><div><label for="design-remix">Refinement note<textarea id="design-remix" maxlength="8192" data-design-remix placeholder="What should change in the next iteration?"></textarea></label>${button("Save refinement note", "data-design-save-remix")}<p data-design-review-hint>Saved with your review for the next iteration.</p></div></details></section>`;
@@ -3073,17 +2708,23 @@ function renderDesignStudioMarkup({
   reviewContext = null,
   contextDigest = null,
   fingerprints = []
-} = {}, { stageRuntimeUrl = "./artifact-review-stage.js", renderShell, style = "", runtime = "" } = {}) {
+} = {}, {
+  stageRuntimeUrl = "./artifact-review-stage.js",
+  renderShell,
+  style = "",
+  runtime = "",
+  lazySources = false
+} = {}) {
   if (!document2 || !envelope)
     throw new TypeError("Design studio requires a design document and artifact envelope.");
-  const artifactIds = new Set(envelope.artifacts.map(({ id: id3 }) => id3));
+  const artifactIds = new Set(envelope.artifacts.map(({ id: id2 }) => id2));
   for (const entry of entries) {
-    if (!artifactIds.has(entry.artifactId) || !document2.screens.some(({ id: id3 }) => id3 === entry.screenId) || !document2.variants.some(({ id: id3, status }) => id3 === entry.variantId && status === "ready") || !document2.frames.some(({ id: id3 }) => id3 === entry.frameId)) {
+    if (!artifactIds.has(entry.artifactId) || !document2.screens.some(({ id: id2 }) => id2 === entry.screenId) || !document2.variants.some(({ id: id2, status }) => id2 === entry.variantId && status === "ready") || !document2.frames.some(({ id: id2 }) => id2 === entry.frameId)) {
       throw new TypeError(`Invalid design studio entry: ${entry.artifactId}.`);
     }
   }
   const activeEntry = entries.find(
-    ({ variantId, screenId, frameId }) => variantId === document2.selectedVariant && screenId === document2.screenOrder[0] && frameId === document2.frames[0].id
+    ({ variantId, screenId, frameId }) => variantId === (state?.variantId ?? document2.selectedVariant) && screenId === (state?.screenId ?? document2.screenOrder[0]) && frameId === (state?.frameId ?? document2.frames[0].id)
   );
   if (!activeEntry)
     throw new TypeError("Design studio requires the selected direction and first screen/frame.");
@@ -3101,7 +2742,9 @@ function renderDesignStudioMarkup({
       envelope.artifacts.map((artifact) => [artifact.id, artifact.kind])
     ),
     staticArtifacts: envelope.artifacts.filter(
-      (artifact) => artifact.kind !== "html" || /\bdata-(?:design|planr)-static(?:\s|=|>)/u.test(artifact.html || "")
+      (artifact) => artifact.kind !== "html" || !lazySources && /\bdata-(?:design|planr)-static(?:\s|=|>)/u.test(
+        resolveArtifactHtml(envelope, artifact)
+      )
     ).map((artifact) => artifact.id)
   };
   let html = renderShell(
@@ -3121,6 +2764,7 @@ function renderDesignStudioMarkup({
     },
     { stageRuntimeUrl }
   );
+  html = html.replace('class="planr-shell"', 'class="planr-shell" data-planr-frame-budget="3"');
   html = html.replace(
     /(<iframe\b[^>]*\bsandbox=")allow-scripts(")/g,
     "$1allow-scripts allow-forms$2"
@@ -3162,15 +2806,18 @@ function renderDesignStudioMarkup({
 
 // packages/design/lib/design/studio.mjs
 var templateRoot = new URL("../../templates/studio/", new URL("./runtime/packages/design/lib/design/studio.mjs", import.meta.url).href);
+function readDesignStudioRuntime() {
+  return readRuntimeAsset(new URL("studio.js", templateRoot)).toString("utf8");
+}
 function designStudioArtifactId(variantId, screenId, frameId) {
-  const id3 = [
+  const id2 = [
     "design",
     ...[variantId, screenId, frameId].map((value) => `${value.length}-${value}`)
   ].join(".");
-  return id3.length <= 128 ? id3 : `design.${createHash3("sha256").update(JSON.stringify([variantId, screenId, frameId])).digest("hex")}`;
+  return id2.length <= 128 ? id2 : `design.${createHash4("sha256").update(JSON.stringify([variantId, screenId, frameId])).digest("hex")}`;
 }
 function createDesignStudioEntries(document2, envelope) {
-  const ids = new Set(envelope.artifacts.map(({ id: id3 }) => id3));
+  const ids = new Set(envelope.artifacts.map(({ id: id2 }) => id2));
   const entries = [];
   for (const variant of document2.variants.filter(({ status }) => status === "ready")) {
     for (const screenId of document2.screenOrder) {
@@ -3198,16 +2845,19 @@ function renderDesignStudio(input = {}, options = {}) {
     {
       ...options,
       renderShell: renderArtifactShellDocument,
-      style: ["studio.css", "enhancements.css", "handoff-center.css"].map((file) => readFileSync5(new URL(file, templateRoot), "utf8")).join("\n"),
-      runtime: readFileSync5(new URL("studio.js", templateRoot), "utf8")
+      style: readFileSync5(
+        new URL(new URL("./runtime/packages/artifact/lib/artifact/ui/studio-shell.css", import.meta.url).href),
+        "utf8"
+      ) + "\n" + ["studio.css", "enhancements.css", "handoff-center.css"].map((file) => readFileSync5(new URL(file, templateRoot), "utf8")).join("\n"),
+      runtime: readDesignStudioRuntime()
     }
   );
 }
 
 // packages/design/lib/design/document.mjs
 var DESIGN_VIEWS = Object.freeze(["canvas", "prototype", "walkthrough"]);
-var DESIGN_RENDERER_VERSION = "1.2.0";
-var hash = (value) => createHash4("sha256").update(value).digest("hex");
+var DESIGN_RENDERER_VERSION = "1.3.0";
+var hash = (value) => createHash5("sha256").update(value).digest("hex");
 var json = (value) => `${JSON.stringify(value, null, 2)}
 `;
 function readJson(path, fallback = void 0) {
@@ -3222,30 +2872,30 @@ function atomicJson(path, value) {
   atomicBytes(path, json(value));
 }
 function atomicBytes(path, bytes) {
-  mkdirSync2(dirname4(path), { recursive: true });
+  mkdirSync(dirname3(path), { recursive: true });
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {
-    writeFileSync2(temporary, bytes, { mode: 384, flag: "wx" });
-    renameSync2(temporary, path);
+    writeFileSync(temporary, bytes, { mode: 384, flag: "wx" });
+    renameSync(temporary, path);
   } finally {
-    rmSync2(temporary, { force: true });
+    rmSync(temporary, { force: true });
   }
 }
 function recoverDesignPublication(root, { ownsRenderLock = false } = {}) {
-  const journalPath = join4(root, ".design/publication.json");
+  const journalPath = join2(root, ".design/publication.json");
   let journal = readJson(journalPath, null);
   if (!journal) return;
-  const lockPath = join4(root, ".design/render.lock");
+  const lockPath = join2(root, ".design/render.lock");
   let recoveryOwner;
   if (!ownsRenderLock) {
     const lock = readJson(lockPath, null);
     if (lock && isProcessAlive(lock.pid)) return;
-    if (lock) rmSync2(lockPath, { force: true });
+    if (lock) rmSync(lockPath, { force: true });
     recoveryOwner = randomUUID();
     let descriptor;
     try {
       descriptor = openSync(lockPath, "wx", 384);
-      writeFileSync2(
+      writeFileSync(
         descriptor,
         json({ pid: process.pid, owner: recoveryOwner, createdAt: Date.now() })
       );
@@ -3259,23 +2909,23 @@ function recoverDesignPublication(root, { ownsRenderLock = false } = {}) {
   try {
     journal = readJson(journalPath, null);
     if (!journal) return;
-    const pointer = readJson(join4(root, ".design/current.json"), null);
-    const manifestPath = join4(root, "finalized.json");
+    const pointer = readJson(join2(root, ".design/current.json"), null);
+    const manifestPath = join2(root, "finalized.json");
     if (pointer?.revision === journal.revision) atomicJson(manifestPath, journal.manifest);
     else if ((pointer?.revision ?? null) === journal.previousRevision) {
-      if (journal.previousManifest === null) rmSync2(manifestPath, { force: true });
+      if (journal.previousManifest === null) rmSync(manifestPath, { force: true });
       else atomicBytes(manifestPath, Buffer.from(journal.previousManifest, "base64"));
     } else if (pointer?.revision && /^[a-f0-9]{64}$/u.test(pointer.revision)) {
       atomicJson(
         manifestPath,
-        readJson(join4(root, ".design/revisions", pointer.revision, "render.json")).manifest
+        readJson(join2(root, ".design/revisions", pointer.revision, "render.json")).manifest
       );
     } else
       throw new Error("Design publication recovery could not identify the committed revision.");
-    rmSync2(journalPath, { force: true });
+    rmSync(journalPath, { force: true });
   } finally {
     if (recoveryOwner && readJson(lockPath, null)?.owner === recoveryOwner)
-      rmSync2(lockPath, { force: true });
+      rmSync(lockPath, { force: true });
   }
 }
 function loadDesignDocument(file, { readSource } = {}) {
@@ -3284,15 +2934,22 @@ function loadDesignDocument(file, { readSource } = {}) {
   const document2 = assertDesignDocument(
     checked ? JSON.parse(checked.value.toString("utf8")) : readJson(path)
   );
-  return { path, root: dirname4(path), document: document2 };
+  return { path, root: dirname3(path), document: document2 };
 }
 function designSpecPath(root) {
-  return /(?:^|\/)output\/feats\/feat-[^/]+\/design$/u.test(root.replaceAll("\\", "/")) ? join4(dirname4(root), "design-spec.md") : join4(root, "design-spec.md");
+  return /(?:^|\/)output\/feats\/feat-[^/]+\/design$/u.test(root.replaceAll("\\", "/")) ? join2(dirname3(root), "design-spec.md") : join2(root, "design-spec.md");
 }
 function inspectDesignDocument(file, { readSource } = {}) {
   const { path, root, document: document2 } = loadDesignDocument(file, { readSource });
+  const ready = document2.variants.filter((variant) => variant.status === "ready").length;
+  const sourceCount = document2.screenOrder.length * ready;
+  const viewCount = sourceCount * document2.frames.length;
+  if (sourceCount > 256 || viewCount > 4096)
+    throw new RangeError(
+      `This board needs ${sourceCount} screen sources and ${viewCount} viewport references. Split it into linked boards: one board supports 256 sources and 4096 views.`
+    );
   const sources = new Set(document2.assets ?? []);
-  if (existsSync3(join4(root, "review-context.json"))) sources.add("review-context.json");
+  if (existsSync3(join2(root, "review-context.json"))) sources.add("review-context.json");
   if (document2.designSystem?.tokens) sources.add(document2.designSystem.tokens);
   for (const screen of document2.screens)
     for (const source of [
@@ -3320,7 +2977,7 @@ function inspectDesignDocument(file, { readSource } = {}) {
     missing,
     specPath: designSpecPath(root),
     // Guarded source preparation is independent of local render cache state.
-    current: readSource ? null : readJson(join4(root, ".design/current.json"), null)
+    current: readSource ? null : readJson(join2(root, ".design/current.json"), null)
   };
 }
 function prepareDesignDocument(file, { readSource, passive = false, maxBytes } = {}) {
@@ -3331,7 +2988,7 @@ function prepareDesignDocument(file, { readSource, passive = false, maxBytes } =
   const reviewContext = loadReviewContext(root, document2, { readSource });
   const contextDigest = reviewDigest(reviewContext);
   const fingerprints = [];
-  const artifacts = [], entries = [], lint = [], sourceFiles = new Set(inspected.sources);
+  const artifacts = [], sources = [], entries = [], lint = [], sourceFiles = new Set(inspected.sources);
   const sourceContents = new Map(
     inspected.sources.map((source) => [
       source,
@@ -3372,6 +3029,8 @@ function prepareDesignDocument(file, { readSource, passive = false, maxBytes } =
         if (!bundled.html.includes(`data-planr-id="${anchor}"`) && !bundled.html.includes(`id="${anchor}"`))
           throw new Error(`Screen ${screenId} is missing its declared anchor ${anchor}.`);
       }
+      const sourceId = `source-${hash(`${variant.id}:${screenId}`).slice(0, 32)}`;
+      sources.push({ id: sourceId, kind: "html", html: bundled.html });
       for (const frame of document2.frames) {
         fingerprints.push(
           reviewFingerprints({
@@ -3392,7 +3051,7 @@ function prepareDesignDocument(file, { readSource, passive = false, maxBytes } =
           id: artifactId,
           kind: "html",
           title: `${screen.title} \xB7 ${variant.label} \xB7 ${frame.label}`,
-          html: bundled.html,
+          sourceId,
           viewport: { width: frame.width, height: frame.height },
           colorScheme: "light"
         });
@@ -3406,7 +3065,8 @@ function prepareDesignDocument(file, { readSource, passive = false, maxBytes } =
     }
   }
   const activeArtifactId = [...artifacts].sort((a, b) => a.id.localeCompare(b.id))[0].id;
-  const envelope = createArtifactEnvelope({
+  const envelope = createSharedArtifactEnvelope({
+    sources,
     artifacts,
     viewer: {
       mode: artifacts.length > 1 ? "variants" : "single",
@@ -3431,19 +3091,19 @@ function prepareDesignDocument(file, { readSource, passive = false, maxBytes } =
   };
 }
 function currentDesign(file) {
-  const root = realpathSync3(dirname4(resolve4(file)));
+  const root = realpathSync3(dirname3(resolve4(file)));
   recoverDesignPublication(root);
-  const pointer = readJson(join4(root, ".design/current.json"), null);
+  const pointer = readJson(join2(root, ".design/current.json"), null);
   if (!pointer || !/^[a-f0-9]{64}$/u.test(pointer.revision))
     throw new Error("Design has no completed render. Run the render utility first.");
-  const directory = join4(root, ".design/revisions", pointer.revision);
-  const prepared = readJson(join4(directory, "render.json"));
+  const directory = join2(root, ".design/revisions", pointer.revision);
+  const prepared = readJson(join2(directory, "render.json"));
   return {
     ...prepared,
     root,
     directory,
     file: resolve4(file),
-    verification: readJson(join4(root, ".design/verification", `${pointer.revision}.json`), {
+    verification: readJson(join2(root, ".design/verification", `${pointer.revision}.json`), {
       status: "unverified",
       revision: pointer.revision
     })
@@ -3455,9 +3115,11 @@ function stageRuntimeBytes() {
     new URL("./runtime/packages/design/lib/design/document.mjs", import.meta.url).href
   );
   try {
-    return readFileSync6(stagePath);
+    return readRuntimeAsset(stagePath);
   } catch {
-    return readFileSync6(new URL("../../templates/artifact-review-stage.js", new URL("./runtime/packages/design/lib/design/document.mjs", import.meta.url).href));
+    return readRuntimeAsset(
+      new URL("../../templates/artifact-review-stage.js", new URL("./runtime/packages/design/lib/design/document.mjs", import.meta.url).href)
+    );
   }
 }
 function designRendererRevision() {
@@ -3465,24 +3127,50 @@ function designRendererRevision() {
     json({
       version: DESIGN_RENDERER_VERSION,
       stage: hash(stageRuntimeBytes()),
-      assets: ["studio.css", "studio.js", "enhancements.css", "handoff-center.css"].filter((name) => existsSync3(new URL(`../../templates/studio/${name}`, new URL("./runtime/packages/design/lib/design/document.mjs", import.meta.url).href))).map(
-        (name) => hash(readFileSync6(new URL(`../../templates/studio/${name}`, new URL("./runtime/packages/design/lib/design/document.mjs", import.meta.url).href)))
+      assets: ["studio.css", "studio.js", "enhancements.css", "handoff-center.css"].filter(
+        (name) => name === "studio.js" || existsSync3(new URL(`../../templates/studio/${name}`, new URL("./runtime/packages/design/lib/design/document.mjs", import.meta.url).href))
+      ).map(
+        (name) => hash(
+          name === "studio.js" ? readDesignStudioRuntime() : readFileSync6(new URL(`../../templates/studio/${name}`, new URL("./runtime/packages/design/lib/design/document.mjs", import.meta.url).href))
+        )
       )
     })
   );
 }
-function standaloneDesignHtml(prepared, view = prepared.document.defaultView) {
+function standaloneDesignHtml(prepared, view = prepared.document.defaultView, {
+  parentOrigin = "null",
+  sourceTransport = parentOrigin === "null" ? "blob" : "srcdoc",
+  prototypeStateAliases
+} = {}) {
   const nonce = createArtifactBridgeNonce();
-  const artifacts = Object.fromEntries(
+  const pool = prepared.envelope.schemaVersion === "1.1.0";
+  const sources = pool ? Object.fromEntries(
+    prepared.envelope.sources.map((source) => [
+      source.id,
+      prepareArtifactSourceTemplate({
+        html: source.html,
+        nonce,
+        parentOrigin,
+        allowLocalForms: true,
+        prototypeState: true,
+        screenId: prepared.entries.find(
+          (entry) => prepared.envelope.artifacts.find((artifact) => artifact.id === entry.artifactId)?.sourceId === source.id
+        )?.screenId ?? source.id
+      })
+    ])
+  ) : null;
+  const artifacts = pool ? null : Object.fromEntries(
     prepared.envelope.artifacts.map((artifact) => [
       artifact.id,
       prepareArtifactDocument({
-        html: artifact.html,
+        html: resolveArtifactHtml(prepared.envelope, artifact),
         artifactId: artifact.id,
         nonce,
-        parentOrigin: "null",
+        parentOrigin,
         portable: true,
-        allowLocalForms: true
+        allowLocalForms: true,
+        prototypeState: true,
+        screenId: prepared.entries.find((entry) => entry.artifactId === artifact.id)?.screenId ?? artifact.id
       }).html
     ])
   );
@@ -3490,11 +3178,19 @@ function standaloneDesignHtml(prepared, view = prepared.document.defaultView) {
   const stageRuntimeUrl = `data:text/javascript;base64,${Buffer.from(stage).toString("base64")}`;
   const runtime = renderArtifactParentRuntime({
     nonce,
-    parentOrigin: "null",
-    inlineArtifacts: artifacts,
+    ...pool ? {
+      inlineSources: sources,
+      inlineArtifactSources: Object.fromEntries(
+        prepared.envelope.artifacts.map((artifact) => [artifact.id, artifact.sourceId])
+      )
+    } : { inlineArtifacts: artifacts },
+    sourceTransport,
+    frameBudget: 3,
     stageRuntimeUrl
   });
-  const runtimeUrl = `data:text/javascript;base64,${Buffer.from(runtime).toString("base64")}`;
+  const configuredRuntime = prototypeStateAliases ? `globalThis.__OPENPLANR_DESIGN_STUDIO_OPTIONS__=${JSON.stringify({ prototypeStateAliases }).replaceAll("<", "\\u003c")};
+${runtime}` : runtime;
+  const runtimeUrl = `data:text/javascript;base64,${Buffer.from(configuredRuntime).toString("base64")}`;
   const state = { ...prepared.state, view };
   if (state.selectedVariant) state.variantId = state.selectedVariant;
   return renderDesignStudio(
@@ -3513,9 +3209,9 @@ async function renderDesignDocument(file, {
   now = () => (/* @__PURE__ */ new Date()).toISOString()
 } = {}) {
   const { root } = loadDesignDocument(file);
-  const work = join4(root, ".design");
-  mkdirSync2(work, { recursive: true });
-  const release = await acquireStartLock(join4(work, "render.lock"), {
+  const work = join2(root, ".design");
+  mkdirSync(work, { recursive: true });
+  const release = await acquireStartLock(join2(work, "render.lock"), {
     timeout: 1e3,
     stale: 3e4
   });
@@ -3534,17 +3230,17 @@ ${errors.join("\n")}`);
       if (!new RegExp(`^## ${section}\\. `, "m").test(spec))
         throw new Error(`design-spec.md is missing section ${section}.`);
     prepared.revision = hash(json({ source: prepared.revision, spec, rendererRevision }));
-    const directory = join4(work, "revisions", prepared.revision);
-    const previous = readJson(join4(work, "current.json"), null);
+    const directory = join2(work, "revisions", prepared.revision);
+    const previous = readJson(join2(work, "current.json"), null);
     const generatedAt = now();
-    const manifest = existsSync3(directory) ? readJson(join4(directory, "render.json")).manifest : buildManifest({
+    const manifest = existsSync3(directory) ? readJson(join2(directory, "render.json")).manifest : buildManifest({
       framework: "vanilla",
       designFormat: prepared.document.defaultView,
       source: prepared.document.brief.source,
       contentProvenance: prepared.document.brief.provenance,
       generatedAt,
       screens: prepared.document.screenOrder.map(
-        (id3) => prepared.document.screens.find((item2) => item2.id === id3).title
+        (id2) => prepared.document.screens.find((item2) => item2.id === id2).title
       ),
       iterations: previous && previous.revision !== prepared.revision ? (previous.iterations ?? 0) + 1 : previous?.iterations ?? 0,
       htmlFile: `.design/revisions/${prepared.revision}/${prepared.document.defaultView}.html`
@@ -3562,25 +3258,25 @@ ${errors.join("\n")}`);
       manifest
     };
     if (!existsSync3(directory)) {
-      temporary = join4(work, `pending-${randomUUID()}`);
-      mkdirSync2(join4(temporary, "sources"), { recursive: true });
-      writeFileSync2(join4(temporary, "render.json"), json(record));
-      writeFileSync2(join4(temporary, "design-document.json"), json(prepared.document));
-      writeFileSync2(join4(temporary, "design-spec.md"), spec);
+      temporary = join2(work, `pending-${randomUUID()}`);
+      mkdirSync(join2(temporary, "sources"), { recursive: true });
+      writeFileSync(join2(temporary, "render.json"), json(record));
+      writeFileSync(join2(temporary, "design-document.json"), json(prepared.document));
+      writeFileSync(join2(temporary, "design-spec.md"), spec);
       for (const source of prepared.sourceFiles) {
-        const destination = join4(temporary, "sources", source);
-        mkdirSync2(dirname4(destination), { recursive: true });
-        writeFileSync2(destination, prepared.sourceContents.get(source));
+        const destination = join2(temporary, "sources", source);
+        mkdirSync(dirname3(destination), { recursive: true });
+        writeFileSync(destination, prepared.sourceContents.get(source));
       }
       for (const view of DESIGN_VIEWS)
-        writeFileSync2(join4(temporary, `${view}.html`), standaloneDesignHtml(record, view));
+        writeFileSync(join2(temporary, `${view}.html`), standaloneDesignHtml(record, view));
       beforeCommit?.(record);
-      mkdirSync2(dirname4(directory), { recursive: true });
-      renameSync2(temporary, directory);
+      mkdirSync(dirname3(directory), { recursive: true });
+      renameSync(temporary, directory);
       temporary = null;
     }
-    const manifestPath = join4(root, "finalized.json");
-    atomicJson(join4(work, "publication.json"), {
+    const manifestPath = join2(root, "finalized.json");
+    atomicJson(join2(work, "publication.json"), {
       revision: prepared.revision,
       previousRevision: previous?.revision ?? null,
       manifest,
@@ -3588,13 +3284,13 @@ ${errors.join("\n")}`);
     });
     try {
       atomicJson(manifestPath, manifest);
-      writePointer(join4(work, "current.json"), {
+      writePointer(join2(work, "current.json"), {
         revision: prepared.revision,
         previousRevision: previous?.revision === prepared.revision ? previous.previousRevision : previous?.revision ?? null,
         iterations: manifest.iterations,
         generatedAt: manifest.generated_at
       });
-      rmSync2(join4(work, "publication.json"), { force: true });
+      rmSync(join2(work, "publication.json"), { force: true });
     } catch (error) {
       recoverDesignPublication(root, { ownsRenderLock: true });
       throw error;
@@ -3603,48 +3299,27 @@ ${errors.join("\n")}`);
       ok: true,
       revision: prepared.revision,
       document: resolve4(file),
-      artifact: join4(directory, `${prepared.document.defaultView}.html`),
+      artifact: join2(directory, `${prepared.document.defaultView}.html`),
       views: Object.fromEntries(
-        DESIGN_VIEWS.map((view) => [view, join4(directory, `${view}.html`)])
+        DESIGN_VIEWS.map((view) => [view, join2(directory, `${view}.html`)])
       ),
-      manifest: join4(root, "finalized.json"),
+      manifest: join2(root, "finalized.json"),
       spec: specPath,
       verification: "unverified"
     };
   } finally {
-    if (temporary) rmSync2(temporary, { recursive: true, force: true });
+    if (temporary) rmSync(temporary, { recursive: true, force: true });
     release();
   }
 }
 
 export {
-  configuredPlanrHome,
-  planrHome,
-  LOOPBACK_HOST,
-  listenLoopback,
-  closeHttpServer,
-  readRequestBody,
-  assertLoopbackRequest,
-  acquireStartLock,
   mintCapabilityToken,
   isCapabilityToken,
   timingSafeTokenEqual,
-  createArtifactBridgeNonce,
   prepareArtifactDocument,
+  createArtifactBridgeNonce,
   renderArtifactParentRuntime,
-  canonicalizeJson,
-  sha256Hex,
-  deepFreeze,
-  assertPlainData,
-  DESIGN_WORKSPACE_VERSION,
-  DESIGN_WORKSPACE_API,
-  DESIGN_WORKSPACE_MAX_BYTES,
-  DESIGN_WORKSPACE_MAX_EVENT_BYTES,
-  DESIGN_WORKSPACE_REVISION_SCHEMA,
-  DESIGN_WORKSPACE_EVENT_SCHEMA,
-  DESIGN_WORKSPACE_CREATE_SCHEMA,
-  DESIGN_WORKSPACE_SCHEMA,
-  assertWorkspaceContract,
   DESIGN_HANDOFF_CONTENT_SCHEMA,
   DESIGN_HANDOFF_SCHEMA,
   assertReviewExperience,
@@ -3655,6 +3330,7 @@ export {
   bundleDesignRevision,
   listDesignRevisions,
   readDesignRevision,
+  readRuntimeAsset,
   renderDesignStudio,
   DESIGN_VIEWS,
   DESIGN_RENDERER_VERSION,

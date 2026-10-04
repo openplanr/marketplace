@@ -1,42 +1,413 @@
 #!/usr/bin/env node
 import {
   exportDesignReview,
+  listArtifactReviewServers,
   readDesignFeedback,
   readDesignHandoff,
   resolveDesignPins,
   saveDesignState,
   serializeDesignReviewExport,
   startDesignReview,
+  stopArtifactReviewServer,
   updateDesignHandoff
 } from "./design-review-handoff.mjs";
 import {
+  ARTIFACT_REVIEW_MAX_STATE_BYTES,
+  createReviewLedger,
+  decodeArtifactReviewSources,
   exportDesignShareRecovery,
   importDesignShareRecovery,
   manageDesignShare,
+  mergeReviewLedger,
+  normalizeArtifactReview,
   publishDesignShare,
+  readArtifactReviewState,
+  resolveArtifactReviewDestination,
   shareDesign,
-  syncDesignShare
+  syncDesignShare,
+  withArtifactReviewLock,
+  writeArtifactReviewState
 } from "./design-share.mjs";
 import {
   atomicJson,
   currentDesign,
+  hash,
   inspectDesignDocument,
+  listDesignRevisions,
   prepareDesignDocument,
+  readDesignRevision,
   readJson,
   renderDesignDocument,
   standaloneDesignHtml
 } from "./design-document.mjs";
+import "./design-pako-esm.mjs";
+import {
+  acquireStartLock
+} from "./design-planr-home.mjs";
 import "./design-parse5-parser.mjs";
 import "./design-parse5-tokenizer.mjs";
 import "./design-entities.mjs";
-import "./design-artifact-shell.mjs";
+import {
+  ARTIFACT_ERROR_CODES,
+  PipelineError,
+  digestArtifactEnvelope
+} from "./design-artifact-shell.mjs";
+import "./design-bounded-json-data.mjs";
 import "./design-sandbox-guards.mjs";
 
 // packages/design/lib/design/utility.mjs
 import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join as join3, resolve as resolve2 } from "node:path";
 import { fileURLToPath } from "node:url";
+
+// packages/design/lib/design/feedback-import.mjs
+import { closeSync, constants, fstatSync, openSync, readSync } from "node:fs";
+import { join, resolve } from "node:path";
+function invalid(message, code = ARTIFACT_ERROR_CODES.REVIEW_IMPORT) {
+  throw new PipelineError(code, message);
+}
+function readDesignFeedbackImport(input) {
+  if (typeof input !== "string" || !input.trim()) invalid("Feedback import requires a JSON file.");
+  let fd;
+  try {
+    fd = openSync(resolve(input), constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+    const stat = fstatSync(fd);
+    if (!stat.isFile()) invalid("Feedback import must be a regular JSON file.");
+    if (stat.size > ARTIFACT_REVIEW_MAX_STATE_BYTES)
+      invalid("Feedback import exceeds the 5 MB limit.", ARTIFACT_ERROR_CODES.REQUEST_LIMIT);
+    const bytes = Buffer.alloc(ARTIFACT_REVIEW_MAX_STATE_BYTES + 1);
+    let size = 0;
+    while (size < bytes.length) {
+      const read = readSync(fd, bytes, size, bytes.length - size, null);
+      if (!read) break;
+      size += read;
+    }
+    if (size > ARTIFACT_REVIEW_MAX_STATE_BYTES)
+      invalid("Feedback import exceeds the 5 MB limit.", ARTIFACT_ERROR_CODES.REQUEST_LIMIT);
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes.subarray(0, size)));
+  } catch (error) {
+    if (error instanceof PipelineError) throw error;
+    invalid("Feedback import is unreadable or is not valid UTF-8 JSON.");
+  } finally {
+    if (fd !== void 0) closeSync(fd);
+  }
+}
+function originalBundles(file, current) {
+  return { file, current, cache: /* @__PURE__ */ new Map([[current.revision, current]]) };
+}
+function originalBundle(bundles, reviewOf, revisionId) {
+  if (!/^[a-f0-9]{64}$/u.test(reviewOf ?? ""))
+    invalid("Feedback has an invalid original artifact digest.");
+  const load = (revision) => {
+    if (!bundles.cache.has(revision)) {
+      try {
+        const historical = readDesignRevision(bundles.file, revision);
+        bundles.cache.set(revision, { ...historical, document: historical.design });
+      } catch {
+        invalid(
+          "The original feedback revision is unavailable. Restore its immutable render bundle before importing."
+        );
+      }
+    }
+    const bundle = bundles.cache.get(revision);
+    if (bundle.document.id !== bundles.current.document.id)
+      invalid("Feedback revision belongs to another design document.");
+    return bundle;
+  };
+  if (revisionId && /^[a-f0-9]{64}$/u.test(revisionId)) {
+    const exact = load(revisionId);
+    if (digestArtifactEnvelope(exact.envelope) !== reviewOf)
+      invalid("Feedback revision does not match its original artifact digest.");
+    return exact;
+  }
+  for (const bundle of bundles.cache.values())
+    if (digestArtifactEnvelope(bundle.envelope) === reviewOf) return bundle;
+  for (const { revision } of listDesignRevisions(bundles.file).revisions) {
+    const bundle = load(revision);
+    if (digestArtifactEnvelope(bundle.envelope) === reviewOf) return bundle;
+  }
+  invalid(
+    "The original feedback revision is unavailable. Restore its immutable render bundle before importing."
+  );
+}
+function validatePin(pin, bundle) {
+  const entry = bundle.entries.find((value) => value.artifactId === pin.artifactId);
+  const frame = bundle.document.frames.find((value) => value.id === entry?.frameId);
+  const screen = bundle.document.screens.find((value) => value.id === entry?.screenId);
+  if (!entry || pin.viewport.width !== frame?.width || pin.viewport.height !== frame?.height)
+    invalid("Feedback pin does not match its original screen and captured frame.");
+  if (pin.variant !== void 0 && pin.variant !== entry.variantId)
+    invalid("Feedback pin targets another design direction.");
+  if (pin.region.x + pin.region.w > 1.000001 || pin.region.y + pin.region.h > 1.000001)
+    invalid("Feedback pin region extends beyond its original viewport or anchor.");
+  if (pin.anchor && (pin.anchor.screen !== void 0 && pin.anchor.screen !== entry.screenId || pin.anchor.planrId !== screen.id && !screen.anchors?.includes(pin.anchor.planrId)))
+    invalid("Feedback pin anchor is not declared in its original screen.");
+}
+function identity(value) {
+  return { name: value?.name, ...value?.id == null ? {} : { id: value.id } };
+}
+function projectedPin(thread, group, bundle) {
+  const source = thread.source;
+  if (!source || source.reviewId !== group.reviewId || source.reviewOf !== group.reviewOf || source.artifactId !== group.artifactId || source.revisionId !== group.sourceRevisionId)
+    invalid("Feedback thread and group have conflicting source identities.");
+  const entry = bundle.entries.find((value) => value.artifactId === group.artifactId);
+  if (!entry || entry.screenId !== group.screen?.id || entry.variantId !== group.direction?.id || entry.frameId !== group.frame?.id)
+    invalid("Feedback group has an invalid original screen mapping.");
+  const location = thread.location;
+  if (!location || !["anchor-normalized", "viewport-normalized"].includes(location.coordinateSpace) || Boolean(location.anchor) !== (location.coordinateSpace === "anchor-normalized"))
+    invalid("Feedback location has an invalid coordinate space.");
+  if (!Array.isArray(thread.replies)) invalid("Feedback replies must be an array.");
+  const pin = {
+    id: thread.id,
+    artifactId: source.artifactId,
+    author: identity(thread.author),
+    intent: thread.originalIntent,
+    status: thread.status,
+    comment: thread.comment,
+    region: location.region,
+    viewport: location.capturedViewport,
+    ...location.anchor ? {
+      anchor: {
+        planrId: location.anchor.planrId,
+        ...location.anchor.screen == null ? {} : { screen: location.anchor.screen }
+      }
+    } : {},
+    createdAt: thread.createdAt,
+    updatedAt: thread.updatedAt,
+    replies: thread.replies.map((reply) => ({ ...reply, author: identity(reply.author) }))
+  };
+  return pin;
+}
+function appendProjectedThread(entry, thread, group, bundle, stored) {
+  const pin = projectedPin(thread, group, bundle);
+  const previousPin = stored?.reviews.find((value) => value.review.reviewId === group.reviewId)?.review.pins.find((value) => value.id === pin.id);
+  if (previousPin?.variant !== void 0) pin.variant = previousPin.variant;
+  entry.review.pins.push(pin);
+  if (!entry.review.updatedAt || Date.parse(pin.updatedAt) > Date.parse(entry.review.updatedAt))
+    entry.review.updatedAt = pin.updatedAt;
+  entry.stale ||= thread.stale === true;
+}
+function decodeProjection(value, current, bundles, stored) {
+  if (value.schemaVersion !== "1.0.0" || value.design?.id !== current.document.id || !Array.isArray(value.groups) || value.groups.length > 1e4 || !Array.isArray(value.overallNotes) || value.overallNotes.length > 1e4)
+    invalid("Feedback export does not match this design document or supported schema.");
+  originalBundle(bundles, value.currentArtifactDigest, value.currentRevisionId);
+  const reviews = /* @__PURE__ */ new Map();
+  const reviewFor = (reviewId, reviewOf) => {
+    if (typeof reviewId !== "string" || !reviewId || reviewId.length > 128)
+      invalid("Feedback export is missing its original review identity.");
+    const previous = reviews.get(reviewId);
+    if (previous && previous.review.reviewOf !== reviewOf)
+      invalid("Feedback review identity is bound to conflicting artifact digests.");
+    if (previous) return previous;
+    const existing = stored?.reviews.find((entry2) => entry2.review.reviewId === reviewId)?.review;
+    const entry = {
+      review: {
+        schemaVersion: "1.0.0",
+        reviewId,
+        reviewOf,
+        decision: "pending",
+        overall: "",
+        pins: [],
+        ...existing?.createdAt ? { createdAt: existing.createdAt } : {},
+        ...existing?.updatedAt ? { updatedAt: existing.updatedAt } : {}
+      },
+      stale: false
+    };
+    reviews.set(reviewId, entry);
+    return entry;
+  };
+  for (const group of value.groups) {
+    if (!group || !Array.isArray(group.threads) || group.threads.length > 1e4 || group.sourceMapping !== "original-bundle")
+      invalid("Feedback export lacks its original thread mapping.");
+    const bundle = originalBundle(bundles, group.reviewOf, group.sourceRevisionId);
+    const entry = reviewFor(group.reviewId, group.reviewOf);
+    for (const thread of group.threads) appendProjectedThread(entry, thread, group, bundle, stored);
+  }
+  for (const note of value.overallNotes) {
+    originalBundle(bundles, note?.reviewOf);
+    const entry = reviewFor(note?.reviewId, note?.reviewOf);
+    if (entry.review.overall) invalid("Feedback export contains duplicate overall notes.");
+    entry.review.overall = note.comment;
+  }
+  return [...reviews.values()].map((entry) => ({
+    ...entry,
+    review: normalizeArtifactReview(entry.review)
+  }));
+}
+function rejectLegacy(value) {
+  if (value?.kind === "openplanr-design-review-export" || value?.kind === "artifact-review-state" || value?.artifacts || value?.reviewId || value?.review)
+    return;
+  invalid(
+    "Legacy notes.json is not canonical review feedback. Keep the file and re-export JSON from the original supported Studio; it cannot be converted safely without its revision and anchor mapping."
+  );
+}
+function rebaseLedger(stored, artifactId, digest) {
+  if (stored && stored.artifactId !== artifactId)
+    invalid("Stored feedback belongs to another design document.");
+  return createReviewLedger({
+    artifactId,
+    currentReviewOf: digest,
+    reviews: (stored?.reviews ?? []).map((entry) => ({
+      ...entry,
+      stale: entry.stale || entry.review.reviewOf !== digest
+    }))
+  });
+}
+function mergeImportedEntries(stored, artifactId, digest, entries, bundles, allowStale) {
+  let ledger = rebaseLedger(stored, artifactId, digest);
+  const imported = [];
+  for (const entry of entries) {
+    const bundle = originalBundle(bundles, entry.review.reviewOf);
+    for (const pin of entry.review.pins) validatePin(pin, bundle);
+    const stale = entry.stale || entry.review.reviewOf !== digest;
+    if (stale && !allowStale)
+      invalid(
+        "Feedback belongs to an earlier revision. Inspect it and retry with explicit --allow-stale confirmation.",
+        ARTIFACT_ERROR_CODES.STALE_REVIEW
+      );
+    const previous = ledger.reviews.find(
+      (value) => value.review.reviewId === entry.review.reviewId
+    )?.review;
+    const review = { ...entry.review, decision: previous?.decision ?? "pending" };
+    ledger = mergeReviewLedger(ledger, review, { stale });
+    imported.push({ reviewId: review.reviewId, stale, pins: review.pins.length });
+  }
+  return { ledger, imported };
+}
+async function importDesignFeedback(file, { input, revision, allowStale = false, env = process.env } = {}) {
+  if (!/^[a-f0-9]{64}$/u.test(revision ?? ""))
+    invalid("Feedback import requires the current render revision from feedback inspect.");
+  if (typeof allowStale !== "boolean")
+    invalid("Stale feedback requires an explicit boolean confirmation.");
+  const source = readDesignFeedbackImport(input);
+  rejectLegacy(source);
+  const initial = currentDesign(file);
+  const release = await acquireStartLock(join(initial.root, ".design/render.lock"), {
+    timeout: 1e3,
+    stale: 3e4
+  });
+  try {
+    const current = currentDesign(file);
+    if (current.revision !== revision)
+      invalid(
+        "The design changed before feedback import. Inspect the current revision and retry.",
+        ARTIFACT_ERROR_CODES.STALE_REVIEW
+      );
+    const artifactId = `design-${hash(current.document.id).slice(0, 24)}`;
+    const path = resolveArtifactReviewDestination({ cwd: current.root, env, artifactId }).path;
+    return await withArtifactReviewLock(path, async () => {
+      const stored = readArtifactReviewState(path, { allowMissing: true });
+      const bundles = originalBundles(file, current);
+      const entries = source.kind === "openplanr-design-review-export" ? decodeProjection(source, current, bundles, stored) : await decodeArtifactReviewSources(source, { withMetadata: true });
+      if (source.kind === "artifact-review-state" && source.artifactId !== artifactId)
+        invalid("Imported ledger belongs to another design document.");
+      const digest = digestArtifactEnvelope(current.envelope);
+      const { ledger, imported } = mergeImportedEntries(
+        stored,
+        artifactId,
+        digest,
+        entries,
+        bundles,
+        allowStale
+      );
+      writeArtifactReviewState(path, ledger);
+      return {
+        ok: true,
+        action: "design_feedback_imported",
+        revision: current.revision,
+        imported,
+        note: "Feedback merged. Imported votes, dispositions and decisions do not change owner selection or handoff approval."
+      };
+    });
+  } finally {
+    release();
+  }
+}
+
+// packages/design/lib/design/studio-lifecycle.mjs
+import { join as join2 } from "node:path";
+function localUrl(value, service, path) {
+  if (typeof value !== "string") return null;
+  try {
+    const url = new URL(value);
+    return url.origin === `http://127.0.0.1:${service.port}` && !url.search && !url.hash && path.test(url.pathname) ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+async function manageDesignStudio(file, { action = "status", instanceId, env = process.env, fetchImpl = fetch } = {}) {
+  if (!["status", "stop"].includes(action))
+    throw new Error("Studio action must be status or stop.");
+  if (instanceId !== void 0 && (typeof instanceId !== "string" || !/^[A-Za-z0-9_-]{22}$/u.test(instanceId)))
+    throw new Error("Studio requires a valid exact instance ID.");
+  const current = currentDesign(file);
+  const services = (await listArtifactReviewServers({ env, fetchImpl })).filter(
+    (service2) => service2.kind === "design" && service2.projectRoot === current.root
+  );
+  const launcher = readJson(join2(current.root, ".design/server.json"), null);
+  let service = services.find((value) => value.instanceId === (instanceId ?? launcher?.instanceId));
+  if (instanceId !== void 0 && !service)
+    throw new Error(
+      "That Studio instance is not owned by this design in the current state directory."
+    );
+  const result = {
+    ok: true,
+    action: `design_studio_${action}`,
+    documentId: current.document.id,
+    revision: current.revision,
+    verification: current.verification.status
+  };
+  if (action === "stop") {
+    if (!service && services.length === 1) service = services[0];
+    if (!service && services.length > 1)
+      throw new Error(
+        `Multiple owned Studio services need recovery. Run studio --action status, then stop an exact service with --instance-id. Owned instances: ${services.map((value) => value.instanceId).join(", ")}.`
+      );
+    if (!service)
+      return {
+        ...result,
+        status: "stopped",
+        notice: "Studio is stopped. Open the design to start it again."
+      };
+    const stopped = await stopArtifactReviewServer(service.instanceId, { env, fetchImpl });
+    return {
+      ...result,
+      status: stopped.status,
+      instanceId: service.instanceId,
+      notice: "Feedback and arrangement are saved. Open the design to start Studio again."
+    };
+  }
+  if (!service)
+    return {
+      ...result,
+      status: services.length ? "attention" : "stopped",
+      services,
+      notice: services.length ? services.length === 1 ? "Stop this design\u2019s owned Studio service, then open the design again to restore its session link." : "Stop an exact owned Studio service with --instance-id, then reopen after all obsolete services are stopped." : "Open the design to start Studio."
+    };
+  const url = localUrl(launcher?.studioUrl, service, /^\/studio\/[A-Za-z0-9._-]+\/$/u) ?? service.url;
+  let browserStatus = "not-checked";
+  const privateUrl = localUrl(launcher?.url, service, /^\/r\/[A-Za-z0-9_-]+\/[A-Za-z0-9_-]+\/$/u);
+  if (privateUrl) {
+    try {
+      const response = await fetchImpl(`${privateUrl}api/design-status`, {
+        signal: AbortSignal.timeout(700)
+      });
+      const data = await response.json();
+      if (response.ok && data.documentId === current.document.id && data.revision === current.revision && ["loading", "ready", "failed"].includes(data.status))
+        browserStatus = data.status;
+    } catch {
+    }
+  }
+  return {
+    ...result,
+    status: "running",
+    instanceId: service.instanceId,
+    url,
+    browserStatus,
+    services
+  };
+}
 
 // packages/design/lib/design/browser-audit.mjs
 function auditRenderedScreen() {
@@ -359,7 +730,7 @@ function verifyDesignDocument(file, report) {
   const images = (Array.isArray(report.screenshots) ? report.screenshots : []).filter((item) => {
     const path = typeof item === "string" ? item : item?.path;
     try {
-      return typeof path === "string" && isPng(readFileSync(resolve(path)));
+      return typeof path === "string" && isPng(readFileSync(resolve2(path)));
     } catch {
       return false;
     }
@@ -383,7 +754,7 @@ function verifyDesignDocument(file, report) {
     screenshotCount: images.length,
     primaryJourneysChecked: Boolean(journeys)
   };
-  atomicJson(join(current.root, ".design/verification", `${current.revision}.json`), saved);
+  atomicJson(join3(current.root, ".design/verification", `${current.revision}.json`), saved);
   return saved;
 }
 async function designUtility(argv, {
@@ -395,7 +766,7 @@ async function designUtility(argv, {
 } = {}) {
   if (argv.length === 0 || argv[0] === "--help" || argv[0] === "help") {
     const help = {
-      usage: "design.mjs inspect|validate|render|open|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json>",
+      usage: "design.mjs inspect|validate|render|open|studio|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json>",
       flags: [
         "--json",
         "--no-open",
@@ -405,8 +776,10 @@ async function designUtility(argv, {
         "--scope current|all",
         "--output <path>",
         "--report <browser-report.json>",
-        "--action inspect|export|select|resolve|rotate|pause|resume|revoke|delete|recovery|restore",
-        "--input <private recovery file>",
+        "--action inspect|export|import|select|resolve|rotate|pause|resume|revoke|delete|recovery|restore|status|stop",
+        "--input <private recovery or feedback JSON file>",
+        "--revision <current-render-revision>",
+        "--allow-stale",
         "--variant <id>",
         "--pins <id,id>",
         "--summary <text>"
@@ -422,6 +795,7 @@ async function designUtility(argv, {
     "validate",
     "render",
     "open",
+    "studio",
     "export",
     "feedback",
     "verify",
@@ -432,7 +806,7 @@ async function designUtility(argv, {
     "handoff"
   ].includes(command) || !input)
     throw new Error(
-      "Usage: design.mjs inspect|validate|render|open|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json> [--json] [--no-open] [--view canvas|prototype|walkthrough]"
+      "Usage: design.mjs inspect|validate|render|open|studio|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json> [--json] [--no-open] [--view canvas|prototype|walkthrough]"
     );
   const flags = {};
   for (let i = 0; i < args.length; i++) {
@@ -447,25 +821,35 @@ async function designUtility(argv, {
       "port",
       "report",
       "action",
+      "instance-id",
       "pins",
       "summary",
       "variant",
       "input",
-      "scope"
+      "scope",
+      "revision",
+      "allow-stale"
     ].includes(key))
       throw new Error(`Unknown option: ${args[i]}`);
-    flags[key] = ["json", "no-open"].includes(key) ? true : args[++i];
+    flags[key] = ["json", "no-open", "allow-stale"].includes(key) ? true : args[++i];
   }
   if (flags.view && !["canvas", "prototype", "walkthrough"].includes(flags.view))
     throw new Error("View must be canvas, prototype, or walkthrough.");
-  const file = resolve(input);
+  const file = resolve2(input);
   let result;
+  if (command === "studio")
+    result = await manageDesignStudio(file, {
+      action: flags.action,
+      instanceId: flags["instance-id"],
+      env,
+      fetchImpl
+    });
   if (command === "handoff") {
     const action = flags.action ?? "inspect";
     if (action === "inspect") result = readDesignHandoff(file);
     else {
       const snapshot = readDesignHandoff(file);
-      const input2 = flags.input ? readJson(resolve(flags.input)) : {};
+      const input2 = flags.input ? readJson(resolve2(flags.input)) : {};
       result = await updateDesignHandoff(file, {
         ...input2,
         action,
@@ -501,7 +885,9 @@ async function designUtility(argv, {
       port,
       view: flags.view,
       noOpen: Boolean(flags["no-open"]),
-      openUrl
+      openUrl,
+      env,
+      fetchImpl
     });
     const close = result.close;
     if (close) {
@@ -517,12 +903,12 @@ async function designUtility(argv, {
   }
   if (command === "export") {
     const current = currentDesign(file), view = flags.view ?? current.document.defaultView;
-    const state = readJson(join(current.root, ".design/studio-state.json"), { state: {} }).state;
+    const state = readJson(join3(current.root, ".design/studio-state.json"), { state: {} }).state;
     if (flags.format && flags.format !== "html")
       throw new Error(
         "Portable export supports HTML. Use the studio PNG action for browser-rendered captures."
       );
-    const output = resolve(flags.output ?? join(current.root, `${view}-export.html`));
+    const output = resolve2(flags.output ?? join3(current.root, `${view}-export.html`));
     if (existsSync(output))
       throw new Error(`Export already exists: ${output}. Choose a new --output path.`);
     mkdirSync(dirname(output), { recursive: true });
@@ -531,12 +917,19 @@ async function designUtility(argv, {
   }
   if (command === "verify") {
     if (!flags.report) throw new Error("verify requires --report <browser-report.json>.");
-    result = verifyDesignDocument(file, readJson(resolve(flags.report)));
+    result = verifyDesignDocument(file, readJson(resolve2(flags.report)));
   }
   if (command === "feedback") {
-    await syncDesignShare(file, { env, fetchImpl });
     const action = flags.action ?? "inspect";
-    if (action === "inspect") result = readDesignFeedback(file, env);
+    if (action !== "import") await syncDesignShare(file, { env, fetchImpl });
+    if (action === "import")
+      result = await importDesignFeedback(file, {
+        input: flags.input,
+        revision: flags.revision,
+        allowStale: Boolean(flags["allow-stale"]),
+        env
+      });
+    else if (action === "inspect") result = readDesignFeedback(file, env);
     else if (action === "export") {
       const format = flags.format ?? "json", scope = flags.scope ?? "all";
       if (!["json", "markdown"].includes(format))
@@ -544,7 +937,7 @@ async function designUtility(argv, {
       if (!["current", "all"].includes(scope))
         throw new Error("Feedback export scope must be current or all.");
       if (!flags.output) throw new Error("Feedback export requires --output <path>.");
-      const output = resolve(flags.output);
+      const output = resolve2(flags.output);
       if (existsSync(output))
         throw new Error("Feedback export already exists. Choose a new --output path.");
       const snapshot = exportDesignReview(file, { scope, env });
@@ -568,7 +961,7 @@ async function designUtility(argv, {
         env
       });
     else if (action === "select") {
-      const current = currentDesign(file), saved = readJson(join(current.root, ".design/studio-state.json"), {
+      const current = currentDesign(file), saved = readJson(join3(current.root, ".design/studio-state.json"), {
         state: {},
         stateVersion: 0
       });
@@ -587,7 +980,7 @@ async function designUtility(argv, {
         tastePath: result.tastePath,
         revision: current.revision
       };
-    } else throw new Error("Feedback action must be inspect, export, select, or resolve.");
+    } else throw new Error("Feedback action must be inspect, export, import, select, or resolve.");
   }
   stdout(result);
   return result;

@@ -114,16 +114,16 @@ var ARTIFACT_FRAME_GUARD_TEMPLATE = `// lib/artifact/ui/sandbox/frame-guard.mjs
     }
   }
   try {
-    replace(HTMLFormElement.prototype, "submit", function() {
+    replace(HTMLFormElement.prototype, "submit", () => {
       throw blocked();
     });
-    replace(HTMLFormElement.prototype, "requestSubmit", function() {
+    replace(HTMLFormElement.prototype, "requestSubmit", () => {
       throw blocked();
     });
   } catch {
   }
   try {
-    replace(Document.prototype, "open", function() {
+    replace(Document.prototype, "open", () => {
       throw blocked();
     });
   } catch {
@@ -217,10 +217,10 @@ var ARTIFACT_FRAME_GUARD_TEMPLATE = `// lib/artifact/ui/sandbox/frame-guard.mjs
   } catch {
   }
   try {
-    replace(Location.prototype, "assign", function() {
+    replace(Location.prototype, "assign", () => {
       throw blocked();
     });
-    replace(Location.prototype, "replace", function() {
+    replace(Location.prototype, "replace", () => {
       throw blocked();
     });
   } catch {
@@ -375,7 +375,13 @@ var ARTIFACT_FRAME_GUARD_TEMPLATE = `// lib/artifact/ui/sandbox/frame-guard.mjs
     const canvas = nativeCreateElement.call(document, "canvas");
     canvas.width = outputWidth;
     canvas.height = outputHeight;
-    canvas.getContext("2d").drawImage(image, 0, 0, outputWidth, outputHeight);
+    canvas.getContext("2d").drawImage(
+      image,
+      0,
+      0,
+      outputWidth,
+      outputHeight
+    );
     const dataUrl = canvas.toDataURL("image/png");
     if (typeof dataUrl !== "string" || dataUrl.length > __PLANR_SANDBOX_EXPORT_MAX_DATA_URL__)
       throw new Error("export PNG limit exceeded");
@@ -617,6 +623,7 @@ var ARTIFACT_HOST_GUARD_TEMPLATE = `// lib/artifact/ui/sandbox/host-guard.mjs
       let windowStart = performance.now(), messageCount = 0;
       let immutableSource = "", trustedLoad = false, recovering = false, navigationAttempts = 0, failedClosed = false;
       let inertSource = "";
+      let prototypeGeneration = null;
       let pendingChallenge = null;
       let measuredLayout = null;
       let viewportGesturesEnabled = false, disposed = false;
@@ -655,6 +662,7 @@ var ARTIFACT_HOST_GUARD_TEMPLATE = `// lib/artifact/ui/sandbox/host-guard.mjs
       const originalPointerEvents = frame.style.pointerEvents;
       const originalInert = frame.inert;
       const quarantine = (active) => {
+        if (active) prototypeGeneration = null;
         frame.inert = active ? true : originalInert;
         frame.style.pointerEvents = active ? "none" : originalPointerEvents;
         if (active) frame.setAttribute("aria-busy", "true");
@@ -690,6 +698,7 @@ var ARTIFACT_HOST_GUARD_TEMPLATE = `// lib/artifact/ui/sandbox/host-guard.mjs
             "requestId"
           ]) || !validRequestId(own(data, "requestId")) || !pendingChallenge || own(data, "requestId") !== pendingChallenge.id)
             return;
+          prototypeGeneration = pendingChallenge.id;
           clearTimeout(pendingChallenge.timer);
           pendingChallenge = null;
           trustedLoad = true;
@@ -981,6 +990,8 @@ var ARTIFACT_HOST_GUARD_TEMPLATE = `// lib/artifact/ui/sandbox/host-guard.mjs
       });
       Object.defineProperty(frame, "__openPlanrBridge", {
         value: Object.freeze({
+          getPrototypeNonce: () => trustedLoad && !disposed ? config.nonce : null,
+          getPrototypeGeneration: () => trustedLoad && !disposed ? prototypeGeneration : null,
           setViewportGestures: (enabled) => {
             if (typeof enabled !== "boolean" || disposed) return false;
             if (enabled === viewportGesturesEnabled) return true;
@@ -1023,7 +1034,24 @@ var ARTIFACT_HOST_GUARD_TEMPLATE = `// lib/artifact/ui/sandbox/host-guard.mjs
     }
   };
   globalThis.__OPENPLANR_ARTIFACT_STAGE_OPTIONS__ = Object.freeze({
-    async resolveArtifactSource(artifact) {
+    sourceTransport: config.sourceTransport,
+    ...config.frameBudget === void 0 ? {} : { frameBudget: config.frameBudget },
+    async resolveArtifactSource(artifact, context) {
+      if (config.inlineSources) {
+        const sourceId = config.inlineArtifactSources?.[artifact.id];
+        const source = Object.hasOwn(config.inlineSources, sourceId ?? "") ? config.inlineSources[sourceId] : null;
+        if (!source || typeof source.html !== "string" || typeof source.artifactIdToken !== "string" || source.html.split(source.artifactIdToken).length !== 2)
+          throw new Error("Artifact source unavailable");
+        return new Blob(
+          [
+            source.html.replace(
+              source.artifactIdToken,
+              \`"artifactId":\${JSON.stringify(artifact.id)}\`
+            )
+          ],
+          { type: "text/html" }
+        );
+      }
       if (config.inlineArtifacts) {
         const html = config.inlineArtifacts[artifact.id];
         if (typeof html !== "string") throw new Error("Artifact source unavailable");
@@ -1032,7 +1060,8 @@ var ARTIFACT_HOST_GUARD_TEMPLATE = `// lib/artifact/ui/sandbox/host-guard.mjs
       const response = await fetch(config.artifactBaseUrl + encodeURIComponent(artifact.id), {
         cache: "no-store",
         credentials: "omit",
-        referrerPolicy: "no-referrer"
+        referrerPolicy: "no-referrer",
+        signal: context?.signal
       });
       if (!response.ok || !(response.headers.get("content-type") || "").toLowerCase().startsWith("application/octet-stream"))
         throw new Error("Artifact source unavailable");

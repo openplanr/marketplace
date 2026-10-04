@@ -1,3 +1,11 @@
+import {
+  LARGE_OBJECT_LIMITS,
+  validateJson
+} from "./design-bounded-json-data.mjs";
+
+// packages/artifact/lib/artifact/ui/shell.mjs
+import { readFileSync as readFileSync3 } from "node:fs";
+
 // packages/artifact/lib/artifact/envelope.mjs
 import { createHash } from "node:crypto";
 
@@ -94,302 +102,28 @@ var PipelineError = class extends Error {
   }
 };
 
+// packages/artifact/lib/artifact/artifact-sources.mjs
+var ARTIFACT_SHARED_ENVELOPE_VERSION = "1.1.0";
+var ARTIFACT_MAX_SOURCES = 256;
+var ARTIFACT_MAX_VIEWS = 4096;
+function resolveArtifactHtml(envelope, artifactOrId) {
+  const id = typeof artifactOrId === "string" ? artifactOrId : artifactOrId?.id;
+  const artifact = envelope?.artifacts?.find((value) => value.id === id);
+  const source = envelope?.schemaVersion === ARTIFACT_SHARED_ENVELOPE_VERSION ? envelope.sources?.find((value) => value.id === artifact?.sourceId) : artifact;
+  if (!artifact || typeof source?.html !== "string" || source.sha256 !== artifact.sha256) {
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.ENVELOPE_INVALID,
+      "Artifact source is missing or does not match its viewport reference."
+    );
+  }
+  return source.html;
+}
+
 // packages/artifact/lib/artifact/internal/schema-loader.mjs
 import { fileURLToPath as __planrAssetFile } from "node:url";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-
-// packages/protocol/src/json-schema.mjs
-var typeOf = (v) => {
-  if (v === null) return "null";
-  if (Array.isArray(v)) return "array";
-  if (Number.isInteger(v)) return "integer";
-  if (typeof v === "number") return "number";
-  return typeof v;
-};
-var matchesType = (v, t) => {
-  if (t === "integer") return Number.isInteger(v);
-  if (t === "number") return typeof v === "number";
-  if (t === "string") return typeof v === "string";
-  if (t === "boolean") return typeof v === "boolean";
-  if (t === "null") return v === null;
-  if (t === "array") return Array.isArray(v);
-  if (t === "object") return v !== null && typeof v === "object" && !Array.isArray(v);
-  return false;
-};
-var FORMAT_DATE = /^\d{4}-\d{2}-\d{2}$/;
-var FORMAT_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
-function resolveJsonPointer(root, reference) {
-  if (reference === "#") return root;
-  if (!reference.startsWith("#/")) return null;
-  return reference.slice(2).split("/").map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~")).reduce((value, part) => value?.[part], root);
-}
-var validateNode = (value, schema, path, errs, context) => {
-  if (schema === true) return;
-  if (schema === false) {
-    errs.push({ path, rule: "schema:false", detail: "value not allowed" });
-    return;
-  }
-  if (typeof schema?.$ref === "string") {
-    const reference = schema.$ref;
-    let resolved;
-    let nextRoot = context.rootSchema;
-    let resolvedBase = context.base;
-    if (reference.startsWith("#")) {
-      resolved = resolveJsonPointer(context.rootSchema, reference);
-    } else if (typeof context.resolveRef === "function") {
-      const result = context.resolveRef(reference, { base: context.base });
-      resolved = result?.schema ?? result;
-      nextRoot = result?.rootSchema ?? resolved;
-      resolvedBase = result?.base ?? resolved?.$id ?? context.base;
-    }
-    if (!resolved) {
-      errs.push({ path, rule: "$ref", detail: `could not resolve schema reference ${reference}` });
-      return;
-    }
-    const referenceKey = `${context.base ?? "<root>"}:${reference}`;
-    if (context.referenceStack.includes(referenceKey)) {
-      errs.push({ path, rule: "$ref", detail: `circular schema reference ${reference}` });
-      return;
-    }
-    validateNode(value, resolved, path, errs, {
-      ...context,
-      rootSchema: nextRoot,
-      base: resolvedBase,
-      referenceStack: [...context.referenceStack, referenceKey]
-    });
-  }
-  if (schema.type !== void 0) {
-    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
-    if (!types.some((t) => matchesType(value, t))) {
-      errs.push({
-        path,
-        rule: "type",
-        detail: `expected ${types.join("|")}, got ${typeOf(value)}`
-      });
-      return;
-    }
-  }
-  if (schema.const !== void 0) {
-    if (value !== schema.const) {
-      errs.push({
-        path,
-        rule: "const",
-        detail: `expected ${JSON.stringify(schema.const)}, got ${JSON.stringify(value)}`
-      });
-    }
-  }
-  if (Array.isArray(schema.enum)) {
-    if (!schema.enum.includes(value)) {
-      errs.push({
-        path,
-        rule: "enum",
-        detail: `value ${JSON.stringify(value)} not in enum [${schema.enum.map((x) => JSON.stringify(x)).join(", ")}]`
-      });
-    }
-  }
-  if (typeof value === "string") {
-    if (typeof schema.minLength === "number" && value.length < schema.minLength) {
-      errs.push({
-        path,
-        rule: "minLength",
-        detail: `length ${value.length} < ${schema.minLength}`
-      });
-    }
-    if (typeof schema.maxLength === "number" && value.length > schema.maxLength) {
-      errs.push({
-        path,
-        rule: "maxLength",
-        detail: `length ${value.length} > ${schema.maxLength}`
-      });
-    }
-    if (typeof schema.pattern === "string") {
-      try {
-        if (!new RegExp(schema.pattern).test(value)) {
-          errs.push({
-            path,
-            rule: "pattern",
-            detail: `value ${JSON.stringify(value)} does not match /${schema.pattern}/`
-          });
-        }
-      } catch (e) {
-        errs.push({
-          path,
-          rule: "pattern",
-          detail: `invalid regex /${schema.pattern}/: ${e instanceof Error ? e.message : String(e)}`
-        });
-      }
-    }
-    if (typeof schema.format === "string") {
-      if (schema.format === "date" && !FORMAT_DATE.test(value)) {
-        errs.push({
-          path,
-          rule: "format:date",
-          detail: `value ${JSON.stringify(value)} is not YYYY-MM-DD`
-        });
-      } else if (schema.format === "date-time" && !FORMAT_DATETIME.test(value)) {
-        errs.push({
-          path,
-          rule: "format:date-time",
-          detail: `value ${JSON.stringify(value)} is not ISO 8601 date-time`
-        });
-      }
-    }
-  }
-  if (typeof value === "number") {
-    if (typeof schema.minimum === "number" && value < schema.minimum) {
-      errs.push({ path, rule: "minimum", detail: `value ${value} < ${schema.minimum}` });
-    }
-    if (typeof schema.maximum === "number" && value > schema.maximum) {
-      errs.push({ path, rule: "maximum", detail: `value ${value} > ${schema.maximum}` });
-    }
-  }
-  if (Array.isArray(value)) {
-    if (typeof schema.minItems === "number" && value.length < schema.minItems) {
-      errs.push({ path, rule: "minItems", detail: `length ${value.length} < ${schema.minItems}` });
-    }
-    if (typeof schema.maxItems === "number" && value.length > schema.maxItems) {
-      errs.push({ path, rule: "maxItems", detail: `length ${value.length} > ${schema.maxItems}` });
-    }
-    const prefixLength = Array.isArray(schema.prefixItems) ? schema.prefixItems.length : 0;
-    if (prefixLength > 0) {
-      for (let i = 0; i < Math.min(value.length, prefixLength); i++) {
-        validateNode(value[i], schema.prefixItems[i], `${path}[${i}]`, errs, context);
-      }
-    }
-    if (schema.items !== void 0) {
-      for (let i = prefixLength; i < value.length; i++) {
-        validateNode(value[i], schema.items, `${path}[${i}]`, errs, context);
-      }
-    }
-    if (schema.uniqueItems === true) {
-      const seen = /* @__PURE__ */ new Set();
-      for (const item of value) {
-        const key = JSON.stringify(item);
-        if (seen.has(key)) {
-          errs.push({ path, rule: "uniqueItems", detail: `duplicate item ${key}` });
-          break;
-        }
-        seen.add(key);
-      }
-    }
-    if (schema.contains !== void 0) {
-      let matches = 0;
-      for (let index = 0; index < value.length; index += 1) {
-        const containedErrors = [];
-        validateNode(value[index], schema.contains, `${path}[${index}]`, containedErrors, context);
-        if (containedErrors.length === 0) matches += 1;
-      }
-      const minimum = Number.isSafeInteger(schema.minContains) ? schema.minContains : 1;
-      const maximum = Number.isSafeInteger(schema.maxContains) ? schema.maxContains : null;
-      if (matches < minimum) {
-        errs.push({
-          path,
-          rule: "contains",
-          detail: `matched ${matches} contained items; expected at least ${minimum}`
-        });
-      }
-      if (maximum !== null && matches > maximum) {
-        errs.push({
-          path,
-          rule: "contains",
-          detail: `matched ${matches} contained items; expected at most ${maximum}`
-        });
-      }
-    }
-  }
-  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-    if (Array.isArray(schema.required)) {
-      for (const req of schema.required) {
-        if (!Object.hasOwn(value, req)) {
-          errs.push({ path, rule: "required", detail: `missing required property '${req}'` });
-        }
-      }
-    }
-    const props = schema.properties || {};
-    for (const [k, v] of Object.entries(value)) {
-      if (!Object.hasOwn(props, k)) {
-        if (schema.additionalProperties === false) {
-          errs.push({ path, rule: "additionalProperties", detail: `unknown property '${k}'` });
-        } else if (schema.additionalProperties === true || schema.additionalProperties !== null && typeof schema.additionalProperties === "object") {
-          validateNode(v, schema.additionalProperties, `${path}.${k}`, errs, context);
-        }
-      }
-    }
-    for (const [k, v] of Object.entries(value)) {
-      if (Object.hasOwn(props, k)) validateNode(v, props[k], `${path}.${k}`, errs, context);
-    }
-  }
-  if (Array.isArray(schema.oneOf)) {
-    let matched = 0;
-    for (const sub of schema.oneOf) {
-      const e = [];
-      validateNode(value, sub, path, e, context);
-      if (e.length === 0) matched++;
-    }
-    if (matched !== 1) {
-      const titles = schema.oneOf.map((s) => s.title || "(unnamed)").join(" | ");
-      errs.push({
-        path,
-        rule: "oneOf",
-        detail: `matched ${matched}/${schema.oneOf.length} branches (expected exactly 1). Branches: ${titles}`
-      });
-    }
-  }
-  if (Array.isArray(schema.anyOf)) {
-    let matched = 0;
-    for (const sub of schema.anyOf) {
-      const candidateErrors = [];
-      validateNode(value, sub, path, candidateErrors, context);
-      if (candidateErrors.length === 0) matched += 1;
-    }
-    if (matched === 0) {
-      const titles = schema.anyOf.map((sub) => sub.title || "(unnamed)").join(" | ");
-      errs.push({
-        path,
-        rule: "anyOf",
-        detail: `matched 0/${schema.anyOf.length} branches (expected at least 1). Branches: ${titles}`
-      });
-    }
-  }
-  if (Array.isArray(schema.allOf)) {
-    for (const sub of schema.allOf) {
-      validateNode(value, sub, path, errs, context);
-    }
-  }
-  if (schema.if !== void 0) {
-    const conditionErrors = [];
-    validateNode(value, schema.if, path, conditionErrors, context);
-    const branch = conditionErrors.length === 0 ? schema.then : schema.else;
-    if (branch !== void 0) validateNode(value, branch, path, errs, context);
-  }
-  if (schema.not !== void 0) {
-    const e = [];
-    validateNode(value, schema.not, path, e, context);
-    if (e.length === 0) {
-      errs.push({ path, rule: "not", detail: "value matched a forbidden subschema" });
-    }
-  }
-};
-var validateJson = (value, schema, {
-  resolveRef,
-  base = (
-    /** @type {{ $id?: string } | null | undefined} */
-    schema?.$id ?? null
-  )
-} = {}) => {
-  const errs = [];
-  validateNode(value, schema, "$", errs, {
-    rootSchema: schema,
-    resolveRef,
-    base,
-    referenceStack: []
-  });
-  return errs;
-};
-
-// packages/artifact/lib/artifact/internal/schema-loader.mjs
 var require2 = createRequire(new URL("./runtime/packages/artifact/lib/artifact/internal/schema-loader.mjs", import.meta.url).href);
 var protocolPackageRoot = dirname(__planrAssetFile(new URL("./runtime/packages/protocol/package.json", import.meta.url)));
 var SCHEMAS_ROOT = join(protocolPackageRoot, "schemas");
@@ -436,7 +170,7 @@ var textEncoder = new TextEncoder();
 var SHA256_RE = /^[a-f0-9]{64}$/;
 var ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 var MAX_ARTIFACTS = 256;
-var MAX_ARTIFACT_HTML_BYTES = 100 * 1024 * 1024;
+var MAX_ARTIFACT_HTML_BYTES = LARGE_OBJECT_LIMITS.uniqueHtmlBytes;
 var MAX_PINS = 1e4;
 var MAX_REPLIES = 1e4;
 var MAX_PASTE_BYTES = 5 * 1024 * 1024;
@@ -582,6 +316,7 @@ function normalizeViewer(viewer, artifacts) {
 function envelopeWithoutReview(envelope) {
   return {
     schemaVersion: envelope.schemaVersion,
+    ...envelope.schemaVersion === ARTIFACT_SHARED_ENVELOPE_VERSION ? { sources: envelope.sources } : {},
     artifacts: envelope.artifacts,
     viewer: envelope.viewer
   };
@@ -645,7 +380,8 @@ function validateArtifactReview(review) {
   return review;
 }
 function validateArtifactEnvelope(envelope) {
-  const issues = validate(envelope, "artifact-envelope", "v1.1.0");
+  const shared = envelope?.schemaVersion === ARTIFACT_SHARED_ENVELOPE_VERSION;
+  const issues = validate(envelope, "artifact-envelope", shared ? "v1.16.0" : "v1.1.0");
   if (issues.length > 0) {
     throw new PipelineError(
       ARTIFACT_ERROR_CODES.ENVELOPE_INVALID,
@@ -654,29 +390,38 @@ function validateArtifactEnvelope(envelope) {
       { issues }
     );
   }
-  if (!Array.isArray(envelope.artifacts) || envelope.artifacts.length < 1 || envelope.artifacts.length > MAX_ARTIFACTS) {
-    invalid(`Envelope requires 1 through ${MAX_ARTIFACTS} artifacts.`);
+  if (!Array.isArray(envelope.artifacts) || envelope.artifacts.length < 1 || envelope.artifacts.length > (shared ? ARTIFACT_MAX_VIEWS : MAX_ARTIFACTS)) {
+    invalid(
+      `Envelope requires 1 through ${shared ? ARTIFACT_MAX_VIEWS : MAX_ARTIFACTS} artifacts.`
+    );
   }
   const ids = envelope.artifacts.map(({ id }) => id);
   if (new Set(ids).size !== ids.length) {
     throw new PipelineError(ARTIFACT_ERROR_CODES.ENVELOPE_INVALID, "Artifact ids must be unique.");
   }
+  const sources = shared ? envelope.sources : envelope.artifacts;
+  if (shared && new Set(sources.map(({ id }) => id)).size !== sources.length) {
+    invalid("Artifact source ids must be unique.");
+  }
   let artifactBytes = 0;
+  for (const source of sources) {
+    assertBoundedString(source.html, `Source ${source.id} HTML`, { min: 1 });
+    artifactBytes += Buffer.byteLength(source.html, "utf8");
+    if (artifactBytes > MAX_ARTIFACT_HTML_BYTES) {
+      invalid(`Envelope sources exceed ${MAX_ARTIFACT_HTML_BYTES} UTF-8 bytes in total.`);
+    }
+    if (!SHA256_RE.test(source.sha256) || digestArtifact(source.html) !== source.sha256) {
+      invalid(`Artifact source ${source.id} digest is invalid.`);
+    }
+  }
   for (const artifact of envelope.artifacts) {
     assertBoundedString(artifact.id, "artifact.id", { min: 1, max: 128, pattern: ID_RE });
     assertBoundedString(artifact.title, `Artifact ${artifact.id} title`, { min: 1, max: 512 });
-    assertBoundedString(artifact.html, `Artifact ${artifact.id} HTML`, { min: 1 });
-    artifactBytes += Buffer.byteLength(artifact.html, "utf8");
-    if (artifactBytes > MAX_ARTIFACT_HTML_BYTES) {
-      invalid(`Envelope artifacts exceed ${MAX_ARTIFACT_HTML_BYTES} UTF-8 bytes in total.`);
-    }
     assertViewport(artifact.viewport, `Artifact ${artifact.id} viewport`);
-    if (!SHA256_RE.test(artifact.sha256) || digestArtifact(artifact.html) !== artifact.sha256) {
-      throw new PipelineError(
-        ARTIFACT_ERROR_CODES.ENVELOPE_INVALID,
-        `Artifact ${artifact.id} digest is invalid.`
-      );
-    }
+    if (shared) resolveArtifactHtml(envelope, artifact);
+  }
+  if (shared && new Set(envelope.artifacts.map(({ sourceId }) => sourceId)).size !== sources.length) {
+    invalid("Every shared artifact source must be referenced by a viewport.");
   }
   assertBoundedString(envelope.viewer.activeArtifactId, "viewer.activeArtifactId", {
     min: 1,
@@ -706,33 +451,46 @@ function validateArtifactEnvelope(envelope) {
   }
   return envelope;
 }
-function createArtifactEnvelope({ artifacts, viewer, review } = {}) {
-  if (!Array.isArray(artifacts) || artifacts.length === 0 || artifacts.length > MAX_ARTIFACTS) {
-    throw new PipelineError(
-      ARTIFACT_ERROR_CODES.ENVELOPE_INVALID,
-      "Envelope requires 1 through 256 artifacts."
-    );
+function createSharedArtifactEnvelope({ sources, artifacts, viewer, review } = {}) {
+  if (!Array.isArray(sources) || sources.length < 1 || sources.length > ARTIFACT_MAX_SOURCES) {
+    invalid(`Shared envelope requires 1 through ${ARTIFACT_MAX_SOURCES} sources.`);
   }
-  const normalizedArtifacts = [];
-  let artifactBytes = 0;
-  for (const artifact of artifacts) {
-    const normalized = normalizeArtifact(artifact);
-    artifactBytes += Buffer.byteLength(normalized.html, "utf8");
-    if (artifactBytes > MAX_ARTIFACT_HTML_BYTES) {
-      invalid(`Envelope artifacts exceed ${MAX_ARTIFACT_HTML_BYTES} UTF-8 bytes in total.`);
+  if (!Array.isArray(artifacts) || artifacts.length < 1 || artifacts.length > ARTIFACT_MAX_VIEWS) {
+    invalid(`Shared envelope requires 1 through ${ARTIFACT_MAX_VIEWS} viewport references.`);
+  }
+  const normalizedSources = sources.map((source) => {
+    const value = normalizeArtifact({ ...source, title: source?.id });
+    return { id: value.id, kind: value.kind, sha256: value.sha256, html: value.html };
+  });
+  const sourceMap = new Map(normalizedSources.map((source) => [source.id, source]));
+  const normalizedArtifacts = artifacts.map((artifact) => {
+    const source = sourceMap.get(artifact?.sourceId);
+    if (!source) invalid("Artifact viewport references an unknown shared source.");
+    assertBoundedString(artifact.id, "artifact.id", { min: 1, max: 128, pattern: ID_RE });
+    assertBoundedString(artifact.title, "artifact.title", { min: 1, max: 512 });
+    if (artifact.sha256 !== void 0 && artifact.sha256 !== source.sha256) {
+      invalid("Artifact viewport digest does not match its shared source.");
     }
-    normalizedArtifacts.push(normalized);
-  }
-  if (new Set(normalizedArtifacts.map(({ id }) => id)).size !== normalizedArtifacts.length) {
-    throw new PipelineError(ARTIFACT_ERROR_CODES.ENVELOPE_INVALID, "Artifact ids must be unique.");
-  }
-  const envelope = {
-    schemaVersion: "1.0.0",
+    const colorScheme = artifact.colorScheme ?? "light";
+    if (!["light", "dark"].includes(colorScheme))
+      invalid("Artifact viewport color scheme is invalid.");
+    return {
+      id: artifact.id,
+      kind: "html",
+      title: artifact.title,
+      sourceId: source.id,
+      sha256: source.sha256,
+      viewport: normalizeViewport(artifact.viewport),
+      colorScheme
+    };
+  });
+  return validateArtifactEnvelope({
+    schemaVersion: ARTIFACT_SHARED_ENVELOPE_VERSION,
+    sources: normalizedSources,
     artifacts: normalizedArtifacts,
     viewer: normalizeViewer(viewer, normalizedArtifacts),
     ...review ? { review: canonicalObject(review) } : {}
-  };
-  return validateArtifactEnvelope(envelope);
+  });
 }
 
 // packages/artifact/lib/artifact/internal/escape.mjs
@@ -758,6 +516,141 @@ function escapeHtml(value) {
 }
 function embedJson(value) {
   return JSON.stringify(value ?? null).replace(JSON_HTML_RE, (ch) => JSON_HTML_ESCAPES[ch]);
+}
+
+// packages/artifact/lib/artifact/ui/annotation-styles.mjs
+var ARTIFACT_ANNOTATION_CSS = `.planr-annotation-layer { position: absolute; z-index: 6; inset: 0; }
+.planr-shell[data-planr-review-mode="interact"] .planr-annotation-layer { pointer-events: none; }
+.planr-shell[data-planr-review-mode="comment"] .planr-annotation-layer { cursor: crosshair; touch-action: none; }
+.planr-shell[data-planr-review-mode="comment"] .planr-frame iframe { pointer-events: none; }
+.planr-region-selection {
+  position: absolute;
+  min-width: 2px;
+  min-height: 2px;
+  border: 2px solid var(--planr-color-primary);
+  border-radius: var(--planr-radius-small);
+  background: color-mix(in srgb, var(--planr-color-primary) 14%, transparent);
+  pointer-events: none;
+}
+.planr-pin {
+  position: absolute;
+  z-index: 8;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  translate: -50% -50%;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border: 8px solid transparent;
+  border-radius: 50%;
+  background-clip: padding-box;
+  color: var(--planr-color-on-danger);
+  cursor: pointer;
+  pointer-events: auto;
+  font: 700 10px/1 var(--planr-font-mono);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--planr-color-background) 38%, transparent);
+}
+.planr-pin-fix { background-color: var(--planr-color-danger); }
+.planr-pin-improve { background-color: var(--planr-color-primary-strong); color: var(--planr-color-on-improve); }
+.planr-pin-question { background-color: var(--planr-color-question); color: var(--planr-color-on-question); }
+.planr-pin-resolved, .planr-pin-addressed { background-color: var(--planr-color-resolved); color: var(--planr-color-on-resolved); }
+.planr-pin-highlight { animation: planr-pin-highlight 1.2s ease-out; }
+@keyframes planr-pin-highlight {
+  0%, 35% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--planr-color-primary) 52%, transparent), 0 4px 14px color-mix(in srgb, var(--planr-color-background) 38%, transparent); }
+  100% { box-shadow: 0 4px 14px color-mix(in srgb, var(--planr-color-background) 38%, transparent); }
+}
+.planr-pin-region {
+  position: absolute;
+  z-index: 7;
+  min-width: 2px;
+  min-height: 2px;
+  border: 2px solid var(--planr-color-danger);
+  border-radius: var(--planr-radius-small);
+  background: color-mix(in srgb, var(--planr-color-danger) 12%, transparent);
+  pointer-events: none;
+}
+.planr-pin-region-improve { border-color: var(--planr-color-primary-strong); background: color-mix(in srgb, var(--planr-color-primary-strong) 12%, transparent); }
+.planr-pin-region-question { border-color: var(--planr-color-question); background: color-mix(in srgb, var(--planr-color-question) 12%, transparent); }
+.planr-pin-region-resolved, .planr-pin-region-addressed { border-color: var(--planr-color-resolved); background: color-mix(in srgb, var(--planr-color-resolved) 10%, transparent); }
+.planr-annotation-composer {
+  position: fixed;
+  inset: auto;
+  z-index: 100;
+  box-sizing: border-box;
+  width: min(360px, calc(100vw - 24px));
+  max-height: min(620px, calc(100dvh - 24px));
+  margin: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  translate: none;
+  transform: none;
+  padding: 14px;
+  border: 1px solid var(--planr-color-rule);
+  border-radius: var(--planr-radius-large);
+  background: var(--planr-color-panel);
+  color: var(--planr-color-text);
+  box-shadow: 0 18px 60px color-mix(in srgb, var(--planr-color-background) 58%, transparent);
+  cursor: default;
+  pointer-events: auto;
+}
+.planr-annotation-composer strong { display: block; margin: 0; font: 650 14px/1.2 var(--planr-font-display); }
+.planr-composer-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.planr-composer-header button { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; border-radius: var(--planr-radius-small); background: transparent; color: var(--planr-color-text-muted); font: 22px/1 var(--planr-font-body); cursor: pointer; }
+.planr-composer-header button:hover { background: var(--planr-color-raised); color: var(--planr-color-text); }
+.planr-annotation-composer :focus-visible { outline: 2px solid var(--planr-color-primary); outline-offset: 2px; }
+.planr-annotation-composer::backdrop { background: transparent; pointer-events: none; }
+.planr-annotation-composer label, .planr-identity label {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 9px;
+  color: var(--planr-color-text-muted);
+  font-size: 11px;
+}
+.planr-annotation-composer input, .planr-annotation-composer textarea, .planr-identity input,
+.planr-reply-form textarea {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid var(--planr-color-rule);
+  border-radius: var(--planr-radius-small);
+  background: var(--planr-color-chrome);
+  color: var(--planr-color-text);
+}
+.planr-annotation-composer textarea { min-height: 84px; resize: vertical; }
+.planr-intent-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 9px; }
+.planr-intent-picker button {
+  min-height: 30px;
+  border: 1px solid var(--planr-color-rule);
+  border-radius: var(--planr-radius-small);
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+}
+.planr-intent-picker [aria-checked="true"] { border-color: var(--planr-color-primary); background: var(--planr-color-raised); }
+.planr-field-error { min-height: 16px; margin: 0; color: var(--planr-color-danger); font-size: 10px; }
+.planr-composer-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 8px; }
+.planr-composer-actions button, .planr-thread button, .planr-reply-form button {
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--planr-color-rule);
+  border-radius: var(--planr-radius-small);
+  background: transparent;
+  cursor: pointer;
+  font-weight: 700;
+}
+.planr-composer-actions [type="submit"], .planr-reply-form [type="submit"] { border-color: var(--planr-color-primary); background: var(--planr-color-primary); color: var(--planr-color-background); }
+`;
+var ARTIFACT_ANNOTATION_MOBILE_CSS = `@media (max-width: 600px) { .planr-annotation-composer input, .planr-annotation-composer textarea, .planr-annotation-composer select { font-size: 16px; } }`;
+
+// packages/artifact/lib/artifact/ui/presentation.mjs
+function resolveArtifactPresentation(value, {
+  mode,
+  viewMode = mode ?? "single",
+  artifactCount = 1
+} = {}) {
+  if (value === "document" || value === "canvas") return value;
+  return artifactCount > 1 || viewMode === "variants" || viewMode === "split" ? "canvas" : "document";
 }
 
 // packages/artifact/lib/artifact/ui/renderers.mjs
@@ -823,10 +716,6 @@ function nonNegativeInteger(value, fallback = 0) {
 }
 function viewportDimension(value, fallback) {
   return Number.isInteger(value) && value > 0 && value <= 16384 ? value : fallback;
-}
-function resolveArtifactPresentation(value, { mode = "single", artifactCount = 1 } = {}) {
-  if (ARTIFACT_PRESENTATIONS2.includes(value)) return value;
-  return artifactCount > 1 || mode === "variants" || mode === "split" ? "canvas" : "document";
 }
 function normalizeArtifact2(value, index) {
   const artifact = value && typeof value === "object" ? value : {};
@@ -1466,7 +1355,7 @@ var ARTIFACT_SHELL_ASSET_PATHS = Object.freeze({
   themeCss: "lib/artifact/ui/generated/artifact-theme.css",
   themeJson: "lib/artifact/ui/generated/artifact-theme.json"
 });
-var ARTIFACT_SHELL_CSS = `
+var ARTIFACT_SHELL_CSS = readFileSync3(new URL("./studio-shell.css", new URL("./runtime/packages/artifact/lib/artifact/ui/shell.mjs", import.meta.url).href), "utf8") + `
 * { box-sizing: border-box; }
 html, body { width: 100%; height: 100%; margin: 0; }
 body {
@@ -1817,128 +1706,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
   font: 9px/1 var(--planr-font-mono);
   pointer-events: none;
 }
-.planr-annotation-layer { position: absolute; z-index: 6; inset: 0; }
-.planr-shell[data-planr-review-mode="interact"] .planr-annotation-layer { pointer-events: none; }
-.planr-shell[data-planr-review-mode="comment"] .planr-annotation-layer { cursor: crosshair; touch-action: none; }
-.planr-shell[data-planr-review-mode="comment"] .planr-frame iframe { pointer-events: none; }
-.planr-region-selection {
-  position: absolute;
-  min-width: 2px;
-  min-height: 2px;
-  border: 2px solid var(--planr-color-primary);
-  border-radius: var(--planr-radius-small);
-  background: color-mix(in srgb, var(--planr-color-primary) 14%, transparent);
-  pointer-events: none;
-}
-.planr-pin {
-  position: absolute;
-  z-index: 8;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  translate: -50% -50%;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border: 8px solid transparent;
-  border-radius: 50%;
-  background-clip: padding-box;
-  color: var(--planr-color-on-danger);
-  cursor: pointer;
-  pointer-events: auto;
-  font: 700 10px/1 var(--planr-font-mono);
-  box-shadow: 0 4px 14px color-mix(in srgb, var(--planr-color-background) 38%, transparent);
-}
-.planr-pin-fix { background-color: var(--planr-color-danger); }
-.planr-pin-improve { background-color: var(--planr-color-primary-strong); color: var(--planr-color-on-improve); }
-.planr-pin-question { background-color: var(--planr-color-question); color: var(--planr-color-on-question); }
-.planr-pin-resolved, .planr-pin-addressed { background-color: var(--planr-color-resolved); color: var(--planr-color-on-resolved); }
-.planr-pin-highlight { animation: planr-pin-highlight 1.2s ease-out; }
-@keyframes planr-pin-highlight {
-  0%, 35% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--planr-color-primary) 52%, transparent), 0 4px 14px color-mix(in srgb, var(--planr-color-background) 38%, transparent); }
-  100% { box-shadow: 0 4px 14px color-mix(in srgb, var(--planr-color-background) 38%, transparent); }
-}
-.planr-pin-region {
-  position: absolute;
-  z-index: 7;
-  min-width: 2px;
-  min-height: 2px;
-  border: 2px solid var(--planr-color-danger);
-  border-radius: var(--planr-radius-small);
-  background: color-mix(in srgb, var(--planr-color-danger) 12%, transparent);
-  pointer-events: none;
-}
-.planr-pin-region-improve { border-color: var(--planr-color-primary-strong); background: color-mix(in srgb, var(--planr-color-primary-strong) 12%, transparent); }
-.planr-pin-region-question { border-color: var(--planr-color-question); background: color-mix(in srgb, var(--planr-color-question) 12%, transparent); }
-.planr-pin-region-resolved, .planr-pin-region-addressed { border-color: var(--planr-color-resolved); background: color-mix(in srgb, var(--planr-color-resolved) 10%, transparent); }
-.planr-annotation-composer {
-  position: fixed;
-  inset: auto;
-  z-index: 100;
-  box-sizing: border-box;
-  width: min(360px, calc(100vw - 24px));
-  max-height: min(620px, calc(100dvh - 24px));
-  margin: 0;
-  overflow: auto;
-  overscroll-behavior: contain;
-  translate: none;
-  transform: none;
-  padding: 14px;
-  border: 1px solid var(--planr-color-rule);
-  border-radius: var(--planr-radius-large);
-  background: var(--planr-color-panel);
-  color: var(--planr-color-text);
-  box-shadow: 0 18px 60px color-mix(in srgb, var(--planr-color-background) 58%, transparent);
-  cursor: default;
-  pointer-events: auto;
-}
-.planr-annotation-composer strong { display: block; margin: 0; font: 650 14px/1.2 var(--planr-font-display); }
-.planr-composer-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
-.planr-composer-header button { display: grid; place-items: center; flex: 0 0 28px; width: 28px; height: 28px; padding: 0; border: 1px solid transparent; border-radius: var(--planr-radius-small); background: transparent; color: var(--planr-color-text-muted); font: 22px/1 var(--planr-font-body); cursor: pointer; }
-.planr-composer-header button:hover { background: var(--planr-color-raised); color: var(--planr-color-text); }
-.planr-annotation-composer :focus-visible { outline: 2px solid var(--planr-color-primary); outline-offset: 2px; }
-.planr-annotation-composer::backdrop { background: transparent; pointer-events: none; }
-.planr-annotation-composer label, .planr-identity label {
-  display: grid;
-  gap: 5px;
-  margin-bottom: 9px;
-  color: var(--planr-color-text-muted);
-  font-size: 11px;
-}
-.planr-annotation-composer input, .planr-annotation-composer textarea, .planr-identity input,
-.planr-reply-form textarea {
-  width: 100%;
-  padding: 8px 9px;
-  border: 1px solid var(--planr-color-rule);
-  border-radius: var(--planr-radius-small);
-  background: var(--planr-color-chrome);
-  color: var(--planr-color-text);
-}
-.planr-annotation-composer textarea { min-height: 84px; resize: vertical; }
-.planr-intent-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; margin-bottom: 9px; }
-.planr-intent-picker button {
-  min-height: 30px;
-  border: 1px solid var(--planr-color-rule);
-  border-radius: var(--planr-radius-small);
-  background: transparent;
-  cursor: pointer;
-  font-size: 10px;
-}
-.planr-intent-picker [aria-checked="true"] { border-color: var(--planr-color-primary); background: var(--planr-color-raised); }
-.planr-field-error { min-height: 16px; margin: 0; color: var(--planr-color-danger); font-size: 10px; }
-.planr-composer-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 8px; }
-.planr-composer-actions button, .planr-thread button, .planr-reply-form button {
-  min-height: 30px;
-  padding: 0 10px;
-  border: 1px solid var(--planr-color-rule);
-  border-radius: var(--planr-radius-small);
-  background: transparent;
-  cursor: pointer;
-  font-weight: 700;
-}
-.planr-composer-actions [type="submit"], .planr-reply-form [type="submit"] { border-color: var(--planr-color-primary); background: var(--planr-color-primary); color: var(--planr-color-background); }
-.planr-stage-status {
+${ARTIFACT_ANNOTATION_CSS}.planr-stage-status {
   position: absolute;
   z-index: 20;
   inset: 76px 0 0;
@@ -2069,7 +1837,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 .planr-reply-hint { font-size: 11px; color: var(--planr-color-text-muted); }
 .planr-reply-form .planr-reply-send { display: grid; place-items: center; flex: 0 0 30px; width: 30px; min-width: 30px; height: 30px; min-height: 30px; padding: 0; border-radius: 7px; }
 .planr-reply-form .planr-reply-send:disabled { opacity: .35; cursor: not-allowed; }
-@media (max-width: 600px) { .planr-annotation-composer input, .planr-annotation-composer textarea, .planr-annotation-composer select { font-size: 16px; } }
+${ARTIFACT_ANNOTATION_MOBILE_CSS}
 .planr-decision-slot { padding: 12px; border-top: 1px solid var(--planr-color-rule); background: var(--planr-color-chrome); }
 .planr-decision-slot label { display: block; margin-bottom: 6px; color: var(--planr-color-text-muted); font-size: 11px; }
 .planr-decision-slot textarea {
@@ -2452,6 +2220,7 @@ function renderArtifactShellDocument(input = DEFAULT_ARTIFACT_SHELL_INPUT, { the
     schemaVersion: "1.0.0",
     reviewOf: digestArtifactEnvelope({
       schemaVersion: input.envelope?.schemaVersion ?? "1.0.0",
+      ...input.envelope?.sources ? { sources: input.envelope.sources } : {},
       artifacts: input.envelope?.artifacts ?? [],
       viewer: input.envelope?.viewer ?? input.viewer ?? {}
     }),
@@ -2486,12 +2255,15 @@ function renderArtifactShellTemplate({ theme } = {}) {
 export {
   ARTIFACT_ERROR_CODES,
   PipelineError,
-  validateJson,
+  ARTIFACT_MAX_SOURCES,
+  ARTIFACT_MAX_VIEWS,
+  resolveArtifactHtml,
+  MAX_ARTIFACT_HTML_BYTES,
   canonicalSerialize,
   digestArtifactEnvelope,
   validateArtifactReview,
   validateArtifactEnvelope,
-  createArtifactEnvelope,
+  createSharedArtifactEnvelope,
   contrastRatio,
   AA_NORMAL,
   escapeHtml,

@@ -3,7 +3,7 @@
   "schemaVersion": "1.0.0",
   "protocolVersion": "1.8.0",
   "host": "claude-code",
-  "skillCount": 27,
+  "skillCount": 28,
   "roleCount": 9,
   "files": [
     {
@@ -12,7 +12,7 @@
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:3635e54a46deadee41df4178e18e306be863da02228361b1871feca2e4471f0e"
+      "digest": "sha256:b90a17c368ae375bc851f1d769cb1694215bd76493012b23e6d064e2d0f13cea"
     },
     {
       "path": "agents/planr-backend.md",
@@ -52,7 +52,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:d56564195b147abfb1473d9e5312ef3fdc50c5ecf373619d4fff6ea6ccdb30f6"
+      "digest": "sha256:0acec3e8b87475d9aa1dc74e9bd0ed2896a531ff2d3dde93984cfaf9ac594a65"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -88,7 +88,7 @@
     },
     {
       "path": "references/agents/shared/modes/shared/design-craft-rubric.md",
-      "digest": "sha256:660d30209751f6f9bac03a95c5403989381368339d8128853139262728b95232"
+      "digest": "sha256:0f576a6b42e521468f6df0e5b0ad155ed8660a3400f1bf55f123a1ef52350e43"
     },
     {
       "path": "references/agents/shared/modes/shared/design-principles.md",
@@ -167,8 +167,12 @@
       "digest": "sha256:452c7e11b3366b026d9e90b664980b3b5bdf8359ccb1a2bab090b43ae3addd72"
     },
     {
+      "path": "skills/artifact/references/diagram-sharing.md",
+      "digest": "sha256:343e5e6d67e9ec120e5c8095f909e4f18d17afd9f669d9725ab9a99be850d9f7"
+    },
+    {
       "path": "skills/artifact/SKILL.md",
-      "digest": "sha256:743676b2a88716aecb7b3f8abc77cba0358ae6bc4c84bd9ab9686f1a8d513cbb"
+      "digest": "sha256:6225dd76d0411013f6d67b972718b5d91610658c3cd57ee7fa05917be282f1c5"
     },
     {
       "path": "skills/browser-qa/SKILL.md",
@@ -339,6 +343,126 @@
       "digest": "sha256:1d414e702df0efd8276f9fc083de3f2cfdeaad69078f73f6a416a61fd825d71c"
     },
     {
+      "path": "skills/delegate/references/adapter-protocol.md",
+      "digest": "sha256:b59e6164746fc04b8bc348a5da8eaf4ff4374207f9fe4316dd17c50194786984"
+    },
+    {
+      "path": "skills/delegate/references/capsule-contract.md",
+      "digest": "sha256:12e0f01caa24a22f7c03ae1174d221b259a2fd4763539963db6c8654d63d8b28"
+    },
+    {
+      "path": "skills/delegate/references/integration-review.md",
+      "digest": "sha256:4ed5dceda80d3dfa3027793a472a408cb9dd5a847e251a3dfa3c5cca509b9f7b"
+    },
+    {
+      "path": "skills/delegate/references/operator-guide.md",
+      "digest": "sha256:e8c0984fa8224855d8cb15c78e7163c122447f4060f87c2714e3513c4498bdf6"
+    },
+    {
+      "path": "skills/delegate/references/run-handoff.md",
+      "digest": "sha256:6468f7fa3ddf8d561f08c4d8a368564958c21f88777b33bb6e482c9180d997b2"
+    },
+    {
+      "path": "skills/delegate/references/worktree-custody.md",
+      "digest": "sha256:8e78648690cfa1d786af5383aec0d567955ad8bd173a96558fac339a2efedae2"
+    },
+    {
+      "path": "skills/delegate/scripts/adapters/capsule.mjs",
+      "digest": "sha256:ef2087fa2e505c97cc413ed038645a8def0618647de0d10afb9944762b0495a6"
+    },
+    {
+      "path": "skills/delegate/scripts/adapters/claude.mjs",
+      "digest": "sha256:871d5c04298e633226e1df33642da15645c3dd777230f19ec5a8c32bc6641cfb"
+    },
+    {
+      "path": "skills/delegate/scripts/adapters/codex.mjs",
+      "digest": "sha256:4f77b6afcfe8614eef8a4b45a1c003391cb788321ce7d487062542934e4694fd"
+    },
+    {
+      "path": "skills/delegate/scripts/adapters/cursor.mjs",
+      "digest": "sha256:d60f5d259ae5ccb230be384e697d13d27b65b2a4c907f7afa7ee4bf1a5afaf15"
+    },
+    {
+      "path": "skills/delegate/scripts/adapters/generic.mjs",
+      "digest": "sha256:67c48cf4604d93c23276a0637034c77d7003f4f80b1e00d001c42af3368ead76"
+    },
+    {
+      "path": "skills/delegate/scripts/adapters/native.mjs",
+      "digest": "sha256:eef4266f70ee89c9ed07cd2878bb660dabd4ff49faba91002fd458463980d888"
+    },
+    {
+      "path": "skills/delegate/scripts/backend-diagnostics.mjs",
+      "digest": "sha256:71f99ef24bc58f047f75bfb12ce587a495c2cedada97745da076dc21ffaab33d"
+    },
+    {
+      "path": "skills/delegate/scripts/context.mjs",
+      "digest": "sha256:a611af4a3542a5cd1c928b2a3a07a80f51598482a3beb5aede3e66ee3a13fb3f"
+    },
+    {
+      "path": "skills/delegate/scripts/custody.mjs",
+      "digest": "sha256:ed50565a28b24db9e5febd71b5f656f0d73cae8158f8f7430569e620abf88018"
+    },
+    {
+      "path": "skills/delegate/scripts/helper-snapshot.mjs",
+      "digest": "sha256:146430502bb25dda5b31433d574aba41428a93f2f1de67b1a01fdaca3b990832"
+    },
+    {
+      "path": "skills/delegate/scripts/integrate.mjs",
+      "digest": "sha256:45372038ee72614f81b1d146431ea6e841882f581e05c4486b8871d47d84d86b"
+    },
+    {
+      "path": "skills/delegate/scripts/integration-checks.mjs",
+      "digest": "sha256:28da3e3ead865d923a75d4b111028e69c9e8bc72c83348067300d54ac8d37d05"
+    },
+    {
+      "path": "skills/delegate/scripts/integration-files.mjs",
+      "digest": "sha256:0630912abe3992664b50012fb36dd6dec26f741449800ab6a6c421def219424e"
+    },
+    {
+      "path": "skills/delegate/scripts/integration-transaction.mjs",
+      "digest": "sha256:c3914e4fdb6e12258b209178fca07ffc39e2f5376c770a27aa9a1858c5d833ed"
+    },
+    {
+      "path": "skills/delegate/scripts/presentation.mjs",
+      "digest": "sha256:91b227053cfd0c6a2ebec33ec3be8303f98b172ef67f77575c9448c9abdb3463"
+    },
+    {
+      "path": "skills/delegate/scripts/profiles.mjs",
+      "digest": "sha256:0d61cba289e498a5f12ae8f5cfcb3dfa76d8af9f1e77d89e9fb69a23fd94a342"
+    },
+    {
+      "path": "skills/delegate/scripts/run-contract.mjs",
+      "digest": "sha256:9118f4701e0e61ab186cba4da2cb97804310c6c314d96066ee9457e35f526252"
+    },
+    {
+      "path": "skills/delegate/scripts/run-execution.mjs",
+      "digest": "sha256:cd36e97bff182125b9ab99da49864f553f1eb51da2a8a5163465b409205e615a"
+    },
+    {
+      "path": "skills/delegate/scripts/run-lifecycle.mjs",
+      "digest": "sha256:a15194204561f1efd268496d0e3e83c4be27220eaa81b8b242483b9a2a85218a"
+    },
+    {
+      "path": "skills/delegate/scripts/run-preflight.mjs",
+      "digest": "sha256:dd980ebb39c298f48f3bc40b9e1d8f5255376d7143b46c680f1f3f9c04db4871"
+    },
+    {
+      "path": "skills/delegate/scripts/run-preparation.mjs",
+      "digest": "sha256:cd18116ca9494c57f3f5277986d2cbcf5fb0d1f8d65996593484be74d31a8fa5"
+    },
+    {
+      "path": "skills/delegate/scripts/run-record.mjs",
+      "digest": "sha256:73eb79f4a2da7d1016356cc7098f36388934a66f4d14e0d8007349d624bb2abf"
+    },
+    {
+      "path": "skills/delegate/scripts/runner.mjs",
+      "digest": "sha256:c26dc34b4867e337731d747fd3224e730c407567bb625538ee84918fbe5dcdc8"
+    },
+    {
+      "path": "skills/delegate/SKILL.md",
+      "digest": "sha256:2c32300aa45d2b4e2f953b77f9c0612257400be4032a201ac67d036df4042e15"
+    },
+    {
       "path": "skills/design-loop/references/craft.md",
       "digest": "sha256:8763005ea080093d4b5ff2835ec9bf1f9e750d39254db5013eae778f7bd74e3e"
     },
@@ -364,7 +488,7 @@
     },
     {
       "path": "skills/design-loop/references/review.md",
-      "digest": "sha256:702ed9ae3450637e6f6d61aa52ec3317399a70ae74e021300496700fed3a78d1"
+      "digest": "sha256:aa69c45873c11da82caf4428b841e021994b7cbf207ab38f7d15b891f9461889"
     },
     {
       "path": "skills/design-loop/references/team-review.md",
@@ -372,7 +496,7 @@
     },
     {
       "path": "skills/design-loop/references/utilities.md",
-      "digest": "sha256:ed7f01aee343781127bdc49f992f011f00883599e0c96101d9a12ae0dafddecb"
+      "digest": "sha256:1f4b37947e8fc27a43b9d3df564df9a1aec510e24f62c632502ad2734ce4024a"
     },
     {
       "path": "skills/design-loop/schemas/design-document.schema.json",
@@ -388,15 +512,27 @@
     },
     {
       "path": "skills/design-loop/scripts/design-artifact-shell.mjs",
-      "digest": "sha256:2612a0ac85e121b9562e6239e3832be64933c89ea5b5739b18b58748d69ac791"
+      "digest": "sha256:a7abf21b55ccf9db32f7c5a6c2f17eed98f62811572c773bc29b8a78f7c4c5a3"
+    },
+    {
+      "path": "skills/design-loop/scripts/design-bounded-json-data.mjs",
+      "digest": "sha256:4435c527f806acd0fb1121e71cbf28010c97f7ba5ec91ba89f7493aee1611b7b"
     },
     {
       "path": "skills/design-loop/scripts/design-document.mjs",
-      "digest": "sha256:480906730eb79fe8fe0a9d5956f633493bf51cfa587ec600006ff2d58dea54af"
+      "digest": "sha256:87351678156f51ceb74901b47da8f163f41055f41a0fc3e9aead4c0dba8f40cc"
     },
     {
       "path": "skills/design-loop/scripts/design-entities.mjs",
       "digest": "sha256:376ec35d0f184deac31b639f2c0918e6b0f165e19984ed1c89ba2cfad6af9b80"
+    },
+    {
+      "path": "skills/design-loop/scripts/design-generated-864393b693434d75.mjs",
+      "digest": "sha256:c567e4ef67a6320cb526a8b30f8b9c6c904f2487a07cefc1427a9d1d8971abd1"
+    },
+    {
+      "path": "skills/design-loop/scripts/design-pako-esm.mjs",
+      "digest": "sha256:2544e4514357df6e38ebe98cde207c22ce36e3ecc1a1fc210228d96a3b68d1ff"
     },
     {
       "path": "skills/design-loop/scripts/design-parse5-parser.mjs",
@@ -407,32 +543,52 @@
       "digest": "sha256:f655474fb8d0bed732f01ace5b67102f849b73cb40831a57f1fb7b61180fbde9"
     },
     {
+      "path": "skills/design-loop/scripts/design-planr-home.mjs",
+      "digest": "sha256:ba446e8f0d523226eb096100f11f14087cb9ba118d8330e9a7942b9a9bc56302"
+    },
+    {
       "path": "skills/design-loop/scripts/design-review-handoff.mjs",
-      "digest": "sha256:3e55cf8003b7f1645c5d9dded0ea206bf02cb6cf44f342815528e687768b0dbc"
+      "digest": "sha256:16574b1736729b6e1ac8c3601033de0d90eb2b935008bb184b1c50a2f178dacc"
     },
     {
       "path": "skills/design-loop/scripts/design-sandbox-guards.mjs",
-      "digest": "sha256:dcc7aa1971da47018a198bfe7520c05e3e5ba21fe2d9c8fffcaad882ded5bbbb"
+      "digest": "sha256:f079cc28de5815ae4c32ca33602a9d3e2ac83b38626c948c19d80ad0cd1a14b2"
     },
     {
       "path": "skills/design-loop/scripts/design-share.mjs",
-      "digest": "sha256:11de427bd02b89fdf6df5b3d8eaffa7c2025ab841712c7dfc0da6e5a3e41ca36"
+      "digest": "sha256:3b9367783478a46029cc8a2aaa69be803dde038349390ab001525b809f15fde2"
     },
     {
       "path": "skills/design-loop/scripts/design.mjs",
-      "digest": "sha256:ab33412cab749120e07359983f85bcb64038026844c06ff9f464c4f371d6d6ca"
+      "digest": "sha256:1781d2faa70f3d0c39bedafc1e2baff09bb52047ce7e6546e373feb3c1eda7a9"
     },
     {
-      "path": "skills/design-loop/scripts/runtime/notices/entities.txt",
-      "digest": "sha256:cb1c95689d51162c6199c1e2875446ebeb81ef00a8b04ba0f1fa4bb5e89e4deb"
+      "path": "skills/design-loop/scripts/runtime/notices/THIRD_PARTY_NOTICES.txt",
+      "digest": "sha256:2cd156e3285240dced643f0312875a23ec3681a0492bec96591bfc36c06256b9"
     },
     {
-      "path": "skills/design-loop/scripts/runtime/notices/parse5.txt",
-      "digest": "sha256:9d962b98584cb78fab1a9da3337f6881035c477733420e9b1b5f69aca647ebbd"
+      "path": "skills/design-loop/scripts/runtime/packages/artifact/lib/artifact/ui/studio-shell.css",
+      "digest": "sha256:1a1dd09e283b5790a222160d0694e81267ee0037b280ab8960de42a8f28c961f"
     },
     {
-      "path": "skills/design-loop/scripts/runtime/packages/artifact/templates/artifact-review-stage.js",
-      "digest": "sha256:b6bb5676c36f45e4a9e49202424e4f9f7d65125e6ee036629dc7c0610ed74023"
+      "path": "skills/design-loop/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-001",
+      "digest": "sha256:dd7007ab48e823f90e89ab2028946400282689bc42b99fd8c770a9e3c82a207e"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-002",
+      "digest": "sha256:e062973ae0a83bd31b188cb373e7a65c4d34b7dcee79cf400554b880ff6db63f"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-003",
+      "digest": "sha256:a9e840670eba89b531b044e2405252a26b4327d350d14fa264c2ee00fe4e8a05"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.parts.json",
+      "digest": "sha256:7f5b7a8c5b5cc10f04579c84c93b7852578c65c1051b289c7ab06bbda8c57dc6"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/design/package.json",
+      "digest": "sha256:09472ea4809fc4babbae7add8ff99e6470f1f9bb65a545258bc437d02f61a308"
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/enhancements.css",
@@ -444,23 +600,59 @@
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/share.css",
-      "digest": "sha256:6923307acbdba81a4bcd1d24e5ed1553dc49b6f0a656222f397d36fd34afe265"
+      "digest": "sha256:c1afe8271c85ca7523aa520daf093c24a653f9fe6e08caffd56391a8b592c206"
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/share.js",
-      "digest": "sha256:fb84152fecc65758e999baae03472874c38c14ce98fb4dbad5c7ef67a80aad5e"
+      "digest": "sha256:3be9bf9b8810a1eed5b22f05af33721e6a50d2a814d3d4309d1592b386f80c4f"
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.css",
-      "digest": "sha256:c7c58b1602368d8a27872c7618714b9246a6bc24fb1cb513aa6ae917c2858d1e"
+      "digest": "sha256:ecb86a5f5517262f8dc71e518163ca55074404c6823d5f989edad5e9f71293af"
     },
     {
-      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js",
-      "digest": "sha256:85f8b084457aaa172025fb878b64059782cb976f72451b207c7bc40e8c982bb8"
+      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js.part-001",
+      "digest": "sha256:10c64b560b5b6056cd7433b1494ace2bde3351bbccd9a4e8810bd3822b0c82da"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js.part-002",
+      "digest": "sha256:187d37519817c3d390cdbc97379521ad349a35f61b5673803501fb91550734aa"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js.part-003",
+      "digest": "sha256:3e26d42f504b21fa3fa606e55b45a43c0e4c01e0f389bfb8e2b753644ee6061e"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js.part-004",
+      "digest": "sha256:f3b54cacf2df86cc7546bafb128a0a46b802779d63fea03d969db4346391b371"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js.part-005",
+      "digest": "sha256:3ec27695260a73ecc81503e578f230a1048459f2a1cbbe2521662ef25b6a17aa"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js.part-006",
+      "digest": "sha256:ee8d775fd0e97c74172f540c83412900b4e73a62188c23fd2b162fc0e82bbcdc"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js.part-007",
+      "digest": "sha256:3bdf4a1f9bfdc8bd12c2eec50772a32b092262834be23e93333f79bdfd41bb67"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js.part-008",
+      "digest": "sha256:2f03557f7b4bf6d5953dd06114b6dde27f49e6b4d77c812988f8b865d92f3900"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js.part-009",
+      "digest": "sha256:1b405a0f3f7da5c55b87c94e152be975a74fa9399f457141c51e9cea56d379a1"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/design/templates/studio/studio.js.parts.json",
+      "digest": "sha256:7a26637c80ef499f46d87087bf2588a82dac7c1c67163c6a657a1087760feea1"
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:bb969da90f0482f19b3afc21b4b35e4c00efff42c69ec61d9c5c07395e2bfd69"
+      "digest": "sha256:a44b3547324fdb26d0fd1f3552edfef10385febb0a21fb7ee1859e65e80b1b78"
     },
     {
       "path": "skills/design-loop/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -519,6 +711,14 @@
       "digest": "sha256:1742be23b045154ebb260c87edbc28c101f7c2e3ef498ddde86ee0b4ffef7b0a"
     },
     {
+      "path": "skills/design-loop/scripts/runtime/packages/protocol/schemas/v1.16.0/artifact-envelope.schema.json",
+      "digest": "sha256:765797b2fe12e57259b1ffdc7dc2bca3884bace5bd7badc850d6150136a3e68b"
+    },
+    {
+      "path": "skills/design-loop/scripts/runtime/packages/protocol/schemas/v1.16.0/design-review-bundle.schema.json",
+      "digest": "sha256:f5616731ad5bb0399514e1cd36f6ffbaf9adaa1b378107b677b857f6312dfa52"
+    },
+    {
       "path": "skills/design-loop/scripts/runtime/packages/protocol/schemas/v1.9.0/design-document.schema.json",
       "digest": "sha256:bd84d34b42f9451f9ff836105a7a6c92b2d74209aa82f6a0dd973532edf99422"
     },
@@ -572,7 +772,7 @@
     },
     {
       "path": "skills/design-review/references/review.md",
-      "digest": "sha256:702ed9ae3450637e6f6d61aa52ec3317399a70ae74e021300496700fed3a78d1"
+      "digest": "sha256:aa69c45873c11da82caf4428b841e021994b7cbf207ab38f7d15b891f9461889"
     },
     {
       "path": "skills/design-review/references/team-review.md",
@@ -580,7 +780,7 @@
     },
     {
       "path": "skills/design-review/references/utilities.md",
-      "digest": "sha256:ed7f01aee343781127bdc49f992f011f00883599e0c96101d9a12ae0dafddecb"
+      "digest": "sha256:1f4b37947e8fc27a43b9d3df564df9a1aec510e24f62c632502ad2734ce4024a"
     },
     {
       "path": "skills/design-review/schemas/design-document.schema.json",
@@ -596,15 +796,27 @@
     },
     {
       "path": "skills/design-review/scripts/design-artifact-shell.mjs",
-      "digest": "sha256:2612a0ac85e121b9562e6239e3832be64933c89ea5b5739b18b58748d69ac791"
+      "digest": "sha256:a7abf21b55ccf9db32f7c5a6c2f17eed98f62811572c773bc29b8a78f7c4c5a3"
+    },
+    {
+      "path": "skills/design-review/scripts/design-bounded-json-data.mjs",
+      "digest": "sha256:4435c527f806acd0fb1121e71cbf28010c97f7ba5ec91ba89f7493aee1611b7b"
     },
     {
       "path": "skills/design-review/scripts/design-document.mjs",
-      "digest": "sha256:480906730eb79fe8fe0a9d5956f633493bf51cfa587ec600006ff2d58dea54af"
+      "digest": "sha256:87351678156f51ceb74901b47da8f163f41055f41a0fc3e9aead4c0dba8f40cc"
     },
     {
       "path": "skills/design-review/scripts/design-entities.mjs",
       "digest": "sha256:376ec35d0f184deac31b639f2c0918e6b0f165e19984ed1c89ba2cfad6af9b80"
+    },
+    {
+      "path": "skills/design-review/scripts/design-generated-864393b693434d75.mjs",
+      "digest": "sha256:c567e4ef67a6320cb526a8b30f8b9c6c904f2487a07cefc1427a9d1d8971abd1"
+    },
+    {
+      "path": "skills/design-review/scripts/design-pako-esm.mjs",
+      "digest": "sha256:2544e4514357df6e38ebe98cde207c22ce36e3ecc1a1fc210228d96a3b68d1ff"
     },
     {
       "path": "skills/design-review/scripts/design-parse5-parser.mjs",
@@ -615,32 +827,52 @@
       "digest": "sha256:f655474fb8d0bed732f01ace5b67102f849b73cb40831a57f1fb7b61180fbde9"
     },
     {
+      "path": "skills/design-review/scripts/design-planr-home.mjs",
+      "digest": "sha256:ba446e8f0d523226eb096100f11f14087cb9ba118d8330e9a7942b9a9bc56302"
+    },
+    {
       "path": "skills/design-review/scripts/design-review-handoff.mjs",
-      "digest": "sha256:3e55cf8003b7f1645c5d9dded0ea206bf02cb6cf44f342815528e687768b0dbc"
+      "digest": "sha256:16574b1736729b6e1ac8c3601033de0d90eb2b935008bb184b1c50a2f178dacc"
     },
     {
       "path": "skills/design-review/scripts/design-sandbox-guards.mjs",
-      "digest": "sha256:dcc7aa1971da47018a198bfe7520c05e3e5ba21fe2d9c8fffcaad882ded5bbbb"
+      "digest": "sha256:f079cc28de5815ae4c32ca33602a9d3e2ac83b38626c948c19d80ad0cd1a14b2"
     },
     {
       "path": "skills/design-review/scripts/design-share.mjs",
-      "digest": "sha256:11de427bd02b89fdf6df5b3d8eaffa7c2025ab841712c7dfc0da6e5a3e41ca36"
+      "digest": "sha256:3b9367783478a46029cc8a2aaa69be803dde038349390ab001525b809f15fde2"
     },
     {
       "path": "skills/design-review/scripts/design.mjs",
-      "digest": "sha256:ab33412cab749120e07359983f85bcb64038026844c06ff9f464c4f371d6d6ca"
+      "digest": "sha256:1781d2faa70f3d0c39bedafc1e2baff09bb52047ce7e6546e373feb3c1eda7a9"
     },
     {
-      "path": "skills/design-review/scripts/runtime/notices/entities.txt",
-      "digest": "sha256:cb1c95689d51162c6199c1e2875446ebeb81ef00a8b04ba0f1fa4bb5e89e4deb"
+      "path": "skills/design-review/scripts/runtime/notices/THIRD_PARTY_NOTICES.txt",
+      "digest": "sha256:2cd156e3285240dced643f0312875a23ec3681a0492bec96591bfc36c06256b9"
     },
     {
-      "path": "skills/design-review/scripts/runtime/notices/parse5.txt",
-      "digest": "sha256:9d962b98584cb78fab1a9da3337f6881035c477733420e9b1b5f69aca647ebbd"
+      "path": "skills/design-review/scripts/runtime/packages/artifact/lib/artifact/ui/studio-shell.css",
+      "digest": "sha256:1a1dd09e283b5790a222160d0694e81267ee0037b280ab8960de42a8f28c961f"
     },
     {
-      "path": "skills/design-review/scripts/runtime/packages/artifact/templates/artifact-review-stage.js",
-      "digest": "sha256:b6bb5676c36f45e4a9e49202424e4f9f7d65125e6ee036629dc7c0610ed74023"
+      "path": "skills/design-review/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-001",
+      "digest": "sha256:dd7007ab48e823f90e89ab2028946400282689bc42b99fd8c770a9e3c82a207e"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-002",
+      "digest": "sha256:e062973ae0a83bd31b188cb373e7a65c4d34b7dcee79cf400554b880ff6db63f"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-003",
+      "digest": "sha256:a9e840670eba89b531b044e2405252a26b4327d350d14fa264c2ee00fe4e8a05"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.parts.json",
+      "digest": "sha256:7f5b7a8c5b5cc10f04579c84c93b7852578c65c1051b289c7ab06bbda8c57dc6"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/design/package.json",
+      "digest": "sha256:09472ea4809fc4babbae7add8ff99e6470f1f9bb65a545258bc437d02f61a308"
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/enhancements.css",
@@ -652,23 +884,59 @@
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/share.css",
-      "digest": "sha256:6923307acbdba81a4bcd1d24e5ed1553dc49b6f0a656222f397d36fd34afe265"
+      "digest": "sha256:c1afe8271c85ca7523aa520daf093c24a653f9fe6e08caffd56391a8b592c206"
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/share.js",
-      "digest": "sha256:fb84152fecc65758e999baae03472874c38c14ce98fb4dbad5c7ef67a80aad5e"
+      "digest": "sha256:3be9bf9b8810a1eed5b22f05af33721e6a50d2a814d3d4309d1592b386f80c4f"
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.css",
-      "digest": "sha256:c7c58b1602368d8a27872c7618714b9246a6bc24fb1cb513aa6ae917c2858d1e"
+      "digest": "sha256:ecb86a5f5517262f8dc71e518163ca55074404c6823d5f989edad5e9f71293af"
     },
     {
-      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js",
-      "digest": "sha256:85f8b084457aaa172025fb878b64059782cb976f72451b207c7bc40e8c982bb8"
+      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js.part-001",
+      "digest": "sha256:10c64b560b5b6056cd7433b1494ace2bde3351bbccd9a4e8810bd3822b0c82da"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js.part-002",
+      "digest": "sha256:187d37519817c3d390cdbc97379521ad349a35f61b5673803501fb91550734aa"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js.part-003",
+      "digest": "sha256:3e26d42f504b21fa3fa606e55b45a43c0e4c01e0f389bfb8e2b753644ee6061e"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js.part-004",
+      "digest": "sha256:f3b54cacf2df86cc7546bafb128a0a46b802779d63fea03d969db4346391b371"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js.part-005",
+      "digest": "sha256:3ec27695260a73ecc81503e578f230a1048459f2a1cbbe2521662ef25b6a17aa"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js.part-006",
+      "digest": "sha256:ee8d775fd0e97c74172f540c83412900b4e73a62188c23fd2b162fc0e82bbcdc"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js.part-007",
+      "digest": "sha256:3bdf4a1f9bfdc8bd12c2eec50772a32b092262834be23e93333f79bdfd41bb67"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js.part-008",
+      "digest": "sha256:2f03557f7b4bf6d5953dd06114b6dde27f49e6b4d77c812988f8b865d92f3900"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js.part-009",
+      "digest": "sha256:1b405a0f3f7da5c55b87c94e152be975a74fa9399f457141c51e9cea56d379a1"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/design/templates/studio/studio.js.parts.json",
+      "digest": "sha256:7a26637c80ef499f46d87087bf2588a82dac7c1c67163c6a657a1087760feea1"
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:bb969da90f0482f19b3afc21b4b35e4c00efff42c69ec61d9c5c07395e2bfd69"
+      "digest": "sha256:a44b3547324fdb26d0fd1f3552edfef10385febb0a21fb7ee1859e65e80b1b78"
     },
     {
       "path": "skills/design-review/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -727,6 +995,14 @@
       "digest": "sha256:1742be23b045154ebb260c87edbc28c101f7c2e3ef498ddde86ee0b4ffef7b0a"
     },
     {
+      "path": "skills/design-review/scripts/runtime/packages/protocol/schemas/v1.16.0/artifact-envelope.schema.json",
+      "digest": "sha256:765797b2fe12e57259b1ffdc7dc2bca3884bace5bd7badc850d6150136a3e68b"
+    },
+    {
+      "path": "skills/design-review/scripts/runtime/packages/protocol/schemas/v1.16.0/design-review-bundle.schema.json",
+      "digest": "sha256:f5616731ad5bb0399514e1cd36f6ffbaf9adaa1b378107b677b857f6312dfa52"
+    },
+    {
       "path": "skills/design-review/scripts/runtime/packages/protocol/schemas/v1.9.0/design-document.schema.json",
       "digest": "sha256:bd84d34b42f9451f9ff836105a7a6c92b2d74209aa82f6a0dd973532edf99422"
     },
@@ -780,7 +1056,7 @@
     },
     {
       "path": "skills/design/references/review.md",
-      "digest": "sha256:702ed9ae3450637e6f6d61aa52ec3317399a70ae74e021300496700fed3a78d1"
+      "digest": "sha256:aa69c45873c11da82caf4428b841e021994b7cbf207ab38f7d15b891f9461889"
     },
     {
       "path": "skills/design/references/team-review.md",
@@ -788,7 +1064,7 @@
     },
     {
       "path": "skills/design/references/utilities.md",
-      "digest": "sha256:ed7f01aee343781127bdc49f992f011f00883599e0c96101d9a12ae0dafddecb"
+      "digest": "sha256:1f4b37947e8fc27a43b9d3df564df9a1aec510e24f62c632502ad2734ce4024a"
     },
     {
       "path": "skills/design/schemas/design-document.schema.json",
@@ -804,15 +1080,27 @@
     },
     {
       "path": "skills/design/scripts/design-artifact-shell.mjs",
-      "digest": "sha256:2612a0ac85e121b9562e6239e3832be64933c89ea5b5739b18b58748d69ac791"
+      "digest": "sha256:a7abf21b55ccf9db32f7c5a6c2f17eed98f62811572c773bc29b8a78f7c4c5a3"
+    },
+    {
+      "path": "skills/design/scripts/design-bounded-json-data.mjs",
+      "digest": "sha256:4435c527f806acd0fb1121e71cbf28010c97f7ba5ec91ba89f7493aee1611b7b"
     },
     {
       "path": "skills/design/scripts/design-document.mjs",
-      "digest": "sha256:480906730eb79fe8fe0a9d5956f633493bf51cfa587ec600006ff2d58dea54af"
+      "digest": "sha256:87351678156f51ceb74901b47da8f163f41055f41a0fc3e9aead4c0dba8f40cc"
     },
     {
       "path": "skills/design/scripts/design-entities.mjs",
       "digest": "sha256:376ec35d0f184deac31b639f2c0918e6b0f165e19984ed1c89ba2cfad6af9b80"
+    },
+    {
+      "path": "skills/design/scripts/design-generated-864393b693434d75.mjs",
+      "digest": "sha256:c567e4ef67a6320cb526a8b30f8b9c6c904f2487a07cefc1427a9d1d8971abd1"
+    },
+    {
+      "path": "skills/design/scripts/design-pako-esm.mjs",
+      "digest": "sha256:2544e4514357df6e38ebe98cde207c22ce36e3ecc1a1fc210228d96a3b68d1ff"
     },
     {
       "path": "skills/design/scripts/design-parse5-parser.mjs",
@@ -823,32 +1111,52 @@
       "digest": "sha256:f655474fb8d0bed732f01ace5b67102f849b73cb40831a57f1fb7b61180fbde9"
     },
     {
+      "path": "skills/design/scripts/design-planr-home.mjs",
+      "digest": "sha256:ba446e8f0d523226eb096100f11f14087cb9ba118d8330e9a7942b9a9bc56302"
+    },
+    {
       "path": "skills/design/scripts/design-review-handoff.mjs",
-      "digest": "sha256:3e55cf8003b7f1645c5d9dded0ea206bf02cb6cf44f342815528e687768b0dbc"
+      "digest": "sha256:16574b1736729b6e1ac8c3601033de0d90eb2b935008bb184b1c50a2f178dacc"
     },
     {
       "path": "skills/design/scripts/design-sandbox-guards.mjs",
-      "digest": "sha256:dcc7aa1971da47018a198bfe7520c05e3e5ba21fe2d9c8fffcaad882ded5bbbb"
+      "digest": "sha256:f079cc28de5815ae4c32ca33602a9d3e2ac83b38626c948c19d80ad0cd1a14b2"
     },
     {
       "path": "skills/design/scripts/design-share.mjs",
-      "digest": "sha256:11de427bd02b89fdf6df5b3d8eaffa7c2025ab841712c7dfc0da6e5a3e41ca36"
+      "digest": "sha256:3b9367783478a46029cc8a2aaa69be803dde038349390ab001525b809f15fde2"
     },
     {
       "path": "skills/design/scripts/design.mjs",
-      "digest": "sha256:ab33412cab749120e07359983f85bcb64038026844c06ff9f464c4f371d6d6ca"
+      "digest": "sha256:1781d2faa70f3d0c39bedafc1e2baff09bb52047ce7e6546e373feb3c1eda7a9"
     },
     {
-      "path": "skills/design/scripts/runtime/notices/entities.txt",
-      "digest": "sha256:cb1c95689d51162c6199c1e2875446ebeb81ef00a8b04ba0f1fa4bb5e89e4deb"
+      "path": "skills/design/scripts/runtime/notices/THIRD_PARTY_NOTICES.txt",
+      "digest": "sha256:2cd156e3285240dced643f0312875a23ec3681a0492bec96591bfc36c06256b9"
     },
     {
-      "path": "skills/design/scripts/runtime/notices/parse5.txt",
-      "digest": "sha256:9d962b98584cb78fab1a9da3337f6881035c477733420e9b1b5f69aca647ebbd"
+      "path": "skills/design/scripts/runtime/packages/artifact/lib/artifact/ui/studio-shell.css",
+      "digest": "sha256:1a1dd09e283b5790a222160d0694e81267ee0037b280ab8960de42a8f28c961f"
     },
     {
-      "path": "skills/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js",
-      "digest": "sha256:b6bb5676c36f45e4a9e49202424e4f9f7d65125e6ee036629dc7c0610ed74023"
+      "path": "skills/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-001",
+      "digest": "sha256:dd7007ab48e823f90e89ab2028946400282689bc42b99fd8c770a9e3c82a207e"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-002",
+      "digest": "sha256:e062973ae0a83bd31b188cb373e7a65c4d34b7dcee79cf400554b880ff6db63f"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-003",
+      "digest": "sha256:a9e840670eba89b531b044e2405252a26b4327d350d14fa264c2ee00fe4e8a05"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.parts.json",
+      "digest": "sha256:7f5b7a8c5b5cc10f04579c84c93b7852578c65c1051b289c7ab06bbda8c57dc6"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/design/package.json",
+      "digest": "sha256:09472ea4809fc4babbae7add8ff99e6470f1f9bb65a545258bc437d02f61a308"
     },
     {
       "path": "skills/design/scripts/runtime/packages/design/templates/studio/enhancements.css",
@@ -860,23 +1168,59 @@
     },
     {
       "path": "skills/design/scripts/runtime/packages/design/templates/studio/share.css",
-      "digest": "sha256:6923307acbdba81a4bcd1d24e5ed1553dc49b6f0a656222f397d36fd34afe265"
+      "digest": "sha256:c1afe8271c85ca7523aa520daf093c24a653f9fe6e08caffd56391a8b592c206"
     },
     {
       "path": "skills/design/scripts/runtime/packages/design/templates/studio/share.js",
-      "digest": "sha256:fb84152fecc65758e999baae03472874c38c14ce98fb4dbad5c7ef67a80aad5e"
+      "digest": "sha256:3be9bf9b8810a1eed5b22f05af33721e6a50d2a814d3d4309d1592b386f80c4f"
     },
     {
       "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.css",
-      "digest": "sha256:c7c58b1602368d8a27872c7618714b9246a6bc24fb1cb513aa6ae917c2858d1e"
+      "digest": "sha256:ecb86a5f5517262f8dc71e518163ca55074404c6823d5f989edad5e9f71293af"
     },
     {
-      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js",
-      "digest": "sha256:85f8b084457aaa172025fb878b64059782cb976f72451b207c7bc40e8c982bb8"
+      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js.part-001",
+      "digest": "sha256:10c64b560b5b6056cd7433b1494ace2bde3351bbccd9a4e8810bd3822b0c82da"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js.part-002",
+      "digest": "sha256:187d37519817c3d390cdbc97379521ad349a35f61b5673803501fb91550734aa"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js.part-003",
+      "digest": "sha256:3e26d42f504b21fa3fa606e55b45a43c0e4c01e0f389bfb8e2b753644ee6061e"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js.part-004",
+      "digest": "sha256:f3b54cacf2df86cc7546bafb128a0a46b802779d63fea03d969db4346391b371"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js.part-005",
+      "digest": "sha256:3ec27695260a73ecc81503e578f230a1048459f2a1cbbe2521662ef25b6a17aa"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js.part-006",
+      "digest": "sha256:ee8d775fd0e97c74172f540c83412900b4e73a62188c23fd2b162fc0e82bbcdc"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js.part-007",
+      "digest": "sha256:3bdf4a1f9bfdc8bd12c2eec50772a32b092262834be23e93333f79bdfd41bb67"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js.part-008",
+      "digest": "sha256:2f03557f7b4bf6d5953dd06114b6dde27f49e6b4d77c812988f8b865d92f3900"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js.part-009",
+      "digest": "sha256:1b405a0f3f7da5c55b87c94e152be975a74fa9399f457141c51e9cea56d379a1"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/design/templates/studio/studio.js.parts.json",
+      "digest": "sha256:7a26637c80ef499f46d87087bf2588a82dac7c1c67163c6a657a1087760feea1"
     },
     {
       "path": "skills/design/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:bb969da90f0482f19b3afc21b4b35e4c00efff42c69ec61d9c5c07395e2bfd69"
+      "digest": "sha256:a44b3547324fdb26d0fd1f3552edfef10385febb0a21fb7ee1859e65e80b1b78"
     },
     {
       "path": "skills/design/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -935,6 +1279,14 @@
       "digest": "sha256:1742be23b045154ebb260c87edbc28c101f7c2e3ef498ddde86ee0b4ffef7b0a"
     },
     {
+      "path": "skills/design/scripts/runtime/packages/protocol/schemas/v1.16.0/artifact-envelope.schema.json",
+      "digest": "sha256:765797b2fe12e57259b1ffdc7dc2bca3884bace5bd7badc850d6150136a3e68b"
+    },
+    {
+      "path": "skills/design/scripts/runtime/packages/protocol/schemas/v1.16.0/design-review-bundle.schema.json",
+      "digest": "sha256:f5616731ad5bb0399514e1cd36f6ffbaf9adaa1b378107b677b857f6312dfa52"
+    },
+    {
       "path": "skills/design/scripts/runtime/packages/protocol/schemas/v1.9.0/design-document.schema.json",
       "digest": "sha256:bd84d34b42f9451f9ff836105a7a6c92b2d74209aa82f6a0dd973532edf99422"
     },
@@ -975,8 +1327,12 @@
       "digest": "sha256:ff8179545fb8aa017acff90cca81896b295682beacc53a82dac8a32f4fb1e005"
     },
     {
+      "path": "skills/diagram/references/diagram-sharing.md",
+      "digest": "sha256:343e5e6d67e9ec120e5c8095f909e4f18d17afd9f669d9725ab9a99be850d9f7"
+    },
+    {
       "path": "skills/diagram/SKILL.md",
-      "digest": "sha256:c60ac43750eea0c7fdb30a64d7553b766ce6ae54636e737264166ff5215b7d74"
+      "digest": "sha256:8a6f63b692cf9979036e62585a200f5539b75ceb81bb87437166ddaf668c7d43"
     },
     {
       "path": "skills/doctor/references/upgrade.md",
@@ -984,7 +1340,7 @@
     },
     {
       "path": "skills/doctor/SKILL.md",
-      "digest": "sha256:cbcd59f2ae4fad802f7391b0d7663410d33b380b639fe5a385551aeb1482ba99"
+      "digest": "sha256:3fd22640c354eda436b57feb36ff4173535fd1c3f4e695aa3358acbc9ea37b23"
     },
     {
       "path": "skills/investigate/SKILL.md",
@@ -996,7 +1352,7 @@
     },
     {
       "path": "skills/openplanr/SKILL.md",
-      "digest": "sha256:f1e2daabc532519e6e9b83e49bddae8948d234bdf1be0e858528c2d0ecf65bc5"
+      "digest": "sha256:0b9685790ad8cab3a6804b8f02cc9605f63f604c429484b205b3abb2d4c3f58a"
     },
     {
       "path": "skills/operate/scripts/errors.mjs",
@@ -1044,15 +1400,27 @@
     },
     {
       "path": "skills/plan/scripts/design-artifact-shell.mjs",
-      "digest": "sha256:2612a0ac85e121b9562e6239e3832be64933c89ea5b5739b18b58748d69ac791"
+      "digest": "sha256:a7abf21b55ccf9db32f7c5a6c2f17eed98f62811572c773bc29b8a78f7c4c5a3"
+    },
+    {
+      "path": "skills/plan/scripts/design-bounded-json-data.mjs",
+      "digest": "sha256:4435c527f806acd0fb1121e71cbf28010c97f7ba5ec91ba89f7493aee1611b7b"
     },
     {
       "path": "skills/plan/scripts/design-document.mjs",
-      "digest": "sha256:480906730eb79fe8fe0a9d5956f633493bf51cfa587ec600006ff2d58dea54af"
+      "digest": "sha256:87351678156f51ceb74901b47da8f163f41055f41a0fc3e9aead4c0dba8f40cc"
     },
     {
       "path": "skills/plan/scripts/design-entities.mjs",
       "digest": "sha256:376ec35d0f184deac31b639f2c0918e6b0f165e19984ed1c89ba2cfad6af9b80"
+    },
+    {
+      "path": "skills/plan/scripts/design-generated-864393b693434d75.mjs",
+      "digest": "sha256:c567e4ef67a6320cb526a8b30f8b9c6c904f2487a07cefc1427a9d1d8971abd1"
+    },
+    {
+      "path": "skills/plan/scripts/design-pako-esm.mjs",
+      "digest": "sha256:2544e4514357df6e38ebe98cde207c22ce36e3ecc1a1fc210228d96a3b68d1ff"
     },
     {
       "path": "skills/plan/scripts/design-parse5-parser.mjs",
@@ -1063,36 +1431,56 @@
       "digest": "sha256:f655474fb8d0bed732f01ace5b67102f849b73cb40831a57f1fb7b61180fbde9"
     },
     {
+      "path": "skills/plan/scripts/design-planr-home.mjs",
+      "digest": "sha256:ba446e8f0d523226eb096100f11f14087cb9ba118d8330e9a7942b9a9bc56302"
+    },
+    {
       "path": "skills/plan/scripts/design-review-handoff.mjs",
-      "digest": "sha256:3e55cf8003b7f1645c5d9dded0ea206bf02cb6cf44f342815528e687768b0dbc"
+      "digest": "sha256:16574b1736729b6e1ac8c3601033de0d90eb2b935008bb184b1c50a2f178dacc"
     },
     {
       "path": "skills/plan/scripts/design-sandbox-guards.mjs",
-      "digest": "sha256:dcc7aa1971da47018a198bfe7520c05e3e5ba21fe2d9c8fffcaad882ded5bbbb"
+      "digest": "sha256:f079cc28de5815ae4c32ca33602a9d3e2ac83b38626c948c19d80ad0cd1a14b2"
     },
     {
       "path": "skills/plan/scripts/design-share.mjs",
-      "digest": "sha256:11de427bd02b89fdf6df5b3d8eaffa7c2025ab841712c7dfc0da6e5a3e41ca36"
+      "digest": "sha256:3b9367783478a46029cc8a2aaa69be803dde038349390ab001525b809f15fde2"
     },
     {
       "path": "skills/plan/scripts/design.mjs",
-      "digest": "sha256:ab33412cab749120e07359983f85bcb64038026844c06ff9f464c4f371d6d6ca"
+      "digest": "sha256:1781d2faa70f3d0c39bedafc1e2baff09bb52047ce7e6546e373feb3c1eda7a9"
     },
     {
       "path": "skills/plan/scripts/planning-ids.mjs",
       "digest": "sha256:5962fb674a45ce1c67c0fd7aa3085151ff1c817f4004baaa865acbdff5757adb"
     },
     {
-      "path": "skills/plan/scripts/runtime/notices/entities.txt",
-      "digest": "sha256:cb1c95689d51162c6199c1e2875446ebeb81ef00a8b04ba0f1fa4bb5e89e4deb"
+      "path": "skills/plan/scripts/runtime/notices/THIRD_PARTY_NOTICES.txt",
+      "digest": "sha256:2cd156e3285240dced643f0312875a23ec3681a0492bec96591bfc36c06256b9"
     },
     {
-      "path": "skills/plan/scripts/runtime/notices/parse5.txt",
-      "digest": "sha256:9d962b98584cb78fab1a9da3337f6881035c477733420e9b1b5f69aca647ebbd"
+      "path": "skills/plan/scripts/runtime/packages/artifact/lib/artifact/ui/studio-shell.css",
+      "digest": "sha256:1a1dd09e283b5790a222160d0694e81267ee0037b280ab8960de42a8f28c961f"
     },
     {
-      "path": "skills/plan/scripts/runtime/packages/artifact/templates/artifact-review-stage.js",
-      "digest": "sha256:b6bb5676c36f45e4a9e49202424e4f9f7d65125e6ee036629dc7c0610ed74023"
+      "path": "skills/plan/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-001",
+      "digest": "sha256:dd7007ab48e823f90e89ab2028946400282689bc42b99fd8c770a9e3c82a207e"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-002",
+      "digest": "sha256:e062973ae0a83bd31b188cb373e7a65c4d34b7dcee79cf400554b880ff6db63f"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.part-003",
+      "digest": "sha256:a9e840670eba89b531b044e2405252a26b4327d350d14fa264c2ee00fe4e8a05"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.parts.json",
+      "digest": "sha256:7f5b7a8c5b5cc10f04579c84c93b7852578c65c1051b289c7ab06bbda8c57dc6"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/design/package.json",
+      "digest": "sha256:09472ea4809fc4babbae7add8ff99e6470f1f9bb65a545258bc437d02f61a308"
     },
     {
       "path": "skills/plan/scripts/runtime/packages/design/templates/studio/enhancements.css",
@@ -1104,23 +1492,59 @@
     },
     {
       "path": "skills/plan/scripts/runtime/packages/design/templates/studio/share.css",
-      "digest": "sha256:6923307acbdba81a4bcd1d24e5ed1553dc49b6f0a656222f397d36fd34afe265"
+      "digest": "sha256:c1afe8271c85ca7523aa520daf093c24a653f9fe6e08caffd56391a8b592c206"
     },
     {
       "path": "skills/plan/scripts/runtime/packages/design/templates/studio/share.js",
-      "digest": "sha256:fb84152fecc65758e999baae03472874c38c14ce98fb4dbad5c7ef67a80aad5e"
+      "digest": "sha256:3be9bf9b8810a1eed5b22f05af33721e6a50d2a814d3d4309d1592b386f80c4f"
     },
     {
       "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.css",
-      "digest": "sha256:c7c58b1602368d8a27872c7618714b9246a6bc24fb1cb513aa6ae917c2858d1e"
+      "digest": "sha256:ecb86a5f5517262f8dc71e518163ca55074404c6823d5f989edad5e9f71293af"
     },
     {
-      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js",
-      "digest": "sha256:85f8b084457aaa172025fb878b64059782cb976f72451b207c7bc40e8c982bb8"
+      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js.part-001",
+      "digest": "sha256:10c64b560b5b6056cd7433b1494ace2bde3351bbccd9a4e8810bd3822b0c82da"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js.part-002",
+      "digest": "sha256:187d37519817c3d390cdbc97379521ad349a35f61b5673803501fb91550734aa"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js.part-003",
+      "digest": "sha256:3e26d42f504b21fa3fa606e55b45a43c0e4c01e0f389bfb8e2b753644ee6061e"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js.part-004",
+      "digest": "sha256:f3b54cacf2df86cc7546bafb128a0a46b802779d63fea03d969db4346391b371"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js.part-005",
+      "digest": "sha256:3ec27695260a73ecc81503e578f230a1048459f2a1cbbe2521662ef25b6a17aa"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js.part-006",
+      "digest": "sha256:ee8d775fd0e97c74172f540c83412900b4e73a62188c23fd2b162fc0e82bbcdc"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js.part-007",
+      "digest": "sha256:3bdf4a1f9bfdc8bd12c2eec50772a32b092262834be23e93333f79bdfd41bb67"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js.part-008",
+      "digest": "sha256:2f03557f7b4bf6d5953dd06114b6dde27f49e6b4d77c812988f8b865d92f3900"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js.part-009",
+      "digest": "sha256:1b405a0f3f7da5c55b87c94e152be975a74fa9399f457141c51e9cea56d379a1"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/design/templates/studio/studio.js.parts.json",
+      "digest": "sha256:7a26637c80ef499f46d87087bf2588a82dac7c1c67163c6a657a1087760feea1"
     },
     {
       "path": "skills/plan/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:bb969da90f0482f19b3afc21b4b35e4c00efff42c69ec61d9c5c07395e2bfd69"
+      "digest": "sha256:a44b3547324fdb26d0fd1f3552edfef10385febb0a21fb7ee1859e65e80b1b78"
     },
     {
       "path": "skills/plan/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -1177,6 +1601,14 @@
     {
       "path": "skills/plan/scripts/runtime/packages/protocol/schemas/v1.14.0/artifact-theme.schema.json",
       "digest": "sha256:1742be23b045154ebb260c87edbc28c101f7c2e3ef498ddde86ee0b4ffef7b0a"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/protocol/schemas/v1.16.0/artifact-envelope.schema.json",
+      "digest": "sha256:765797b2fe12e57259b1ffdc7dc2bca3884bace5bd7badc850d6150136a3e68b"
+    },
+    {
+      "path": "skills/plan/scripts/runtime/packages/protocol/schemas/v1.16.0/design-review-bundle.schema.json",
+      "digest": "sha256:f5616731ad5bb0399514e1cd36f6ffbaf9adaa1b378107b677b857f6312dfa52"
     },
     {
       "path": "skills/plan/scripts/runtime/packages/protocol/schemas/v1.9.0/design-document.schema.json",
@@ -1248,7 +1680,7 @@
     },
     {
       "path": "skills/ship/SKILL.md",
-      "digest": "sha256:fdf8113b3f5564d5ddd5a4d93d47ec2994c3e8fefa94fa37bc1e5efbe6798c9c"
+      "digest": "sha256:feb1a5f3c34407939e652172aee2bfcc59a988d1c2d731175c5f20d38f529371"
     },
     {
       "path": "skills/spec/references/specification-contract.md",
@@ -1287,5 +1719,5 @@
       "digest": "sha256:06048f24128098919931db60272e0e14fe51bcbeba4b499db587e3b89d7bb3b9"
     }
   ],
-  "contentDigest": "sha256:6f6a89edee4d50fce3783c637e4331d5a0fdd0e6fb251ce05f725b216d879519"
+  "contentDigest": "sha256:88ec9dd1a9a0b0d558eb27bd83ae58628a251ffaa4d21e227ef4d8823ae92516"
 }
