@@ -62,5 +62,5 @@ without flagging them, or expand into unrelated product behavior.
 
 Templates and conventions ship under `${CLAUDE_PLUGIN_ROOT}/references/pipeline/stacks/backend/*.md` and
 `${CLAUDE_PLUGIN_ROOT}/references/pipeline/stacks/database/*.md`. Resolve **ActiveStackFiles**
-through the shared task-context rules; `.openplanr/stacks` overlays win on
+through the shared task-context rules; `.planr/stacks` overlays win on
 collision.
