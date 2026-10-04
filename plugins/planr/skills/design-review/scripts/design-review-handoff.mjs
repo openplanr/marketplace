@@ -19,59 +19,72 @@ import {
 import {
   DESIGN_HANDOFF_CONTENT_SCHEMA,
   DESIGN_HANDOFF_SCHEMA,
-  LOOPBACK_HOST,
-  acquireStartLock,
-  assertLoopbackRequest,
-  assertPlainData,
   assertReviewExperience,
   atomicJson,
-  canonicalizeJson,
-  closeHttpServer,
   createArtifactBridgeNonce,
   currentDesign,
-  deepFreeze,
+  designRendererRevision,
   designSpecPath,
   emptyReviewContext,
   hash,
   isCapabilityToken,
   listDesignRevisions,
-  listenLoopback,
   mintCapabilityToken,
   prepareArtifactDocument,
   readDesignRevision,
   readJson,
-  readRequestBody,
+  readRuntimeAsset,
   renderArtifactParentRuntime,
   renderDesignStudio,
   reviewDigest,
-  sha256Hex,
   standaloneDesignHtml,
   timingSafeTokenEqual
 } from "./design-document.mjs";
 import {
+  LOOPBACK_HOST,
+  acquireStartLock,
+  assertLoopbackRequest,
+  closeHttpServer,
+  listenLoopback,
+  planrHome,
+  probeLoopbackJson,
+  readPrivateJsonState,
+  readRequestBody,
+  writePrivateJsonState
+} from "./design-planr-home.mjs";
+import {
   ARTIFACT_ERROR_CODES,
+  MAX_ARTIFACT_HTML_BYTES,
   PipelineError,
   digestArtifactEnvelope,
   renderArtifactShellDocument,
+  resolveArtifactHtml,
   validateArtifactEnvelope,
-  validateArtifactReview,
-  validateJson
+  validateArtifactReview
 } from "./design-artifact-shell.mjs";
+import {
+  assertPlainData,
+  canonicalizeJson,
+  deepFreeze,
+  sha256Hex,
+  validateJson
+} from "./design-bounded-json-data.mjs";
 
 // packages/design/lib/design/review.mjs
 import { existsSync as existsSync5, readFileSync as readFileSync5 } from "node:fs";
-import { dirname as dirname5, join as join5, relative, resolve as resolve2 } from "node:path";
+import { dirname as dirname5, join as join5, relative, resolve as resolve3 } from "node:path";
 
 // packages/artifact/lib/artifact/review-server.mjs
 import { existsSync, lstatSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 var here = dirname(fileURLToPath(new URL("./runtime/packages/artifact/lib/artifact/review-server.mjs", import.meta.url).href));
 var STAGE_RUNTIME_PATH = join(here, "..", "..", "templates", "artifact-review-stage.js");
-var ARTIFACT_REVIEW_SERVER_VERSION = 1;
+var ARTIFACT_REVIEW_SERVER_VERSION = 2;
 var ARTIFACT_REVIEW_SERVER_KIND = "artifact-review";
-var ARTIFACT_REVIEW_MAX_CONTROL_BYTES = 256 * 1024 * 1024;
+var CONTROL_WINDOW_BYTES = 64 * 1024 * 1024;
+var ARTIFACT_REVIEW_MAX_CONTROL_BYTES = Math.ceil((MAX_ARTIFACT_HTML_BYTES * 2 + ARTIFACT_REVIEW_MAX_STATE_BYTES) / CONTROL_WINDOW_BYTES) * CONTROL_WINDOW_BYTES;
 var ARTIFACT_REVIEW_MAX_STATE_BYTES2 = ARTIFACT_REVIEW_MAX_STATE_BYTES;
 var SESSION_ID_BYTES = 16;
 var CONTROL_TOKEN_BYTES = 32;
@@ -79,6 +92,8 @@ var SESSION_TOKEN_BYTES = 32;
 var MAX_URL_BYTES = 4096;
 var TITLE_LIMIT = 512;
 var THEME_VALUES = /* @__PURE__ */ new Set(["auto", "light", "dark"]);
+var STUDIO_ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/u;
+var SOURCE_TRANSPORTS = /* @__PURE__ */ new Set(["blob", "srcdoc"]);
 var PARENT_CSP = [
   "default-src 'none'",
   "style-src 'unsafe-inline' data: blob:",
@@ -123,6 +138,9 @@ var PERMISSIONS_POLICY = [
 function artifactError(code, message2, fix = "", details) {
   return new PipelineError(code, message2, fix, details);
 }
+function reviewStateDir(env = process.env) {
+  return join(planrHome(env), "artifact-daemon");
+}
 function statusForError(error) {
   if (error?.code === "E_REQUEST_BODY_LIMIT" || error?.code === ARTIFACT_ERROR_CODES.REQUEST_LIMIT)
     return 413;
@@ -130,6 +148,8 @@ function statusForError(error) {
     return 403;
   if (error?.code === ARTIFACT_ERROR_CODES.LOOPBACK_STATE) return 503;
   if (error?.code === ARTIFACT_ERROR_CODES.REVIEW_WRITE) return 500;
+  if ([ARTIFACT_ERROR_CODES.STALE_REVIEW, ARTIFACT_ERROR_CODES.MERGE_CONFLICT].includes(error?.code))
+    return 409;
   if (error instanceof SyntaxError || error instanceof PipelineError) return 400;
   return 500;
 }
@@ -258,7 +278,29 @@ function normalizeRegistration(value) {
       "Artifact review storage key is invalid."
     );
   }
-  return { envelope, title: title2, theme, cwd, ...reviewKey ? { reviewKey } : {} };
+  const { studioId, sourceTransport, frameBudget } = value;
+  if (studioId !== void 0 && (typeof studioId !== "string" || !STUDIO_ID.test(studioId)))
+    throw artifactError(ARTIFACT_ERROR_CODES.REQUEST_INVALID, "Local Studio id is invalid.");
+  if (sourceTransport !== void 0 && !SOURCE_TRANSPORTS.has(sourceTransport))
+    throw artifactError(
+      ARTIFACT_ERROR_CODES.REQUEST_INVALID,
+      "Artifact source transport must be blob or srcdoc."
+    );
+  if (frameBudget !== void 0 && (!Number.isInteger(frameBudget) || frameBudget < 1 || frameBudget > 8))
+    throw artifactError(
+      ARTIFACT_ERROR_CODES.REQUEST_INVALID,
+      "Artifact frame budget must be 1 through 8."
+    );
+  return {
+    envelope,
+    title: title2,
+    theme,
+    cwd,
+    ...reviewKey ? { reviewKey } : {},
+    ...studioId ? { studioId } : {},
+    ...sourceTransport ? { sourceTransport } : {},
+    ...frameBudget === void 0 ? {} : { frameBudget }
+  };
 }
 function assertReviewStateSize(ledger) {
   const bytes = Buffer.byteLength(JSON.stringify(ledger), "utf8");
@@ -316,6 +358,11 @@ function queueSessionReviewWrite(session, review) {
   const commit = () => {
     return withArtifactReviewLock(session.reviewPath, () => {
       const durable = readArtifactReviewState(session.reviewPath, { allowMissing: true }) ?? session.reviewState;
+      if (review.reviewOf !== durable.currentReviewOf)
+        throw artifactError(
+          ARTIFACT_ERROR_CODES.STALE_REVIEW,
+          "The artifact changed. Reload before submitting feedback."
+        );
       const next = mergeReviewLedger(durable, review, { stale: false });
       assertReviewStateSize(next);
       writeArtifactReviewState(session.reviewPath, next);
@@ -351,6 +398,33 @@ function artifactFor(session, artifactId) {
 function publicBase(session) {
   return `/r/${session.id}/${session.capability}/`;
 }
+function studioBase(session) {
+  return session.studioId ? `/studio/${encodeURIComponent(session.studioId)}/` : null;
+}
+function studioCookieName(session) {
+  return `openplanr_studio_${session.id}`;
+}
+function studioCookieMatches(req, session) {
+  const name = `${studioCookieName(session)}=`;
+  const values = String(req.headers.cookie ?? "").split(";").map((value) => value.trim()).filter((value) => value.startsWith(name));
+  return values.length === 1 && sessionMatches(session, values[0].slice(name.length));
+}
+function escapeHtml(value) {
+  return String(value).replace(
+    /[&<>"']/gu,
+    (character) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    })[character]
+  );
+}
+function renderStudioSelection(sessions) {
+  const links = sessions.map((session) => `<li><a href="${studioBase(session)}">${escapeHtml(session.title)}</a></li>`).join("");
+  return `<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>OpenPlanr Studio</title><style>body{font:16px system-ui;margin:48px;max-width:720px;color:#172a2a;background:#f6f9f8}a{color:#16776f}li{margin:16px 0}</style><h1>OpenPlanr Studio</h1><p>Choose an open design.</p><ul>${links}</ul></html>`;
+}
 function shellEnvelope(session) {
   const candidates = session.reviewState.reviews.filter(
     (entry) => !entry.stale && entry.review.reviewOf === session.reviewState.currentReviewOf
@@ -362,6 +436,7 @@ function shellEnvelope(session) {
   const review = candidates.at(-1);
   return {
     schemaVersion: session.envelope.schemaVersion,
+    ...session.envelope.sources ? { sources: session.envelope.sources } : {},
     artifacts: session.envelope.artifacts,
     viewer: session.envelope.viewer,
     ...review ? { review } : {}
@@ -385,7 +460,8 @@ function createArtifactReviewServer({
   renderRuntime,
   handleSessionRequest,
   refreshSession,
-  prepareSource
+  prepareSource,
+  serverMetadata
 } = {}) {
   if (!isCapabilityToken(controlToken, { bytes: CONTROL_TOKEN_BYTES })) {
     throw artifactError(
@@ -399,7 +475,12 @@ function createArtifactReviewServer({
       "Artifact review instance id is invalid."
     );
   }
+  if (serverMetadata !== void 0 && (!serverMetadata || !["artifact", "design", "diagram"].includes(serverMetadata.kind) || typeof serverMetadata.projectRoot !== "string" || !isAbsolute(serverMetadata.projectRoot)))
+    throw artifactError(ARTIFACT_ERROR_CODES.LOOPBACK_STATE, "Local server metadata is invalid.");
+  const instanceStatePath = serverMetadata ? join(reviewStateDir(env), `instance-${instanceId}.json`) : null;
   const sessions = /* @__PURE__ */ new Map();
+  const pendingStudioIds = /* @__PURE__ */ new Set();
+  const pendingMutations = /* @__PURE__ */ new Set();
   const ownerSessions = /* @__PURE__ */ new Map();
   let port = null;
   let closePromise = null;
@@ -407,7 +488,7 @@ function createArtifactReviewServer({
   let activeRequests = 0;
   let draining = false;
   let emptyTimer = null;
-  const stageRuntime = () => readFileSync(STAGE_RUNTIME_PATH, "utf8");
+  const stageRuntime = () => readRuntimeAsset(STAGE_RUNTIME_PATH).toString("utf8");
   const idle = () => sessions.size === 0 && ownerSessions.size === 0 && pendingRegistrations === 0 && activeRequests === 0;
   const scheduleEmpty = () => {
     if (emptyTimer || draining || typeof onEmpty !== "function") return;
@@ -425,6 +506,7 @@ function createArtifactReviewServer({
   const server = createServer(async (req, res) => {
     activeRequests += 1;
     let requestFinished = false;
+    let finishMutation;
     const finishRequest = () => {
       if (requestFinished) return;
       requestFinished = true;
@@ -437,10 +519,14 @@ function createArtifactReviewServer({
     try {
       if (port === null)
         throw artifactError(ARTIFACT_ERROR_CODES.LOOPBACK_STATE, "Artifact server is not ready.");
-      const { segments, trailingSlash } = parseRequestPath(req.url);
+      let { segments, trailingSlash } = parseRequestPath(req.url);
       const internal = segments[0] === "internal";
       const mutating = ["POST", "PUT", "PATCH", "DELETE"].includes(req.method);
-      assertLoopbackRequest(req, { port, mutating, internal });
+      const { expectedOrigin: parentOrigin } = assertLoopbackRequest(req, {
+        port,
+        mutating,
+        internal
+      });
       if (req.method === "GET" && segments.length === 1 && segments[0] === "health") {
         sendJson(res, 200, serverHealth(instanceId), { head });
         return;
@@ -448,6 +534,15 @@ function createArtifactReviewServer({
       if (internal) {
         if (!timingSafeTokenEqual(bearerToken(req), controlToken)) {
           sendJson(res, 403, { ok: false, error: "forbidden" });
+          return;
+        }
+        if (req.method === "POST" && segments.join("/") === "internal/v1/shutdown") {
+          draining = true;
+          sendJson(res, 200, { ok: true, instanceId, status: "stopping" });
+          queueMicrotask(() => {
+            controller.close().catch(() => {
+            });
+          });
           return;
         }
         if (req.method === "POST" && segments.join("/") === "internal/v1/sessions") {
@@ -464,6 +559,7 @@ function createArtifactReviewServer({
             );
           }
           pendingRegistrations += 1;
+          let pendingStudioId;
           try {
             let body;
             try {
@@ -484,8 +580,24 @@ function createArtifactReviewServer({
                 "Artifact review server is restarting."
               );
             }
+            if (registration.studioId && (pendingStudioIds.has(registration.studioId) || [...sessions.values()].some(
+              (session3) => session3.studioId === registration.studioId
+            )))
+              throw artifactError(
+                ARTIFACT_ERROR_CODES.MERGE_CONFLICT,
+                "This local Studio is already open. Reuse its URL or close it before starting another session."
+              );
+            if (registration.studioId) {
+              pendingStudioId = registration.studioId;
+              pendingStudioIds.add(pendingStudioId);
+            }
             const id2 = mintCapabilityToken({ bytes: SESSION_ID_BYTES });
             const reviewState2 = await initializeSessionReview(registration, env);
+            if (draining)
+              throw artifactError(
+                ARTIFACT_ERROR_CODES.LOOPBACK_STATE,
+                "Artifact review server is restarting."
+              );
             const session2 = {
               ...registration,
               id: id2,
@@ -501,9 +613,11 @@ function createArtifactReviewServer({
               ok: true,
               sessionId: id2,
               capability: session2.capability,
-              path: publicBase(session2)
+              path: publicBase(session2),
+              ...session2.studioId ? { studioPath: studioBase(session2) } : {}
             });
           } finally {
+            if (pendingStudioId) pendingStudioIds.delete(pendingStudioId);
             pendingRegistrations -= 1;
           }
           return;
@@ -561,6 +675,60 @@ function createArtifactReviewServer({
         notFound(res, { head });
         return;
       }
+      const studios = [...sessions.values()].filter((session2) => session2.studioId);
+      if (segments.length === 0 && studios.length && ["GET", "HEAD"].includes(req.method)) {
+        send(res, 303, "", { location: "/studio" }, { head });
+        return;
+      }
+      let studioSession = null;
+      if (segments[0] === "studio") {
+        if (!["GET", "HEAD"].includes(req.method) && segments.length < 3) {
+          notFound(res, { head });
+          return;
+        }
+        if (segments.length === 1 && ["GET", "HEAD"].includes(req.method)) {
+          if (studios.length === 1)
+            send(res, 303, "", { location: studioBase(studios[0]) }, { head });
+          else if (studios.length > 1)
+            send(
+              res,
+              200,
+              renderStudioSelection(studios),
+              {
+                ...parentHeaders(),
+                "content-type": "text/html; charset=utf-8"
+              },
+              { head }
+            );
+          else notFound(res, { head });
+          return;
+        }
+        studioSession = studios.find((session2) => session2.studioId === segments[1]);
+        if (!studioSession || draining) {
+          notFound(res, { head });
+          return;
+        }
+        const base2 = studioBase(studioSession);
+        if (segments.length === 2 && ["GET", "HEAD"].includes(req.method)) {
+          if (!trailingSlash) {
+            send(res, 308, "", { location: base2 }, { head });
+            return;
+          }
+          const destination = String(req.headers["sec-fetch-dest"] ?? "").toLowerCase();
+          if (destination && destination !== "document") {
+            notFound(res, { head });
+            return;
+          }
+          res.setHeader(
+            "set-cookie",
+            `${studioCookieName(studioSession)}=${studioSession.capability}; Path=${base2}; HttpOnly; SameSite=Strict`
+          );
+        } else if (!studioCookieMatches(req, studioSession)) {
+          notFound(res, { head });
+          return;
+        }
+        segments = ["r", studioSession.id, studioSession.capability, ...segments.slice(2)];
+      }
       if (segments[0] === "o") {
         const owner = safeSessionId(segments[1]) && ownerSessions.get(segments[1]);
         if (draining || !sessionMatches(owner, segments[2])) {
@@ -595,9 +763,10 @@ function createArtifactReviewServer({
           const mediaTypes = {
             document: "text/html",
             runtime: "text/javascript",
-            stylesheet: "text/css"
+            stylesheet: "text/css",
+            font: "font/ttf"
           };
-          if (!Object.hasOwn(mediaTypes, response.asset) || typeof response.body !== "string")
+          if (!Object.hasOwn(mediaTypes, response.asset) || (response.asset === "font" ? !Buffer.isBuffer(response.body) : typeof response.body !== "string"))
             throw new Error("Invalid owner asset response.");
           send(
             res,
@@ -605,7 +774,7 @@ function createArtifactReviewServer({
             response.body,
             {
               ...parentHeaders(),
-              "content-type": `${mediaTypes[response.asset]}; charset=utf-8`,
+              "content-type": response.asset === "font" ? mediaTypes.font : `${mediaTypes[response.asset]}; charset=utf-8`,
               "content-security-policy": "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
             },
             { head }
@@ -638,8 +807,18 @@ function createArtifactReviewServer({
         notFound(res, { head });
         return;
       }
-      const base = publicBase(session);
-      const parentOrigin = `http://${LOOPBACK_HOST}:${port}`;
+      if (mutating) {
+        let complete;
+        const pending = new Promise((resolveMutation) => {
+          complete = resolveMutation;
+        });
+        pendingMutations.add(pending);
+        finishMutation = () => {
+          pendingMutations.delete(pending);
+          complete();
+        };
+      }
+      const base = studioSession ? studioBase(session) : publicBase(session);
       await refreshSession?.(session);
       if (await handleSessionRequest?.({ req, res, session, base, segments, head })) return;
       if (segments.length === 5 && segments[3] === "api" && segments[4] === "review") {
@@ -739,9 +918,15 @@ function createArtifactReviewServer({
       }
       if (segments.length === 4 && segments[3] === "runtime.js") {
         const options = {
-          artifactBaseUrl: `${base}artifacts/`,
+          // Sources retain credential-free capability requests on both routes.
+          artifactBaseUrl: `${publicBase(session)}artifacts/`,
           stageRuntimeUrl: `${base}stage.js`,
-          nonce: session.bridgeNonce
+          nonce: session.bridgeNonce,
+          parentOrigin,
+          // Opaque srcdoc inherits the parent URL as baseURI. Keep capability
+          // URLs on blob transport so authored source cannot read that URL.
+          ...session.sourceTransport ? { sourceTransport: studioSession ? session.sourceTransport : "blob" } : {},
+          ...session.frameBudget === void 0 ? {} : { frameBudget: session.frameBudget }
         };
         const runtime = renderRuntime ? await renderRuntime({ options, session, base }) : renderArtifactParentRuntime(options);
         send(
@@ -783,7 +968,7 @@ function createArtifactReviewServer({
           return;
         }
         const sourceOptions = {
-          html: artifact.html,
+          html: resolveArtifactHtml(session.envelope, artifact),
           artifactId: artifact.id,
           nonce: session.bridgeNonce,
           parentOrigin
@@ -814,13 +999,15 @@ function createArtifactReviewServer({
       const status = statusForError(error);
       const value = error instanceof PipelineError ? error.toJSON() : { ok: false, error: status === 500 ? "internal error" : error.message };
       sendJson(res, status, value, { head });
+    } finally {
+      finishMutation?.();
     }
   });
   server.maxHeadersCount = 64;
   server.headersTimeout = 5e3;
   server.requestTimeout = 15e3;
   server.keepAliveTimeout = 2e3;
-  return Object.freeze({
+  const controller = Object.freeze({
     server,
     controlToken,
     instanceId,
@@ -869,6 +1056,27 @@ function createArtifactReviewServer({
     async listen(requestedPort = 0) {
       if (port !== null) return port;
       port = await listenLoopback(server, requestedPort);
+      if (instanceStatePath) {
+        try {
+          writePrivateJsonState(instanceStatePath, {
+            schemaVersion: "1.0.0",
+            kind: ARTIFACT_REVIEW_SERVER_KIND,
+            serverVersion: ARTIFACT_REVIEW_SERVER_VERSION,
+            pid: process.pid,
+            port,
+            instanceId,
+            controlToken,
+            startedAt: (/* @__PURE__ */ new Date()).toISOString(),
+            serviceKind: serverMetadata.kind,
+            projectRoot: serverMetadata.projectRoot,
+            ...serverMetadata.kind === "design" ? { url: `http://${LOOPBACK_HOST}:${port}/studio` } : {}
+          });
+        } catch (error) {
+          await closeHttpServer(server);
+          port = null;
+          throw error;
+        }
+      }
       return port;
     },
     async close() {
@@ -877,15 +1085,113 @@ function createArtifactReviewServer({
       if (emptyTimer) clearTimeout(emptyTimer);
       emptyTimer = null;
       closePromise = (async () => {
+        const pendingReviews = [
+          ...pendingMutations,
+          ...[...sessions.values()].map((session) => session.writeQueue)
+        ];
         sessions.clear();
         const pendingOwners = [...ownerSessions.values()].flatMap((owner) => [...owner.pending]);
         ownerSessions.clear();
-        await Promise.allSettled(pendingOwners);
+        await Promise.allSettled([...pendingReviews, ...pendingOwners]);
         await closeHttpServer(server);
+        if (instanceStatePath) {
+          const state = readReviewServerState(instanceStatePath);
+          if (state?.instanceId === instanceId && timingSafeTokenEqual(state.controlToken, controlToken))
+            rmSync(instanceStatePath, { force: true });
+        }
       })();
       return closePromise;
     }
   });
+  return controller;
+}
+function validState(value, requestedPort, { allowLegacy = false } = {}) {
+  return value?.schemaVersion === "1.0.0" && value.kind === ARTIFACT_REVIEW_SERVER_KIND && (value.serverVersion === ARTIFACT_REVIEW_SERVER_VERSION || allowLegacy && value.serverVersion === 1) && Number.isInteger(value.pid) && value.pid > 0 && Number.isInteger(value.port) && value.port > 0 && value.port <= 65535 && (requestedPort === 0 || value.port === requestedPort) && isCapabilityToken(value.instanceId, { bytes: SESSION_ID_BYTES }) && isCapabilityToken(value.controlToken, { bytes: CONTROL_TOKEN_BYTES });
+}
+function readReviewServerState(path) {
+  try {
+    const state = readPrivateJsonState(path);
+    if (state !== null && !validState(state, 0, { allowLegacy: true })) throw new Error();
+    return state;
+  } catch {
+    throw artifactError(
+      ARTIFACT_ERROR_CODES.LOOPBACK_STATE,
+      "Local Studio owner state is unsafe or malformed. The original record was preserved.",
+      "Run planr doctor and recover the owner record before starting or stopping this service."
+    );
+  }
+}
+async function stateIsHealthy(state, fetchImpl, { allowLegacy = false } = {}) {
+  if (!validState(state, 0, { allowLegacy })) return false;
+  const health = await probeLoopbackJson(state.port, "/health", { fetchImpl });
+  return health?.ok === true && health.kind === ARTIFACT_REVIEW_SERVER_KIND && health.version === state.serverVersion && health.pid === state.pid && health.instanceId === state.instanceId;
+}
+async function controlRequest(descriptor, path, { method, body, fetchImpl } = {}) {
+  const response = await fetchImpl(`http://${LOOPBACK_HOST}:${descriptor.state.port}${path}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${descriptor.state.controlToken}`,
+      ...body === void 0 ? {} : { "content-type": "application/json" }
+    },
+    ...body === void 0 ? {} : { body: JSON.stringify(body) },
+    signal: AbortSignal.timeout(15e3)
+  });
+  const value = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw artifactError(
+      value.code ?? ARTIFACT_ERROR_CODES.LOOPBACK_STATE,
+      value.problem ?? value.error ?? `Artifact review control request failed with HTTP ${response.status}.`
+    );
+  }
+  return value;
+}
+async function discoveredArtifactServers({ env, fetchImpl }) {
+  let names;
+  try {
+    names = readdirSync(reviewStateDir(env));
+  } catch (error) {
+    if (error.code === "ENOENT") return [];
+    throw error;
+  }
+  const live = /* @__PURE__ */ new Map();
+  for (const name of names.sort()) {
+    if (!/^(?:instance-[A-Za-z0-9_-]{22}|state-(?:default|\d+))\.json$/u.test(name)) continue;
+    const path = join(reviewStateDir(env), name);
+    const state = readReviewServerState(path);
+    if (!validState(state, 0) || !await stateIsHealthy(state, fetchImpl)) continue;
+    if (!live.has(state.instanceId) || name.startsWith("instance-"))
+      live.set(state.instanceId, state);
+  }
+  return [...live.values()];
+}
+async function listArtifactReviewServers({ env = process.env, fetchImpl = fetch } = {}) {
+  const servers = await discoveredArtifactServers({ env, fetchImpl });
+  return servers.map(({ instanceId, pid, port, startedAt, serviceKind, projectRoot: projectRoot2, url }) => ({
+    instanceId,
+    pid,
+    port,
+    startedAt,
+    kind: serviceKind ?? "artifact",
+    ...projectRoot2 ? { projectRoot: projectRoot2 } : {},
+    ...url ? { url } : {},
+    status: "running"
+  }));
+}
+async function stopArtifactReviewServer(instanceId, { env = process.env, fetchImpl = fetch } = {}) {
+  if (!safeSessionId(instanceId))
+    throw artifactError(
+      ARTIFACT_ERROR_CODES.SESSION_NOT_FOUND,
+      "Local Studio service was not found."
+    );
+  const states = await discoveredArtifactServers({ env, fetchImpl });
+  const state = states.find((value) => value.instanceId === instanceId);
+  if (!state)
+    throw artifactError(
+      ARTIFACT_ERROR_CODES.SESSION_NOT_FOUND,
+      "Local Studio service is stopped or unavailable.",
+      "Open the design again to start a new service."
+    );
+  return controlRequest({ state }, "/internal/v1/shutdown", { method: "POST", fetchImpl });
 }
 
 // packages/protocol/src/design-handoff-contracts.mjs
@@ -2412,7 +2718,7 @@ import {
   rmSync as rmSync2,
   writeFileSync as writeFileSync2
 } from "node:fs";
-import { dirname as dirname3, join as join3, resolve, sep } from "node:path";
+import { dirname as dirname3, join as join3, resolve as resolve2, sep } from "node:path";
 
 // packages/design/lib/design/implementation-handoff-markdown.mjs
 var line = (value) => String(value).replaceAll("\r\n", "\n").replaceAll("\r", "\n").trim().replaceAll("\n", " ").replace(/([\\`*_[\]<>#|])/gu, "\\$1");
@@ -2653,11 +2959,11 @@ function discoverAnchor(bytes, anchor2) {
   return [anchor2, anchor2];
 }
 function createRepositorySourceResolver(root) {
-  const canonicalRoot = realpathSync(resolve(root));
+  const canonicalRoot = realpathSync(resolve2(root));
   return (path, source) => {
     if (!isDesignHandoffRelativePath(path))
       throw new TypeError("Implementation source path is not repository-relative.");
-    const candidate = realpathSync(resolve(canonicalRoot, path));
+    const candidate = realpathSync(resolve2(canonicalRoot, path));
     if (candidate !== canonicalRoot && !candidate.startsWith(`${canonicalRoot}${sep}`))
       throw new TypeError("Implementation source resolves outside the repository root.");
     const bytes = readFileSync3(candidate);
@@ -2665,7 +2971,7 @@ function createRepositorySourceResolver(root) {
   };
 }
 function implementationHandoffPaths(root) {
-  const directory = join3(resolve(root), "implementation-handoff");
+  const directory = join3(resolve2(root), "implementation-handoff");
   return Object.freeze({
     directory,
     draftJson: join3(directory, "draft.json"),
@@ -3558,7 +3864,39 @@ ${fence}`;
 var { createDesignReviewExport, serializeDesignReviewExport } = reviewExportTools();
 
 // packages/design/lib/design/review.mjs
-var VERSION = "1.3.0";
+var VERSION = "1.4.0";
+var PACKAGE_VERSION = JSON.parse(
+  readFileSync5(new URL("../../package.json", new URL("./runtime/packages/design/lib/design/review.mjs", import.meta.url).href), "utf8")
+).version;
+var MODULE_IDENTITY = hash(
+  JSON.stringify({
+    version: VERSION,
+    renderer: designRendererRevision(),
+    implementation: [
+      startDesignReviewUnlocked,
+      studioRuntimeIdentity,
+      renderDesignStudio,
+      renderArtifactParentRuntime,
+      prepareArtifactDocument,
+      digestArtifactEnvelope,
+      resolveArtifactHtml
+    ].map((implementation) => hash(Function.prototype.toString.call(implementation)))
+  })
+);
+function studioRuntimeIdentity(current) {
+  return {
+    packageVersion: PACKAGE_VERSION,
+    moduleIdentity: MODULE_IDENTITY,
+    rendererIdentity: current.rendererRevision,
+    revision: current.revision,
+    artifactDigest: digestArtifactEnvelope(current.envelope),
+    sourceHash: hash(
+      JSON.stringify(
+        (current.envelope.sources ?? current.envelope.artifacts).map(({ id: id2, sha256: sha2562 }) => [id2, sha2562]).sort(([a], [b]) => a.localeCompare(b))
+      )
+    )
+  };
+}
 var designReviewKey = (document) => `design-${hash(document.id).slice(0, 24)}`;
 function designReviewPath(file, env = process.env) {
   const { root, document } = currentDesign(file);
@@ -3684,6 +4022,7 @@ function validateState(value, current) {
     "compare",
     "navOpen",
     "reviewOpen",
+    "inspectionScale",
     "zoom",
     "camera",
     "viewports",
@@ -3703,6 +4042,8 @@ function validateState(value, current) {
     throw new Error("Unknown studio screen.");
   if (value.frameId && !current.document.frames.some((item) => item.id === value.frameId))
     throw new Error("Unknown studio frame.");
+  if (value.inspectionScale !== void 0 && !["fit", "actual"].includes(value.inspectionScale))
+    throw new Error("Unknown inspection scale.");
   for (const key of ["navOpen", "reviewOpen"])
     if (value[key] !== void 0 && typeof value[key] !== "boolean")
       throw new Error("Studio panels must use boolean visibility state.");
@@ -3774,7 +4115,7 @@ function proposeImplementationPackage(file, env) {
   const paths = [
     .../* @__PURE__ */ new Set([
       designSpecPath(current.root),
-      ...(current.sourceFiles ?? []).map((path) => resolve2(current.root, path))
+      ...(current.sourceFiles ?? []).map((path) => resolve3(current.root, path))
     ])
   ].filter((path) => existsSync5(path));
   const sources = paths.map((path, index) => {
@@ -3789,7 +4130,7 @@ function proposeImplementationPackage(file, env) {
     };
   });
   const sourceByPath = new Map(sources.map((source) => [source.path, source.id]));
-  const sourceId = (path) => sourceByPath.get(relative(repository, resolve2(current.root, path)).replaceAll("\\", "/"));
+  const sourceId = (path) => sourceByPath.get(relative(repository, resolve3(current.root, path)).replaceAll("\\", "/"));
   const selected = current.document.variants.find(
     (variant) => variant.id === current.document.selectedVariant
   );
@@ -3913,12 +4254,15 @@ async function startDesignReviewUnlocked(file, {
   env = process.env,
   noOpen = true,
   view,
+  sourceTransport = "srcdoc",
+  frameBudget = 3,
   openUrl,
   fetchImpl = fetch,
   clock = () => /* @__PURE__ */ new Date()
 } = {}) {
   let current = currentDesign(file);
-  if (view !== void 0) {
+  const applyInitialView = async () => {
+    if (view === void 0) return;
     const saved = readJson(join5(current.root, ".design/studio-state.json"), {
       state: {},
       stateVersion: 0
@@ -3928,33 +4272,62 @@ async function startDesignReviewUnlocked(file, {
       revision: current.revision,
       state: { ...saved.state, view }
     });
-  }
+  };
   const stateFile = join5(current.root, ".design/server.json");
   const old = readJson(stateFile, null);
-  if (old?.version === VERSION && old.url && /^http:\/\/127\.0\.0\.1:\d+\/r\//u.test(old.url)) {
+  const services = (await listArtifactReviewServers({ env, fetchImpl })).filter(
+    (service) => service.kind === "design" && service.projectRoot === current.root
+  );
+  if (old?.url && /^http:\/\/127\.0\.0\.1:\d+\/r\//u.test(old.url)) {
+    let observed;
     try {
       const status = await fetchImpl(`${old.url}api/design-status`, {
         signal: AbortSignal.timeout(700)
       });
       const data = await status.json();
-      if (status.ok && data.documentId === current.document.id && (!port || new URL(old.url).port === String(port))) {
-        if (!noOpen) await openUrl?.(old.url);
-        return {
-          ok: true,
-          url: old.url,
-          sessionId: old.sessionId,
-          reused: true,
-          status: "loading",
-          revision: current.revision,
-          reviewPath: designReviewPath(file, env)
-        };
-      }
+      if (status.ok && data.documentId === current.document.id) observed = data;
     } catch {
     }
+    if (observed) {
+      const owned = services.find(
+        (service) => service.kind === "design" && service.projectRoot === current.root && service.instanceId === old.instanceId && service.pid === old.pid && service.port === Number(new URL(old.url).port)
+      );
+      if (!owned)
+        throw new PipelineError(
+          ARTIFACT_ERROR_CODES.LOOPBACK_STATE,
+          "Studio is running outside the current state directory. Stop it from its original session or PLANR_HOME before opening it here."
+        );
+      if (old.version !== VERSION || port && owned.port !== port || old.sourceTransport !== sourceTransport || old.frameBudget !== frameBudget || Object.entries(studioRuntimeIdentity(current)).some(
+        ([key, value]) => observed.runtimeIdentity?.[key] !== value
+      ))
+        throw new PipelineError(
+          ARTIFACT_ERROR_CODES.LOOPBACK_STATE,
+          "Studio is already running with different settings or runtime. Stop this design\u2019s Studio, then open it again with the new settings."
+        );
+      await applyInitialView();
+      if (!noOpen) await openUrl?.(old.studioUrl ?? old.url);
+      return {
+        ok: true,
+        url: old.studioUrl ?? old.url,
+        sessionId: old.sessionId,
+        instanceId: old.instanceId,
+        reused: true,
+        status: observed.status,
+        revision: current.revision,
+        reviewPath: designReviewPath(file, env)
+      };
+    }
   }
+  if (services.length)
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.LOOPBACK_STATE,
+      "Studio is still running, but its saved session link is unavailable. Stop this design\u2019s owned Studio service, then open it again."
+    );
+  await applyInitialView();
   let server;
   server = createArtifactReviewServer({
     env,
+    serverMetadata: { kind: "design", projectRoot: current.root },
     prepareSource: (options) => prepareArtifactDocument({ ...options, allowLocalForms: true }),
     async refreshSession(session) {
       current = currentDesign(file);
@@ -3991,6 +4364,10 @@ async function startDesignReviewUnlocked(file, {
     },
     renderRuntime({ options, base }) {
       const settings = {
+        runtimeIdentity: {
+          ...studioRuntimeIdentity(current),
+          launchContext: base.startsWith("/studio/") ? "local Studio" : "private review"
+        },
         stateUrl: `${base}api/design-state`,
         statusUrl: `${base}api/design-status`,
         readyUrl: `${base}api/design-ready`,
@@ -4002,7 +4379,7 @@ async function startDesignReviewUnlocked(file, {
         revisionsUrl: `${base}api/design-revisions`,
         reviewExportUrl: `${base}api/design-feedback-export`
       };
-      return `globalThis.__OPENPLANR_DESIGN_STUDIO_OPTIONS__={...${JSON.stringify(settings)},loadReviewExport:async({scope="all"}={})=>{const r=await fetch(${JSON.stringify(`${base}api/design-feedback-export`)},{method:"POST",headers:{"content-type":"application/json","x-openplanr-design":"1"},body:JSON.stringify({scope})});const value=await r.json();if(!r.ok)throw new Error(value.error||"Review export unavailable");return value},loadExperience:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-experience`)});if(!r.ok)throw new Error("Review context unavailable");return r.json()},loadReadiness:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-handoff-readiness`)});const value=await r.json();if(!r.ok)throw new Error(value.error||"Handoff readiness unavailable");return value},loadHandoff:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-handoff`)});if(!r.ok)throw new Error("Handoff unavailable");return r.json()},updateHandoff:async(input)=>{const r=await fetch(${JSON.stringify(`${base}api/design-handoff`)},{method:"POST",headers:{"content-type":"application/json","x-openplanr-design":"1"},body:JSON.stringify(input)});const value=await r.json();if(!r.ok)throw new Error(value.error||"Could not update handoff");return value},loadImplementationHandoff:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-implementation-handoff`)});const value=await r.json();if(!r.ok)throw new Error(value.error||"Implementation package unavailable");return value},updateImplementationHandoff:async(input)=>{const r=await fetch(${JSON.stringify(`${base}api/design-implementation-handoff`)},{method:"POST",headers:{"content-type":"application/json","x-openplanr-design":"1"},body:JSON.stringify(input)});const value=await r.json();if(!r.ok)throw new Error(value.error||"Could not update implementation package");return value},listRevisions:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-revisions`)});if(!r.ok)throw new Error("Revision history unavailable");return r.json()},loadRevision:async(revision)=>{const r=await fetch(${JSON.stringify(`${base}api/design-revisions`)},{method:"POST",headers:{"content-type":"application/json","x-openplanr-design":"1"},body:JSON.stringify({revision})});if(!r.ok)throw new Error("Revision unavailable");return r.json()},exportHtml:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-export`)});if(!r.ok)throw new Error('Export failed');return r.text()}};
+      return `globalThis.__OPENPLANR_DESIGN_STUDIO_OPTIONS__={...${JSON.stringify(settings)},loadReviewExport:async({scope="all"}={})=>{const r=await fetch(${JSON.stringify(`${base}api/design-feedback-export`)},{method:"POST",headers:{"content-type":"application/json","x-openplanr-design":"1"},body:JSON.stringify({scope})});const value=await r.json();if(!r.ok)throw new Error(value.error||"Review export unavailable");return value},loadExperience:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-experience`)});if(!r.ok)throw new Error("Review context unavailable");return r.json()},loadReadiness:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-handoff-readiness`)});const value=await r.json();if(!r.ok)throw new Error(value.error||"Handoff readiness unavailable");return value},loadHandoff:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-handoff`)});if(!r.ok)throw new Error("Handoff unavailable");return r.json()},updateHandoff:async(input)=>{const r=await fetch(${JSON.stringify(`${base}api/design-handoff`)},{method:"POST",headers:{"content-type":"application/json","x-openplanr-design":"1"},body:JSON.stringify(input)});const value=await r.json();if(!r.ok)throw new Error(value.error||"Could not update handoff");return value},loadImplementationHandoff:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-implementation-handoff`)});const value=await r.json();if(!r.ok)throw new Error(value.error||"Implementation package unavailable");return value},updateImplementationHandoff:async(input)=>{const r=await fetch(${JSON.stringify(`${base}api/design-implementation-handoff`)},{method:"POST",headers:{"content-type":"application/json","x-openplanr-design":"1"},body:JSON.stringify(input)});const value=await r.json();if(!r.ok)throw new Error(value.error||"Could not update implementation package");return value},listRevisions:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-revisions`)});if(!r.ok)throw new Error("Revision history unavailable");return r.json()},loadRevision:async(revision,{artifactIds}={})=>{const r=await fetch(${JSON.stringify(`${base}api/design-revisions`)},{method:"POST",headers:{"content-type":"application/json","x-openplanr-design":"1"},body:JSON.stringify({revision,...(artifactIds?{artifactIds}:{})})});if(!r.ok)throw new Error("Revision unavailable");return r.json()},exportHtml:async()=>{const r=await fetch(${JSON.stringify(`${base}api/design-export`)});if(!r.ok)throw new Error('Export failed');return r.text()}};
 ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/design-share-runtime` })}`;
     },
     async handleSessionRequest({ req, res, segments }) {
@@ -4180,12 +4557,19 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
             await syncDesignShare(file, { env, fetchImpl });
             respond(res, 200, exportDesignReview(file, { scope: input.scope ?? "all", env }));
           } else {
+            if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((key) => !["revision", "artifactIds"].includes(key)) || input.artifactIds !== void 0 && (!Array.isArray(input.artifactIds) || input.artifactIds.length < 1 || input.artifactIds.length > 2 || input.artifactIds.some((id2) => typeof id2 !== "string") || new Set(input.artifactIds).size !== input.artifactIds.length))
+              throw new Error("Revision comparison requires one or two distinct view IDs.");
             const bundle = readDesignRevision(file, input.revision);
+            const artifacts = (input.artifactIds ?? []).map((id2) => {
+              const artifact = bundle.envelope.artifacts.find((item) => item.id === id2);
+              if (!artifact) throw new Error("Comparison view does not belong to this revision.");
+              return artifact;
+            });
             const comparisonSources = Object.fromEntries(
-              bundle.envelope.artifacts.map((artifact) => [
+              artifacts.map((artifact) => [
                 artifact.id,
                 prepareArtifactDocument({
-                  html: artifact.html,
+                  html: resolveArtifactHtml(bundle.envelope, artifact),
                   artifactId: artifact.id,
                   nonce: createArtifactBridgeNonce(),
                   parentOrigin: `http://127.0.0.1:${server.port}`,
@@ -4194,7 +4578,11 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
                 }).html
               ])
             );
-            respond(res, 200, { ...bundle, comparisonSources });
+            respond(
+              res,
+              200,
+              input.artifactIds ? { revision: bundle.revision, comparisonSources } : { ...bundle, comparisonSources }
+            );
           }
         } else if (route === "design-share-runtime" && req.method === "GET") {
           res.writeHead(200, {
@@ -4241,7 +4629,8 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
             documentId: current.document.id,
             revision: current.revision,
             status: ready?.revision === current.revision ? ready.status : "loading",
-            verification: current.verification.status
+            verification: current.verification.status,
+            runtimeIdentity: studioRuntimeIdentity(current)
           });
         } else if (route === "design-state" && req.method === "GET") {
           respond(res, 200, {
@@ -4255,11 +4644,14 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           respond(res, 200, await saveDesignState(file, await readBody(req)));
         } else if (route === "design-ready" && req.method === "POST") {
           const value = await readBody(req);
-          if (value.revision !== current.revision || value.status !== "ready" || !Array.isArray(value.artifacts) || current.entries.some((entry) => !value.artifacts.includes(entry.artifactId)))
-            throw new Error("Browser readiness does not cover every expected design artboard.");
+          const loadedArtifacts = new Set(Array.isArray(value?.artifacts) ? value.artifacts : []);
+          if (value.revision !== current.revision || value.status !== "ready" || !Array.isArray(value.artifacts) || value.artifacts.length === 0 || loadedArtifacts.size !== value.artifacts.length || value.artifacts.some((id2) => !current.entries.some((entry) => entry.artifactId === id2)))
+            throw new Error("Browser readiness must identify loaded design artboards.");
           atomicJson(join5(current.root, ".design/browser-ready.json"), {
             status: "ready",
             revision: current.revision,
+            artifacts: value.artifacts,
+            coverage: current.entries.every((entry) => loadedArtifacts.has(entry.artifactId)) ? "complete" : "selected",
             checkedAt: (/* @__PURE__ */ new Date()).toISOString()
           });
           respond(res, 200, { ok: true });
@@ -4305,26 +4697,35 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
         envelope: current.envelope,
         title: current.document.title,
         cwd: current.root,
-        reviewKey: designReviewKey(current.document)
+        reviewKey: designReviewKey(current.document),
+        studioId: current.document.id,
+        sourceTransport,
+        frameBudget
       })
     });
     const registration = await registered.json();
     if (!registered.ok)
       throw new Error(`Design review registration failed: ${JSON.stringify(registration)}`);
     const url = `${origin}${registration.path}`;
+    const studioUrl = `${origin}${registration.studioPath}`;
     if (!(await fetchImpl(url)).ok) throw new Error("Design studio document failed to load.");
     atomicJson(stateFile, {
       version: VERSION,
       url,
+      studioUrl,
+      sourceTransport,
+      frameBudget,
       sessionId: registration.sessionId,
       pid: process.pid,
-      instanceId: server.instanceId
+      instanceId: server.instanceId,
+      runtimeIdentity: studioRuntimeIdentity(current)
     });
-    if (!noOpen) await openUrl?.(url);
+    if (!noOpen) await openUrl?.(studioUrl);
     return {
       ok: true,
-      url,
+      url: studioUrl,
       sessionId: registration.sessionId,
+      instanceId: server.instanceId,
       status: "loading",
       revision: current.revision,
       reviewPath: designReviewPath(file, env),
@@ -4357,7 +4758,9 @@ async function resolveDesignPins(file, { pinIds, summary, env = process.env }) {
               ARTIFACT_ERROR_CODES.STALE_REVIEW,
               `Pin ${pin.id} has no current screen. Keep it stale until explicitly mapped.`
             );
-          if (pin.anchor?.planrId && !artifact.html.includes(`data-planr-id="${pin.anchor.planrId}"`) && !artifact.html.includes(`id="${pin.anchor.planrId}"`))
+          if (pin.anchor?.planrId && !resolveArtifactHtml(current.envelope, artifact).includes(
+            `data-planr-id="${pin.anchor.planrId}"`
+          ) && !resolveArtifactHtml(current.envelope, artifact).includes(`id="${pin.anchor.planrId}"`))
             throw new PipelineError(
               ARTIFACT_ERROR_CODES.STALE_REVIEW,
               `Pin ${pin.id} has no current anchor. Keep it stale until explicitly mapped.`
@@ -4392,6 +4795,8 @@ async function resolveDesignPins(file, { pinIds, summary, env = process.env }) {
 }
 
 export {
+  listArtifactReviewServers,
+  stopArtifactReviewServer,
   serializeDesignReviewExport,
   designReviewKey,
   designReviewPath,

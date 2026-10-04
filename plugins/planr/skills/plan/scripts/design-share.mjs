@@ -1,4 +1,35 @@
 import {
+  assertDesignReviewBundle,
+  assertDesignReviewMetadata,
+  atomicJson,
+  bundleDesignRevision,
+  currentDesign,
+  hash,
+  readJson
+} from "./design-document.mjs";
+import {
+  copyUploadSpool,
+  createChunkedWorkspaceClient,
+  ensurePrivateDirectory,
+  persistUploadSpool,
+  readCustody,
+  spoolChunkReader,
+  writeCustody
+} from "./design-pako-esm.mjs";
+import {
+  acquireStartLock,
+  configuredPlanrHome,
+  planrHome
+} from "./design-planr-home.mjs";
+import {
+  ARTIFACT_ERROR_CODES,
+  PipelineError,
+  canonicalSerialize,
+  digestArtifactEnvelope,
+  validateArtifactEnvelope,
+  validateArtifactReview
+} from "./design-artifact-shell.mjs";
+import {
   DESIGN_WORKSPACE_API,
   DESIGN_WORKSPACE_CREATE_SCHEMA,
   DESIGN_WORKSPACE_EVENT_SCHEMA,
@@ -7,47 +38,26 @@ import {
   DESIGN_WORKSPACE_REVISION_SCHEMA,
   DESIGN_WORKSPACE_SCHEMA,
   DESIGN_WORKSPACE_VERSION,
-  acquireStartLock,
-  assertDesignReviewBundle,
-  assertDesignReviewMetadata,
   assertWorkspaceContract,
-  atomicJson,
-  bundleDesignRevision,
   canonicalizeJson,
-  configuredPlanrHome,
-  currentDesign,
   deepFreeze,
-  hash,
-  planrHome,
-  readJson,
   sha256Hex
-} from "./design-document.mjs";
-import {
-  ARTIFACT_ERROR_CODES,
-  PipelineError,
-  canonicalSerialize,
-  digestArtifactEnvelope,
-  validateArtifactReview
-} from "./design-artifact-shell.mjs";
+} from "./design-bounded-json-data.mjs";
 
 // packages/design/lib/design/share.mjs
-import { randomBytes as randomBytes2 } from "node:crypto";
 import {
-  chmodSync,
   closeSync,
   existsSync as existsSync3,
   fsyncSync,
-  lstatSync as lstatSync3,
+  linkSync,
   mkdirSync as mkdirSync3,
   openSync,
-  readFileSync as readFileSync3,
   realpathSync as realpathSync2,
-  renameSync as renameSync3,
   unlinkSync,
   writeFileSync as writeFileSync3
 } from "node:fs";
 import { homedir as homedir2 } from "node:os";
-import { dirname as dirname3, isAbsolute as isAbsolute2, join as join2, relative as relative2, resolve as resolve2 } from "node:path";
+import { basename, dirname as dirname3, isAbsolute as isAbsolute2, join as join2, relative as relative2, resolve as resolve2 } from "node:path";
 
 // packages/artifact/lib/artifact/import.mjs
 import {
@@ -732,144 +742,715 @@ function resolveArtifactReviewDestination({
     path: join(directory, "review-state.json")
   });
 }
+function reviewsFromDecoded(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+      "Decoded review payload is not an object."
+    );
+  }
+  if (value.kind === "artifact-review-state") {
+    validateReviewLedger(value);
+    return value.reviews.map((entry) => ({ review: entry.review, stale: entry.stale }));
+  }
+  if (value.artifacts && value.viewer) {
+    validateArtifactEnvelope(value);
+    if (!value.review) {
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+        "Decoded artifact envelope contains no review."
+      );
+    }
+    return [{ review: value.review, stale: false }];
+  }
+  if (value.review && !value.reviewId) return reviewsFromDecoded(value.review);
+  validateArtifactReview(value);
+  return [{ review: value, stale: false }];
+}
+async function decodeArtifactReviewSources(sources, { decodeSource, withMetadata = false } = {}) {
+  const list = Array.isArray(sources) ? sources : [sources];
+  if (list.length === 0) {
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+      "At least one artifact review source is required."
+    );
+  }
+  const entries = [];
+  for (let index = 0; index < list.length; index += 1) {
+    const source = list[index];
+    let decoded = source;
+    if (typeof source === "string") {
+      if (typeof decodeSource !== "function") {
+        throw new PipelineError(
+          ARTIFACT_ERROR_CODES.REVIEW_DECODER_REQUIRED,
+          "String and URL review sources require an injected async decoder.",
+          "Provide decodeSource(source, { index }); the review lifecycle has no transport dependency.",
+          { sourceIndex: index }
+        );
+      }
+      try {
+        decoded = await decodeSource(source, { index });
+      } catch {
+        throw new PipelineError(
+          ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+          "Artifact review source could not be decoded.",
+          "Verify the immutable review link and retry.",
+          { sourceIndex: index }
+        );
+      }
+    }
+    try {
+      entries.push(
+        ...reviewsFromDecoded(decoded).map((entry) => ({
+          review: structuredClone(entry.review),
+          stale: Boolean(entry.stale)
+        }))
+      );
+    } catch (error) {
+      if (error instanceof PipelineError && error.code === ARTIFACT_ERROR_CODES.REVIEW_IMPORT) {
+        error.details = { sourceIndex: index };
+        throw error;
+      }
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+        "Decoded artifact review does not satisfy the Protocol v1.1 contract.",
+        "",
+        { sourceIndex: index }
+      );
+    }
+  }
+  return withMetadata ? entries : entries.map((entry) => entry.review);
+}
+
+// packages/artifact/lib/artifact/encrypted-workspace-client.mjs
+function createEncryptedWorkspaceClient({
+  domain,
+  apiPath,
+  reviewPath,
+  label,
+  compatibilityMessage,
+  compatibilityCode = "E_WORKSPACE_UNSUPPORTED",
+  defaultBaseUrl = "https://share.openplanr.dev",
+  version = "1.0.0",
+  maxBytes = 5 * 1024 * 1024,
+  maxEventBytes = 256 * 1024,
+  schemas,
+  assertContract,
+  assertBundle,
+  assertFeedback,
+  bundleDigest,
+  digestInput = (bundle) => bundle,
+  packBundle = async (bundle) => bundle,
+  unpackBundle = async (bundle) => bundle
+}) {
+  if (!domain || !apiPath?.startsWith("/") || !reviewPath?.startsWith("/") || !label)
+    throw new TypeError("An encrypted workspace requires an explicit domain and routes.");
+  const encoder2 = new TextEncoder();
+  const decoder2 = new TextDecoder("utf-8", { fatal: true });
+  const tokenPattern = /^[A-Za-z0-9_-]{43}$/;
+  const idPattern = /^[A-Za-z0-9_-]{22,64}$/;
+  const ec = { name: "ECDSA", namedCurve: "P-256" };
+  const signatureAlgorithm = { name: "ECDSA", hash: "SHA-256" };
+  const omitSignature = ({ signature: _signature, ...value }) => value;
+  const operationError = (message, code, status) => Object.assign(new Error(message), { code, ...status ? { status } : {} });
+  function encodeWorkspaceBytes2(bytes) {
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += 8192)
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
+    return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
+  }
+  function decodeWorkspaceBytes2(value) {
+    if (typeof value !== "string" || !/^[A-Za-z0-9_-]+$/u.test(value))
+      throw new TypeError("Invalid encoded workspace value.");
+    const decoded = Uint8Array.from(
+      atob(value.replaceAll("-", "+").replaceAll("_", "/")),
+      (char) => char.charCodeAt(0)
+    );
+    if (encodeWorkspaceBytes2(decoded) !== value)
+      throw new TypeError("Noncanonical encoded workspace value.");
+    return decoded;
+  }
+  function newWorkspaceToken2() {
+    return encodeWorkspaceBytes2(crypto.getRandomValues(new Uint8Array(32)));
+  }
+  function newWorkspaceId2() {
+    return encodeWorkspaceBytes2(crypto.getRandomValues(new Uint8Array(18)));
+  }
+  function normalizeWorkspaceBase2(baseUrl = defaultBaseUrl) {
+    const url = new URL(baseUrl);
+    if (url.username || url.password || url.search || url.hash || url.pathname !== "/" || url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))) {
+      throw new TypeError(
+        `${label} sharing requires an HTTPS origin or a local development server.`
+      );
+    }
+    return url.origin;
+  }
+  function workspaceReviewUrl2(access) {
+    if (!idPattern.test(access.id))
+      throw new TypeError(`Invalid ${label.toLowerCase()} workspace identity.`);
+    return `${normalizeWorkspaceBase2(access.baseUrl)}${reviewPath}/${access.id}`;
+  }
+  async function tokenMaterial(token, id, purpose) {
+    if (!tokenPattern.test(token) || decodeWorkspaceBytes2(token).length !== 32 || !idPattern.test(id))
+      throw new TypeError("Enter the complete generated access token.");
+    const key = await crypto.subtle.importKey("raw", decodeWorkspaceBytes2(token), "HKDF", false, [
+      "deriveBits"
+    ]);
+    return new Uint8Array(
+      await crypto.subtle.deriveBits(
+        {
+          name: "HKDF",
+          hash: "SHA-256",
+          salt: encoder2.encode(id),
+          info: encoder2.encode(`${domain}/${purpose}`)
+        },
+        key,
+        256
+      )
+    );
+  }
+  async function deriveWorkspaceAuthentication2(token, id) {
+    return encodeWorkspaceBytes2(await tokenMaterial(token, id, "reviewer-auth"));
+  }
+  function canonicalWorkspacePublicKey2(value) {
+    if (value?.kty !== "EC" || value.crv !== "P-256" || !tokenPattern.test(value.x ?? "") || !tokenPattern.test(value.y ?? "") || "d" in value) {
+      throw new TypeError(`Invalid ${label.toLowerCase()} workspace public key.`);
+    }
+    return { kty: "EC", crv: "P-256", x: value.x, y: value.y };
+  }
+  async function createWorkspaceSigner2() {
+    const pair = await crypto.subtle.generateKey(ec, true, ["sign", "verify"]);
+    return {
+      privateKey: encodeWorkspaceBytes2(
+        new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey))
+      ),
+      publicKey: canonicalWorkspacePublicKey2(await crypto.subtle.exportKey("jwk", pair.publicKey))
+    };
+  }
+  async function signWorkspaceValue2(value, privateKey) {
+    const key = await crypto.subtle.importKey(
+      "pkcs8",
+      decodeWorkspaceBytes2(privateKey),
+      ec,
+      false,
+      ["sign"]
+    );
+    const signature = await crypto.subtle.sign(
+      signatureAlgorithm,
+      key,
+      encoder2.encode(canonicalizeJson(omitSignature(value)))
+    );
+    return { ...omitSignature(value), signature: encodeWorkspaceBytes2(new Uint8Array(signature)) };
+  }
+  async function verifyWorkspaceSignature2(value, publicKey) {
+    try {
+      const key = await crypto.subtle.importKey("jwk", publicKey, ec, false, ["verify"]);
+      return await crypto.subtle.verify(
+        signatureAlgorithm,
+        key,
+        decodeWorkspaceBytes2(value.signature),
+        encoder2.encode(canonicalizeJson(omitSignature(value)))
+      );
+    } catch {
+      return false;
+    }
+  }
+  async function seal(value, rawKey, context, limit = maxBytes) {
+    const bytes = encoder2.encode(canonicalizeJson(value));
+    if (bytes.length + 16 > limit)
+      throw Object.assign(
+        new RangeError(
+          `Encrypted ${label.toLowerCase()} data exceeds the ${Math.floor(limit / 1024)} KB upload limit.`
+        ),
+        { code: "E_WORKSPACE_PAYLOAD_TOO_LARGE", status: 413 }
+      );
+    const key = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt"]);
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ciphertext = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv, additionalData: encoder2.encode(canonicalizeJson(context)) },
+      key,
+      bytes
+    );
+    return {
+      iv: encodeWorkspaceBytes2(iv),
+      ciphertext: encodeWorkspaceBytes2(new Uint8Array(ciphertext))
+    };
+  }
+  async function unseal(value, rawKey, context, limit = maxBytes) {
+    const bytes = decodeWorkspaceBytes2(value.ciphertext);
+    if (bytes.length > limit)
+      throw new RangeError(`Shared ${label.toLowerCase()} data exceeds its size limit.`);
+    const key = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["decrypt"]);
+    const plaintext = await crypto.subtle.decrypt(
+      {
+        name: "AES-GCM",
+        iv: decodeWorkspaceBytes2(value.iv),
+        additionalData: encoder2.encode(canonicalizeJson(context))
+      },
+      key,
+      bytes
+    );
+    return JSON.parse(decoder2.decode(plaintext));
+  }
+  const keyringContext = (id, epoch) => ({ type: "keyring", workspaceId: id, epoch });
+  const revisionContext = (id, revision) => ({
+    type: "revision",
+    workspaceId: id,
+    id: revision.id,
+    epoch: revision.epoch,
+    reviewOf: revision.reviewOf
+  });
+  const eventContext = (id, event) => ({
+    type: "event",
+    workspaceId: id,
+    id: event.id,
+    epoch: event.epoch,
+    revisionId: event.revisionId,
+    reviewOf: event.reviewOf
+  });
+  function workspaceEnvelopeDigest2(value) {
+    return bundleDigest(value);
+  }
+  async function wrapKeyring(custody, token = custody.token, epoch = custody.epoch, keys = custody.keys) {
+    return seal(
+      { keys, ownerPublicKey: custody.ownerPublicKey },
+      await tokenMaterial(token, custody.id, "key-wrap"),
+      keyringContext(custody.id, epoch)
+    );
+  }
+  async function prepareRevision(custody, bundle) {
+    assertBundle(bundle);
+    const header = {
+      id: newWorkspaceId2(),
+      epoch: custody.epoch,
+      reviewOf: workspaceEnvelopeDigest2(digestInput(bundle)),
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    return signWorkspaceValue2(
+      {
+        ...header,
+        ...await seal(
+          await packBundle(bundle),
+          decodeWorkspaceBytes2(custody.keys[custody.epoch]),
+          revisionContext(custody.id, header)
+        )
+      },
+      custody.ownerPrivateKey
+    );
+  }
+  async function prepareWorkspace2(bundle, { baseUrl = defaultBaseUrl } = {}) {
+    const signer = await createWorkspaceSigner2();
+    const custody = {
+      schemaVersion: version,
+      id: newWorkspaceId2(),
+      baseUrl: normalizeWorkspaceBase2(baseUrl),
+      token: newWorkspaceToken2(),
+      ownerAuth: newWorkspaceToken2(),
+      ownerPrivateKey: signer.privateKey,
+      ownerPublicKey: signer.publicKey,
+      epoch: 1,
+      keys: { 1: newWorkspaceToken2() },
+      version: 0
+    };
+    custody.keyring = await wrapKeyring(custody);
+    custody.pendingCreate = await signWorkspaceValue2(
+      {
+        schemaVersion: version,
+        id: custody.id,
+        ownerPublicKey: custody.ownerPublicKey,
+        ownerAuthHash: sha256Hex(custody.ownerAuth),
+        reviewerAuthHash: sha256Hex(await deriveWorkspaceAuthentication2(custody.token, custody.id)),
+        epoch: 1,
+        keyring: custody.keyring,
+        revision: await prepareRevision(custody, bundle),
+        operationId: newWorkspaceId2()
+      },
+      custody.ownerPrivateKey
+    );
+    assertContract(custody.pendingCreate, schemas.create);
+    return custody;
+  }
+  async function request(access, suffix = "", {
+    method = "GET",
+    body,
+    fetchImpl = globalThis.fetch,
+    owner = Boolean(access.ownerAuth),
+    timeoutMs = 2e4
+  } = {}) {
+    if (!idPattern.test(access.id))
+      throw new TypeError(`Invalid ${label.toLowerCase()} workspace identity.`);
+    const authorization = owner ? access.ownerAuth : await deriveWorkspaceAuthentication2(access.token, access.id);
+    const headers = { Authorization: `Bearer ${authorization}`, Accept: "application/json" };
+    if (body) headers["Content-Type"] = "application/json";
+    let response;
+    try {
+      response = await fetchImpl(
+        `${normalizeWorkspaceBase2(access.baseUrl)}${apiPath}/${access.id}${suffix}`,
+        {
+          method,
+          headers,
+          body: body ? JSON.stringify(body) : void 0,
+          redirect: "error",
+          cache: "no-store",
+          credentials: "omit",
+          signal: AbortSignal.timeout(timeoutMs)
+        }
+      );
+    } catch {
+      throw operationError(
+        `${label} sharing is unreachable. Check the connection and retry; the previous review is unchanged.`,
+        "E_WORKSPACE_NETWORK"
+      );
+    }
+    if (!response.ok) await throwResponseError(response, method);
+    return readResponse(response);
+  }
+  async function throwResponseError(response, method) {
+    if (response.status === 404 && method === "PUT" && compatibilityMessage) {
+      const error2 = new Error(compatibilityMessage);
+      error2.code = compatibilityCode;
+      error2.status = 404;
+      throw error2;
+    }
+    const messages = {
+      401: "Access token is incorrect or has been rotated.",
+      403: "This review is unavailable or this action requires its owner.",
+      404: "This shared review could not be found.",
+      409: "The shared review changed. Refresh its status before retrying.",
+      410: "This shared review has been revoked or deleted.",
+      413: `This ${label.toLowerCase()} exceeds the sharing upload limit.`,
+      429: "Too many requests. Wait a moment and retry.",
+      503: `${label} sharing is temporarily unavailable. Retry shortly.`
+    };
+    const error = new Error(
+      messages[response.status] ?? `${label} sharing failed (${response.status}). Retry shortly.`
+    );
+    error.status = response.status;
+    error.code = `E_WORKSPACE_HTTP_${response.status}`;
+    try {
+      const reader = response.body?.getReader();
+      const body = reader && JSON.parse(decoder2.decode(await responseBytes(reader, 4096)));
+      if (typeof body?.error === "string" && /^[A-Za-z][A-Za-z0-9_-]{0,127}$/u.test(body.error))
+        error.code = body.error;
+    } catch {
+    }
+    if (response.status === 429) {
+      const header = response.headers.get("retry-after");
+      const seconds = header && /^\d+(?:\.\d+)?$/u.test(header.trim()) ? Number(header) : header ? (Date.parse(header) - Date.now()) / 1e3 : NaN;
+      if (Number.isFinite(seconds) && seconds >= 0)
+        error.retryAfterSeconds = Math.min(3600, Math.max(1, Math.ceil(seconds)));
+    }
+    throw error;
+  }
+  async function responseBytes(reader, limit) {
+    const chunks = [];
+    let length = 0;
+    try {
+      for (; ; ) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        length += value.length;
+        if (length > limit) {
+          await reader.cancel();
+          throw new RangeError(`${label} service returned an oversized response.`);
+        }
+        chunks.push(value);
+      }
+    } catch (error) {
+      if (error instanceof RangeError) throw error;
+      throw new Error("The sharing response was interrupted. Retry the pending operation.");
+    }
+    const bytes = new Uint8Array(length);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.length;
+    }
+    return bytes;
+  }
+  async function readResponse(response) {
+    if (response.status === 204) return {};
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error(`${label} service returned an empty response.`);
+    try {
+      return JSON.parse(decoder2.decode(await responseBytes(reader, maxBytes * 1.5 + 65536)));
+    } catch (cause) {
+      throw Object.assign(
+        operationError(
+          "The sharing response could not be verified. Retry the pending operation.",
+          "E_WORKSPACE_RESPONSE_INVALID"
+        ),
+        { cause }
+      );
+    }
+  }
+  async function commitWorkspace2(custody, options = {}) {
+    if (!custody.pendingCreate) return getWorkspace2(custody, options);
+    const result = await request(custody, "", {
+      ...options,
+      method: "PUT",
+      body: custody.pendingCreate
+    });
+    assertContract(result, schemas.workspace);
+    if (result.id !== custody.id || result.version !== 1 || result.epoch !== 1 || result.currentRevision !== custody.pendingCreate.revision.id || canonicalizeJson(result.ownerPublicKey) !== canonicalizeJson(custody.ownerPublicKey) || canonicalizeJson(result.keyring) !== canonicalizeJson(custody.keyring))
+      throw new Error("The sharing creation receipt is invalid. Retry the saved operation.");
+    custody.version = result.version;
+    custody.currentRevision = result.currentRevision;
+    delete custody.pendingCreate;
+    return result;
+  }
+  async function getWorkspace2(access, options = {}) {
+    const result = assertContract(await request(access, "", options), schemas.workspace);
+    if (result.id !== access.id) throw new Error("Shared review identity mismatch.");
+    const ring = await unseal(
+      result.keyring,
+      await tokenMaterial(access.token, access.id, "key-wrap"),
+      keyringContext(access.id, result.epoch)
+    );
+    if (canonicalizeJson(ring.ownerPublicKey) !== canonicalizeJson(result.ownerPublicKey) || access.ownerPublicKey && canonicalizeJson(access.ownerPublicKey) !== canonicalizeJson(result.ownerPublicKey))
+      throw new Error("Shared review owner identity changed.");
+    if (!ring.keys?.[result.epoch] || Object.entries(ring.keys).some(
+      ([keyEpoch, key]) => !/^[1-9][0-9]*$/u.test(keyEpoch) || !tokenPattern.test(key)
+    ))
+      throw new Error("Invalid shared review key history.");
+    Object.assign(access, {
+      keys: ring.keys,
+      ownerPublicKey: result.ownerPublicKey,
+      epoch: result.epoch,
+      keyring: result.keyring,
+      version: result.version,
+      currentRevision: result.currentRevision,
+      commentsPaused: result.commentsPaused
+    });
+    return result;
+  }
+  async function listWorkspaceRevisions(access, { after = "", ...options } = {}) {
+    if (after && !idPattern.test(after)) throw new TypeError("Invalid revision cursor.");
+    return request(
+      access,
+      `/revisions${after ? `?after=${encodeURIComponent(after)}` : ""}`,
+      options
+    );
+  }
+  async function decryptWorkspaceRevision2(access, revisionId = access.currentRevision, options = {}) {
+    if (!access.keys) await getWorkspace2(access, options);
+    if (!idPattern.test(revisionId))
+      throw new TypeError(`Invalid ${label.toLowerCase()} revision.`);
+    const revision = assertContract(
+      await request(access, `/revisions/${revisionId}`, options),
+      schemas.revision
+    );
+    if (revision.id !== revisionId || !await verifyWorkspaceSignature2(revision, access.ownerPublicKey))
+      throw new Error(`The published ${label.toLowerCase()} signature is invalid.`);
+    if (!access.keys[revision.epoch])
+      throw new Error("The access token cannot open this revision.");
+    const bundle = assertBundle(
+      await unpackBundle(
+        await unseal(
+          revision,
+          decodeWorkspaceBytes2(access.keys[revision.epoch]),
+          revisionContext(access.id, revision)
+        )
+      )
+    );
+    if (workspaceEnvelopeDigest2(digestInput(bundle)) !== revision.reviewOf)
+      throw new Error(`Published ${label.toLowerCase()} content does not match its revision.`);
+    return { ...bundle, workspaceRevision: revision.id, reviewOf: revision.reviewOf };
+  }
+  async function prepareWorkspaceMutation2(custody, action, payload = void 0) {
+    if (custody.pendingCreate)
+      throw new Error("Finish creating this shared review before changing it.");
+    if (custody.pendingMutation)
+      throw new Error("A sharing operation is pending. Retry it before making another change.");
+    const body = {
+      operationId: newWorkspaceId2(),
+      expectedVersion: custody.version,
+      epoch: custody.epoch
+    };
+    let next = {};
+    if (action === "publish") body.revision = await prepareRevision(custody, payload);
+    else if (action === "rotate") {
+      const token = newWorkspaceToken2();
+      const epoch = custody.epoch + 1;
+      const keys = { ...custody.keys, [epoch]: newWorkspaceToken2() };
+      const keyring = await wrapKeyring(custody, token, epoch, keys);
+      Object.assign(body, {
+        epoch,
+        reviewerAuthHash: sha256Hex(await deriveWorkspaceAuthentication2(token, custody.id)),
+        keyring
+      });
+      next = { token, epoch, keys, keyring };
+    } else if (["pause", "resume", "revoke", "delete"].includes(action)) body.action = action;
+    else throw new TypeError(`Unknown ${label.toLowerCase()} sharing operation.`);
+    custody.pendingMutation = {
+      action,
+      body: await signWorkspaceValue2(body, custody.ownerPrivateKey),
+      next
+    };
+    return custody.pendingMutation;
+  }
+  function assertDeletionReceipt(custody, result) {
+    if (result.schemaVersion !== version || result.id !== custody.id || result.deleted !== true || Object.keys(result).some((key) => !["schemaVersion", "id", "deleted"].includes(key)))
+      throw new Error("The deletion receipt is invalid. Retry the saved operation.");
+  }
+  function assertMutationReceipt(custody, pending, result) {
+    if (pending.action === "delete") return assertDeletionReceipt(custody, result);
+    assertContract(result, schemas.workspace);
+    const expectedRevision = pending.action === "publish" ? pending.body.revision.id : custody.currentRevision;
+    if (result.id !== custody.id || result.version !== pending.body.expectedVersion + 1 || result.epoch !== pending.body.epoch || result.currentRevision !== expectedRevision || canonicalizeJson(result.ownerPublicKey) !== canonicalizeJson(custody.ownerPublicKey) || canonicalizeJson(result.keyring) !== canonicalizeJson(pending.next.keyring ?? custody.keyring) || ["pause", "resume"].includes(pending.action) && result.commentsPaused !== (pending.action === "pause"))
+      throw new Error("The sharing operation receipt is invalid. Retry the saved operation.");
+  }
+  async function commitWorkspaceMutation2(custody, options = {}) {
+    const pending = custody.pendingMutation;
+    if (!pending) throw new Error("No sharing operation is pending.");
+    const suffix = ["publish", "rotate"].includes(pending.action) ? pending.action : "manage";
+    const result = await request(custody, `/${suffix}`, {
+      ...options,
+      method: "POST",
+      body: pending.body
+    });
+    assertMutationReceipt(custody, pending, result);
+    Object.assign(custody, pending.next, { version: pending.body.expectedVersion + 1 });
+    if (pending.action === "publish") custody.currentRevision = pending.body.revision.id;
+    if (pending.action === "pause" || pending.action === "resume")
+      custody.commentsPaused = pending.action === "pause";
+    if (pending.action === "revoke" || pending.action === "delete")
+      custody.status = pending.action === "revoke" ? "revoked" : "deleted";
+    delete custody.pendingMutation;
+    return result;
+  }
+  async function publishWorkspace(custody, bundle, options = {}) {
+    await prepareWorkspaceMutation2(custody, "publish", bundle);
+    return commitWorkspaceMutation2(custody, options);
+  }
+  async function rotateWorkspace(custody, options = {}) {
+    await prepareWorkspaceMutation2(custody, "rotate");
+    return commitWorkspaceMutation2(custody, options);
+  }
+  async function manageWorkspace(custody, action, options = {}) {
+    await prepareWorkspaceMutation2(custody, action);
+    return commitWorkspaceMutation2(custody, options);
+  }
+  async function prepareWorkspaceEvent2(access, payload, { revisionId = access.currentRevision, reviewOf = payload.reviewOf, signer } = {}) {
+    if (!access.keys) throw new Error("Unlock the shared review before commenting.");
+    assertFeedback(payload);
+    const identity = signer ?? await createWorkspaceSigner2();
+    const publicKey = canonicalWorkspacePublicKey2(identity.publicKey);
+    const header = { id: newWorkspaceId2(), revisionId, reviewOf, epoch: access.epoch };
+    const event = await signWorkspaceValue2(
+      {
+        ...header,
+        ...await seal(
+          payload,
+          decodeWorkspaceBytes2(access.keys[access.epoch]),
+          eventContext(access.id, header),
+          maxEventBytes
+        ),
+        publicKey
+      },
+      identity.privateKey
+    );
+    return assertContract(event, schemas.event);
+  }
+  async function appendWorkspaceEvent2(access, payload, { preparedEvent, signer, revisionId, reviewOf, ...options } = {}) {
+    const event = preparedEvent ?? await prepareWorkspaceEvent2(access, payload, {
+      signer,
+      revisionId,
+      reviewOf: reviewOf ?? payload.reviewOf
+    });
+    const result = await request(access, "/events", { ...options, method: "POST", body: event });
+    if (!result || typeof result !== "object" || Array.isArray(result) || !Number.isSafeInteger(result.sequence) || result.sequence < 1 || !result.event || typeof result.event !== "object" || Array.isArray(result.event))
+      throw new Error("The feedback receipt is invalid. Retry the saved operation.");
+    const { sequence: eventSequence, ...received } = result.event;
+    if (eventSequence !== void 0 && eventSequence !== result.sequence || canonicalizeJson(received) !== canonicalizeJson(event))
+      throw new Error(
+        "The feedback receipt does not match the saved event. Retry the saved operation."
+      );
+    return { event: { ...received, sequence: result.sequence }, sequence: result.sequence };
+  }
+  function assertEventPage(page, after) {
+    if (!Array.isArray(page.events) || page.events.length > 100 || !Number.isSafeInteger(page.cursor) || page.cursor < after || typeof page.hasMore !== "boolean")
+      throw new Error("Invalid shared feedback page.");
+  }
+  async function decryptEvent(access, record, sequence) {
+    assertContract(record, schemas.event);
+    if (!await verifyWorkspaceSignature2(record, record.publicKey))
+      throw new Error("Signature verification failed.");
+    if (!access.keys[record.epoch]) throw new Error("The encryption epoch is unavailable.");
+    const payload = await unseal(
+      record,
+      decodeWorkspaceBytes2(access.keys[record.epoch]),
+      eventContext(access.id, record),
+      maxEventBytes
+    );
+    assertFeedback(payload);
+    if (payload.reviewOf !== record.reviewOf) throw new Error("Feedback revision is invalid.");
+    return { ...record, sequence, payload };
+  }
+  function eventFromPage(item, pageIds, previousSequence, cursor) {
+    const { sequence, ...record } = item?.event ? { ...item.event, sequence: item.sequence } : item ?? {};
+    if (!Number.isSafeInteger(sequence) || sequence <= previousSequence || sequence > cursor)
+      throw new Error("Invalid shared feedback sequence.");
+    if (typeof record.id !== "string" || pageIds.has(record.id))
+      throw new Error("Invalid shared feedback event identity.");
+    pageIds.add(record.id);
+    return { sequence, record };
+  }
+  async function readWorkspaceEvents2(access, { after = 0, ...options } = {}) {
+    if (!Number.isSafeInteger(after) || after < 0) throw new TypeError("Invalid feedback cursor.");
+    if (!access.keys) await getWorkspace2(access, options);
+    const page = await request(access, `/events?after=${after}`, options);
+    assertEventPage(page, after);
+    const events = [], issues = [], pageIds = /* @__PURE__ */ new Set();
+    let previousSequence = after;
+    for (const item of page.events) {
+      const { sequence, record } = eventFromPage(item, pageIds, previousSequence, page.cursor);
+      previousSequence = sequence;
+      try {
+        events.push(await decryptEvent(access, record, sequence));
+      } catch {
+        issues.push({
+          sequence,
+          id: typeof record.id === "string" && idPattern.test(record.id) ? record.id : null,
+          reason: "Invalid encrypted feedback; not imported."
+        });
+      }
+    }
+    return { ...page, events, issues };
+  }
+  return {
+    encodeWorkspaceBytes: encodeWorkspaceBytes2,
+    decodeWorkspaceBytes: decodeWorkspaceBytes2,
+    newWorkspaceToken: newWorkspaceToken2,
+    newWorkspaceId: newWorkspaceId2,
+    normalizeWorkspaceBase: normalizeWorkspaceBase2,
+    workspaceReviewUrl: workspaceReviewUrl2,
+    deriveWorkspaceAuthentication: deriveWorkspaceAuthentication2,
+    canonicalWorkspacePublicKey: canonicalWorkspacePublicKey2,
+    createWorkspaceSigner: createWorkspaceSigner2,
+    signWorkspaceValue: signWorkspaceValue2,
+    verifyWorkspaceSignature: verifyWorkspaceSignature2,
+    workspaceEnvelopeDigest: workspaceEnvelopeDigest2,
+    prepareWorkspace: prepareWorkspace2,
+    commitWorkspace: commitWorkspace2,
+    getWorkspace: getWorkspace2,
+    listWorkspaceRevisions,
+    decryptWorkspaceRevision: decryptWorkspaceRevision2,
+    prepareWorkspaceMutation: prepareWorkspaceMutation2,
+    commitWorkspaceMutation: commitWorkspaceMutation2,
+    publishWorkspace,
+    rotateWorkspace,
+    manageWorkspace,
+    prepareWorkspaceEvent: prepareWorkspaceEvent2,
+    appendWorkspaceEvent: appendWorkspaceEvent2,
+    readWorkspaceEvents: readWorkspaceEvents2
+  };
+}
 
 // packages/design/lib/design/workspace-client.mjs
 var DESIGN_SHARE_BASE_URL = "https://share.openplanr.dev";
 var encoder = new TextEncoder();
 var decoder = new TextDecoder("utf-8", { fatal: true });
-var tokenPattern = /^[A-Za-z0-9_-]{43}$/;
-var idPattern = /^[A-Za-z0-9_-]{22,64}$/;
-var ec = { name: "ECDSA", namedCurve: "P-256" };
-var signatureAlgorithm = { name: "ECDSA", hash: "SHA-256" };
-var omitSignature = ({ signature: _signature, ...value }) => value;
-function encodeWorkspaceBytes(bytes) {
-  let binary = "";
-  for (let offset = 0; offset < bytes.length; offset += 8192)
-    binary += String.fromCharCode(...bytes.subarray(offset, offset + 8192));
-  return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/u, "");
-}
-function decodeWorkspaceBytes(value) {
-  if (typeof value !== "string" || !/^[A-Za-z0-9_-]+$/u.test(value))
-    throw new TypeError("Invalid encoded workspace value.");
-  const decoded = Uint8Array.from(
-    atob(value.replaceAll("-", "+").replaceAll("_", "/")),
-    (char) => char.charCodeAt(0)
-  );
-  if (encodeWorkspaceBytes(decoded) !== value)
-    throw new TypeError("Noncanonical encoded workspace value.");
-  return decoded;
-}
-function newWorkspaceToken() {
-  return encodeWorkspaceBytes(crypto.getRandomValues(new Uint8Array(32)));
-}
-function newWorkspaceId() {
-  return encodeWorkspaceBytes(crypto.getRandomValues(new Uint8Array(18)));
-}
-function normalizeWorkspaceBase(baseUrl = DESIGN_SHARE_BASE_URL) {
-  const url = new URL(baseUrl);
-  if (url.username || url.password || url.search || url.hash || url.pathname !== "/" || url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname))) {
-    throw new TypeError("Design sharing requires an HTTPS origin or a local development server.");
-  }
-  return url.origin;
-}
-function workspaceReviewUrl(access) {
-  if (!idPattern.test(access.id)) throw new TypeError("Invalid design workspace identity.");
-  return `${normalizeWorkspaceBase(access.baseUrl)}/d/${access.id}`;
-}
-async function tokenMaterial(token, id, purpose) {
-  if (!tokenPattern.test(token) || decodeWorkspaceBytes(token).length !== 32 || !idPattern.test(id))
-    throw new TypeError("Enter the complete generated access token.");
-  const key = await crypto.subtle.importKey("raw", decodeWorkspaceBytes(token), "HKDF", false, [
-    "deriveBits"
-  ]);
-  return new Uint8Array(
-    await crypto.subtle.deriveBits(
-      {
-        name: "HKDF",
-        hash: "SHA-256",
-        salt: encoder.encode(id),
-        info: encoder.encode(`openplanr-design-workspace/v1/${purpose}`)
-      },
-      key,
-      256
-    )
-  );
-}
-async function deriveWorkspaceAuthentication(token, id) {
-  return encodeWorkspaceBytes(await tokenMaterial(token, id, "reviewer-auth"));
-}
-function canonicalWorkspacePublicKey(value) {
-  if (!value || value.kty !== "EC" || value.crv !== "P-256" || !tokenPattern.test(value.x ?? "") || !tokenPattern.test(value.y ?? "") || "d" in value) {
-    throw new TypeError("Invalid design workspace public key.");
-  }
-  return { kty: "EC", crv: "P-256", x: value.x, y: value.y };
-}
-async function createWorkspaceSigner() {
-  const pair = await crypto.subtle.generateKey(ec, true, ["sign", "verify"]);
-  return {
-    privateKey: encodeWorkspaceBytes(
-      new Uint8Array(await crypto.subtle.exportKey("pkcs8", pair.privateKey))
-    ),
-    publicKey: canonicalWorkspacePublicKey(await crypto.subtle.exportKey("jwk", pair.publicKey))
-  };
-}
-async function signWorkspaceValue(value, privateKey) {
-  const key = await crypto.subtle.importKey("pkcs8", decodeWorkspaceBytes(privateKey), ec, false, [
-    "sign"
-  ]);
-  const signature = await crypto.subtle.sign(
-    signatureAlgorithm,
-    key,
-    encoder.encode(canonicalizeJson(omitSignature(value)))
-  );
-  return { ...omitSignature(value), signature: encodeWorkspaceBytes(new Uint8Array(signature)) };
-}
-async function verifyWorkspaceSignature(value, publicKey) {
-  try {
-    const key = await crypto.subtle.importKey("jwk", publicKey, ec, false, ["verify"]);
-    return await crypto.subtle.verify(
-      signatureAlgorithm,
-      key,
-      decodeWorkspaceBytes(value.signature),
-      encoder.encode(canonicalizeJson(omitSignature(value)))
-    );
-  } catch {
-    return false;
-  }
-}
-async function seal(value, rawKey, context, limit = DESIGN_WORKSPACE_MAX_BYTES) {
-  const bytes = encoder.encode(canonicalizeJson(value));
-  if (bytes.length + 16 > limit)
-    throw new RangeError(
-      `Encrypted design data exceeds the ${Math.floor(limit / 1024)} KB upload limit.`
-    );
-  const key = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["encrypt"]);
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const ciphertext = await crypto.subtle.encrypt(
-    { name: "AES-GCM", iv, additionalData: encoder.encode(canonicalizeJson(context)) },
-    key,
-    bytes
-  );
-  return {
-    iv: encodeWorkspaceBytes(iv),
-    ciphertext: encodeWorkspaceBytes(new Uint8Array(ciphertext))
-  };
-}
-async function unseal(value, rawKey, context, limit = DESIGN_WORKSPACE_MAX_BYTES) {
-  const bytes = decodeWorkspaceBytes(value.ciphertext);
-  if (bytes.length > limit) throw new RangeError("Shared design data exceeds its size limit.");
-  const key = await crypto.subtle.importKey("raw", rawKey, "AES-GCM", false, ["decrypt"]);
-  const plaintext = await crypto.subtle.decrypt(
-    {
-      name: "AES-GCM",
-      iv: decodeWorkspaceBytes(value.iv),
-      additionalData: encoder.encode(canonicalizeJson(context))
-    },
-    key,
-    bytes
-  );
-  return JSON.parse(decoder.decode(plaintext));
-}
 var PACKED_BUNDLE_KIND = "openplanr-design-review-bundle-packed";
 var PACKED_BUNDLE_MAX_BYTES = 128 * 1024 * 1024;
 var SHARED_BLOCK_MIN_LENGTH = 2048;
@@ -901,6 +1482,12 @@ async function inflateRaw(bytes, limit) {
   return inflated;
 }
 async function packDesignReviewBundle(bundle) {
+  if (bundle.envelope?.schemaVersion === "1.1.0")
+    return {
+      kind: PACKED_BUNDLE_KIND,
+      version: 2,
+      data: encodeWorkspaceBytes(await deflateRaw(encoder.encode(JSON.stringify(bundle))))
+    };
   const pages = [];
   const pageIndex = /* @__PURE__ */ new Map();
   const blocks = [];
@@ -940,8 +1527,14 @@ async function packDesignReviewBundle(bundle) {
 }
 async function unpackDesignReviewBundle(value, { maxBytes = PACKED_BUNDLE_MAX_BYTES } = {}) {
   if (value?.kind !== PACKED_BUNDLE_KIND) return value;
-  if (value.version !== 1 || typeof value.data !== "string")
+  if (![1, 2].includes(value.version) || typeof value.data !== "string")
     throw new Error("The shared design uses an unsupported packing.");
+  if (value.version === 2) {
+    const bundle2 = JSON.parse(
+      decoder.decode(await inflateRaw(decodeWorkspaceBytes(value.data), maxBytes))
+    );
+    return assertDesignReviewBundle(bundle2);
+  }
   const { bundle, artifactPages, pages, blocks } = JSON.parse(
     decoder.decode(await inflateRaw(decodeWorkspaceBytes(value.data), maxBytes))
   );
@@ -968,376 +1561,82 @@ async function unpackDesignReviewBundle(value, { maxBytes = PACKED_BUNDLE_MAX_BY
   });
   return { ...bundle, envelope: { ...bundle.envelope, artifacts } };
 }
-var keyringContext = (id, epoch) => ({ type: "keyring", workspaceId: id, epoch });
-var revisionContext = (id, revision) => ({
-  type: "revision",
-  workspaceId: id,
-  id: revision.id,
-  epoch: revision.epoch,
-  reviewOf: revision.reviewOf
-});
-var eventContext = (id, event) => ({
-  type: "event",
-  workspaceId: id,
-  id: event.id,
-  epoch: event.epoch,
-  revisionId: event.revisionId,
-  reviewOf: event.reviewOf
-});
-function workspaceEnvelopeDigest(envelope) {
-  return sha256Hex(
+var client = createEncryptedWorkspaceClient({
+  domain: "openplanr-design-workspace/v1",
+  apiPath: DESIGN_WORKSPACE_API,
+  reviewPath: "/d",
+  label: "Design",
+  defaultBaseUrl: DESIGN_SHARE_BASE_URL,
+  version: DESIGN_WORKSPACE_VERSION,
+  maxBytes: DESIGN_WORKSPACE_MAX_BYTES,
+  maxEventBytes: DESIGN_WORKSPACE_MAX_EVENT_BYTES,
+  schemas: {
+    create: DESIGN_WORKSPACE_CREATE_SCHEMA,
+    event: DESIGN_WORKSPACE_EVENT_SCHEMA,
+    revision: DESIGN_WORKSPACE_REVISION_SCHEMA,
+    workspace: DESIGN_WORKSPACE_SCHEMA
+  },
+  assertContract: assertWorkspaceContract,
+  assertBundle: assertDesignReviewBundle,
+  assertFeedback(payload) {
+    if (["category", "disposition"].includes(payload.kind)) assertDesignReviewMetadata(payload);
+    if (!["review", "direction", "category", "disposition"].includes(payload.kind))
+      throw new TypeError("Unknown design feedback kind.");
+    if (typeof payload.author !== "string" || !payload.author.trim() || payload.author.length > 160)
+      throw new TypeError("Enter your name before leaving feedback.");
+    return payload;
+  },
+  digestInput: (bundle) => bundle.envelope,
+  bundleDigest: (envelope) => sha256Hex(
     canonicalizeJson({
       schemaVersion: envelope.schemaVersion,
+      ...envelope.schemaVersion === "1.1.0" ? { sources: envelope.sources } : {},
       artifacts: envelope.artifacts,
       viewer: envelope.viewer
     })
-  );
-}
-async function wrapKeyring(custody, token = custody.token, epoch = custody.epoch, keys = custody.keys) {
-  return seal(
-    { keys, ownerPublicKey: custody.ownerPublicKey },
-    await tokenMaterial(token, custody.id, "key-wrap"),
-    keyringContext(custody.id, epoch)
-  );
-}
-async function prepareRevision(custody, bundle) {
-  assertDesignReviewBundle(bundle);
-  const header = {
-    id: newWorkspaceId(),
-    epoch: custody.epoch,
-    reviewOf: workspaceEnvelopeDigest(bundle.envelope),
-    createdAt: (/* @__PURE__ */ new Date()).toISOString()
-  };
-  return signWorkspaceValue(
-    {
-      ...header,
-      ...await seal(
-        await packDesignReviewBundle(bundle),
-        decodeWorkspaceBytes(custody.keys[custody.epoch]),
-        revisionContext(custody.id, header)
-      )
-    },
-    custody.ownerPrivateKey
-  );
-}
-async function prepareWorkspace(bundle, { baseUrl = DESIGN_SHARE_BASE_URL } = {}) {
-  const signer = await createWorkspaceSigner();
-  const custody = {
-    schemaVersion: DESIGN_WORKSPACE_VERSION,
-    id: newWorkspaceId(),
-    baseUrl: normalizeWorkspaceBase(baseUrl),
-    token: newWorkspaceToken(),
-    ownerAuth: newWorkspaceToken(),
-    ownerPrivateKey: signer.privateKey,
-    ownerPublicKey: signer.publicKey,
-    epoch: 1,
-    keys: { 1: newWorkspaceToken() },
-    version: 0
-  };
-  custody.keyring = await wrapKeyring(custody);
-  custody.pendingCreate = await signWorkspaceValue(
-    {
-      schemaVersion: DESIGN_WORKSPACE_VERSION,
-      id: custody.id,
-      ownerPublicKey: custody.ownerPublicKey,
-      ownerAuthHash: sha256Hex(custody.ownerAuth),
-      reviewerAuthHash: sha256Hex(await deriveWorkspaceAuthentication(custody.token, custody.id)),
-      epoch: 1,
-      keyring: custody.keyring,
-      revision: await prepareRevision(custody, bundle),
-      operationId: newWorkspaceId()
-    },
-    custody.ownerPrivateKey
-  );
-  assertWorkspaceContract(custody.pendingCreate, DESIGN_WORKSPACE_CREATE_SCHEMA);
-  return custody;
-}
-async function request(access, suffix = "", {
-  method = "GET",
-  body,
-  fetchImpl = globalThis.fetch,
-  owner = Boolean(access.ownerAuth),
-  timeoutMs = 2e4
-} = {}) {
-  if (!idPattern.test(access.id)) throw new TypeError("Invalid design workspace identity.");
-  const authorization = owner ? access.ownerAuth : await deriveWorkspaceAuthentication(access.token, access.id);
-  const headers = { Authorization: `Bearer ${authorization}`, Accept: "application/json" };
-  if (body) headers["Content-Type"] = "application/json";
-  let response;
-  try {
-    response = await fetchImpl(
-      `${normalizeWorkspaceBase(access.baseUrl)}${DESIGN_WORKSPACE_API}/${access.id}${suffix}`,
-      {
-        method,
-        headers,
-        body: body ? JSON.stringify(body) : void 0,
-        redirect: "error",
-        cache: "no-store",
-        credentials: "omit",
-        signal: AbortSignal.timeout(timeoutMs)
-      }
-    );
-  } catch {
-    throw new Error(
-      "Design sharing is unreachable. Check the connection and retry; the previous review is unchanged."
-    );
-  }
-  if (!response.ok) {
-    const messages = {
-      401: "Access token is incorrect or has been rotated.",
-      403: "This review is unavailable or this action requires its owner.",
-      404: "This shared review could not be found.",
-      409: "The shared review changed. Refresh its status before retrying.",
-      410: "This shared review has been revoked or deleted.",
-      413: "This design exceeds the sharing upload limit.",
-      429: "Too many requests. Wait a moment and retry.",
-      503: "Design sharing is temporarily unavailable. Retry shortly."
-    };
-    const error = new Error(
-      messages[response.status] ?? `Design sharing failed (${response.status}). Retry shortly.`
-    );
-    error.status = response.status;
-    throw error;
-  }
-  if (response.status === 204) return {};
-  const limit = DESIGN_WORKSPACE_MAX_BYTES * 1.5 + 65536;
-  const reader = response.body?.getReader();
-  if (!reader) throw new Error("Design service returned an empty response.");
-  const chunks = [];
-  let length = 0;
-  try {
-    for (; ; ) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      length += value.length;
-      if (length > limit) {
-        await reader.cancel();
-        throw new RangeError("Design service returned an oversized response.");
-      }
-      chunks.push(value);
-    }
-  } catch (error) {
-    if (error instanceof RangeError) throw error;
-    throw new Error("The sharing response was interrupted. Retry the pending operation.");
-  }
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.length;
-  }
-  return JSON.parse(decoder.decode(bytes));
-}
-async function commitWorkspace(custody, options = {}) {
-  if (!custody.pendingCreate) return getWorkspace(custody, options);
-  const result = await request(custody, "", {
-    ...options,
-    method: "PUT",
-    body: custody.pendingCreate
-  });
-  assertWorkspaceContract(result, DESIGN_WORKSPACE_SCHEMA);
-  if (result.id !== custody.id || result.version !== 1 || result.epoch !== 1 || result.currentRevision !== custody.pendingCreate.revision.id || canonicalizeJson(result.ownerPublicKey) !== canonicalizeJson(custody.ownerPublicKey) || canonicalizeJson(result.keyring) !== canonicalizeJson(custody.keyring))
-    throw new Error("The sharing creation receipt is invalid. Retry the saved operation.");
-  custody.version = result.version;
-  custody.currentRevision = result.currentRevision;
-  delete custody.pendingCreate;
-  return result;
-}
-async function getWorkspace(access, options = {}) {
-  const result = assertWorkspaceContract(
-    await request(access, "", options),
-    DESIGN_WORKSPACE_SCHEMA
-  );
-  if (result.id !== access.id) throw new Error("Shared review identity mismatch.");
-  const ring = await unseal(
-    result.keyring,
-    await tokenMaterial(access.token, access.id, "key-wrap"),
-    keyringContext(access.id, result.epoch)
-  );
-  if (canonicalizeJson(ring.ownerPublicKey) !== canonicalizeJson(result.ownerPublicKey) || access.ownerPublicKey && canonicalizeJson(access.ownerPublicKey) !== canonicalizeJson(result.ownerPublicKey))
-    throw new Error("Shared review owner identity changed.");
-  if (!ring.keys || !ring.keys[result.epoch] || Object.entries(ring.keys).some(
-    ([keyEpoch, key]) => !/^[1-9][0-9]*$/u.test(keyEpoch) || !tokenPattern.test(key)
-  ))
-    throw new Error("Invalid shared review key history.");
-  Object.assign(access, {
-    keys: ring.keys,
-    ownerPublicKey: result.ownerPublicKey,
-    epoch: result.epoch,
-    keyring: result.keyring,
-    version: result.version,
-    currentRevision: result.currentRevision,
-    commentsPaused: result.commentsPaused
-  });
-  return result;
-}
-async function decryptWorkspaceRevision(access, revisionId = access.currentRevision, options = {}) {
-  if (!access.keys) await getWorkspace(access, options);
-  if (!idPattern.test(revisionId)) throw new TypeError("Invalid design revision.");
-  const revision = assertWorkspaceContract(
-    await request(access, `/revisions/${revisionId}`, options),
-    DESIGN_WORKSPACE_REVISION_SCHEMA
-  );
-  if (revision.id !== revisionId || !await verifyWorkspaceSignature(revision, access.ownerPublicKey))
-    throw new Error("The published design signature is invalid.");
-  if (!access.keys[revision.epoch]) throw new Error("The access token cannot open this revision.");
-  const bundle = assertDesignReviewBundle(
-    await unpackDesignReviewBundle(
-      await unseal(
-        revision,
-        decodeWorkspaceBytes(access.keys[revision.epoch]),
-        revisionContext(access.id, revision)
-      )
-    )
-  );
-  if (workspaceEnvelopeDigest(bundle.envelope) !== revision.reviewOf)
-    throw new Error("Published design content does not match its revision.");
-  return { ...bundle, workspaceRevision: revision.id, reviewOf: revision.reviewOf };
-}
-async function prepareWorkspaceMutation(custody, action, payload = void 0) {
-  if (custody.pendingCreate)
-    throw new Error("Finish creating this shared review before changing it.");
-  if (custody.pendingMutation)
-    throw new Error("A sharing operation is pending. Retry it before making another change.");
-  const body = {
-    operationId: newWorkspaceId(),
-    expectedVersion: custody.version,
-    epoch: custody.epoch
-  };
-  let next = {};
-  if (action === "publish") body.revision = await prepareRevision(custody, payload);
-  else if (action === "rotate") {
-    const token = newWorkspaceToken();
-    const epoch = custody.epoch + 1;
-    const keys = { ...custody.keys, [epoch]: newWorkspaceToken() };
-    const keyring = await wrapKeyring(custody, token, epoch, keys);
-    Object.assign(body, {
-      epoch,
-      reviewerAuthHash: sha256Hex(await deriveWorkspaceAuthentication(token, custody.id)),
-      keyring
-    });
-    next = { token, epoch, keys, keyring };
-  } else if (["pause", "resume", "revoke", "delete"].includes(action)) body.action = action;
-  else throw new TypeError("Unknown design sharing operation.");
-  custody.pendingMutation = {
-    action,
-    body: await signWorkspaceValue(body, custody.ownerPrivateKey),
-    next
-  };
-  return custody.pendingMutation;
-}
-async function commitWorkspaceMutation(custody, options = {}) {
-  const pending = custody.pendingMutation;
-  if (!pending) throw new Error("No sharing operation is pending.");
-  const suffix = ["publish", "rotate"].includes(pending.action) ? pending.action : "manage";
-  const result = await request(custody, `/${suffix}`, {
-    ...options,
-    method: "POST",
-    body: pending.body
-  });
-  if (pending.action === "delete") {
-    if (result.schemaVersion !== DESIGN_WORKSPACE_VERSION || result.id !== custody.id || result.deleted !== true || Object.keys(result).some((key) => !["schemaVersion", "id", "deleted"].includes(key)))
-      throw new Error("The deletion receipt is invalid. Retry the saved operation.");
-  } else {
-    assertWorkspaceContract(result, DESIGN_WORKSPACE_SCHEMA);
-    const expectedRevision = pending.action === "publish" ? pending.body.revision.id : custody.currentRevision;
-    if (result.id !== custody.id || result.version !== pending.body.expectedVersion + 1 || result.epoch !== pending.body.epoch || result.currentRevision !== expectedRevision || canonicalizeJson(result.ownerPublicKey) !== canonicalizeJson(custody.ownerPublicKey) || canonicalizeJson(result.keyring) !== canonicalizeJson(pending.next.keyring ?? custody.keyring) || ["pause", "resume"].includes(pending.action) && result.commentsPaused !== (pending.action === "pause"))
-      throw new Error("The sharing operation receipt is invalid. Retry the saved operation.");
-  }
-  Object.assign(custody, pending.next, { version: pending.body.expectedVersion + 1 });
-  if (pending.action === "publish") custody.currentRevision = pending.body.revision.id;
-  if (pending.action === "pause" || pending.action === "resume")
-    custody.commentsPaused = pending.action === "pause";
-  if (pending.action === "revoke" || pending.action === "delete")
-    custody.status = pending.action === "revoke" ? "revoked" : "deleted";
-  delete custody.pendingMutation;
-  return result;
-}
-async function prepareWorkspaceEvent(access, payload, { revisionId = access.currentRevision, reviewOf = payload.reviewOf, signer } = {}) {
-  if (!access.keys) throw new Error("Unlock the shared review before commenting.");
-  if (["category", "disposition"].includes(payload.kind)) assertDesignReviewMetadata(payload);
-  if (!["review", "direction", "category", "disposition"].includes(payload.kind))
-    throw new TypeError("Unknown design feedback kind.");
-  if (typeof payload.author !== "string" || !payload.author.trim() || payload.author.length > 160)
-    throw new TypeError("Enter your name before leaving feedback.");
-  const identity = signer ?? await createWorkspaceSigner();
-  const publicKey = canonicalWorkspacePublicKey(identity.publicKey);
-  const header = { id: newWorkspaceId(), revisionId, reviewOf, epoch: access.epoch };
-  const event = await signWorkspaceValue(
-    {
-      ...header,
-      ...await seal(
-        payload,
-        decodeWorkspaceBytes(access.keys[access.epoch]),
-        eventContext(access.id, header),
-        DESIGN_WORKSPACE_MAX_EVENT_BYTES
-      ),
-      publicKey
-    },
-    identity.privateKey
-  );
-  return assertWorkspaceContract(event, DESIGN_WORKSPACE_EVENT_SCHEMA);
-}
-async function appendWorkspaceEvent(access, payload, { preparedEvent, signer, revisionId, reviewOf, ...options } = {}) {
-  const event = preparedEvent ?? await prepareWorkspaceEvent(access, payload, {
-    signer,
-    revisionId,
-    reviewOf: reviewOf ?? payload.reviewOf
-  });
-  const result = await request(access, "/events", { ...options, method: "POST", body: event });
-  if (!result || typeof result !== "object" || Array.isArray(result) || !Number.isSafeInteger(result.sequence) || result.sequence < 1 || !result.event || typeof result.event !== "object" || Array.isArray(result.event))
-    throw new Error("The feedback receipt is invalid. Retry the saved operation.");
-  const { sequence: eventSequence, ...received } = result.event;
-  if (eventSequence !== void 0 && eventSequence !== result.sequence || canonicalizeJson(received) !== canonicalizeJson(event))
-    throw new Error(
-      "The feedback receipt does not match the saved event. Retry the saved operation."
-    );
-  return { event: { ...received, sequence: result.sequence }, sequence: result.sequence };
-}
-async function readWorkspaceEvents(access, { after = 0, ...options } = {}) {
-  if (!Number.isSafeInteger(after) || after < 0) throw new TypeError("Invalid feedback cursor.");
-  if (!access.keys) await getWorkspace(access, options);
-  const page = await request(access, `/events?after=${after}`, options);
-  if (!Array.isArray(page.events) || page.events.length > 100 || !Number.isSafeInteger(page.cursor) || page.cursor < after || typeof page.hasMore !== "boolean")
-    throw new Error("Invalid shared feedback page.");
-  const events = [];
-  const issues = [];
-  let previousSequence = after;
-  const pageIds = /* @__PURE__ */ new Set();
-  for (const item of page.events) {
-    const { sequence, ...record } = item?.event ? { ...item.event, sequence: item.sequence } : item ?? {};
-    if (!Number.isSafeInteger(sequence) || sequence <= previousSequence || sequence > page.cursor)
-      throw new Error("Invalid shared feedback sequence.");
-    previousSequence = sequence;
-    if (typeof record.id !== "string" || pageIds.has(record.id))
-      throw new Error("Invalid shared feedback event identity.");
-    pageIds.add(record.id);
-    try {
-      assertWorkspaceContract(record, DESIGN_WORKSPACE_EVENT_SCHEMA);
-      if (!await verifyWorkspaceSignature(record, record.publicKey))
-        throw new Error("Signature verification failed.");
-      if (!access.keys[record.epoch]) throw new Error("The encryption epoch is unavailable.");
-      const payload = await unseal(
-        record,
-        decodeWorkspaceBytes(access.keys[record.epoch]),
-        eventContext(access.id, record),
-        DESIGN_WORKSPACE_MAX_EVENT_BYTES
-      );
-      if (["category", "disposition"].includes(payload.kind)) assertDesignReviewMetadata(payload);
-      if (!["review", "direction", "category", "disposition"].includes(payload.kind) || typeof payload.author !== "string" || !payload.author.trim() || payload.author.length > 160 || payload.reviewOf !== record.reviewOf)
-        throw new Error("Feedback author, kind or revision is invalid.");
-      events.push({ ...record, sequence, payload });
-    } catch {
-      issues.push({
-        sequence,
-        id: typeof record.id === "string" && idPattern.test(record.id) ? record.id : null,
-        reason: "Invalid encrypted feedback; not imported."
-      });
-    }
-  }
-  if (previousSequence > page.cursor) throw new Error("Invalid shared feedback cursor.");
-  return { ...page, events, issues };
-}
+  ),
+  packBundle: packDesignReviewBundle,
+  unpackBundle: unpackDesignReviewBundle
+});
+var {
+  encodeWorkspaceBytes,
+  decodeWorkspaceBytes,
+  newWorkspaceToken,
+  newWorkspaceId,
+  normalizeWorkspaceBase,
+  deriveWorkspaceAuthentication,
+  canonicalWorkspacePublicKey,
+  createWorkspaceSigner,
+  signWorkspaceValue,
+  verifyWorkspaceSignature,
+  workspaceEnvelopeDigest
+} = client;
+var chunked = createChunkedWorkspaceClient({
+  legacy: client,
+  domain: "openplanr-design-workspace/v1",
+  apiPath: DESIGN_WORKSPACE_API,
+  assertBundle: assertDesignReviewBundle,
+  assertFeedback: (payload) => {
+    if (["category", "disposition"].includes(payload.kind)) assertDesignReviewMetadata(payload);
+    if (!["review", "direction", "category", "disposition"].includes(payload.kind) || typeof payload.author !== "string" || !payload.author.trim() || payload.author.length > 160)
+      throw new TypeError("Invalid design feedback.");
+    return payload;
+  },
+  digestInput: (bundle) => bundle.envelope
+});
+var discoverWorkspaceCapabilities = chunked.capabilities;
+var prepareChunkedWorkspace = chunked.prepareWorkspace;
+var openWorkspaceRevision = chunked.openRevision;
+var prepareWorkspace = (bundle, options = {}) => options.transport === "2" ? chunked.prepareWorkspace(bundle, options) : client.prepareWorkspace(bundle, options);
+var commitWorkspace = (access, ...args) => (access.schemaVersion === "2.0.0" ? chunked : client).commitWorkspace(access, ...args);
+var getWorkspace = (access, ...args) => (access.schemaVersion === "2.0.0" ? chunked : client).getWorkspace(access, ...args);
+var decryptWorkspaceRevision = (access, ...args) => (access.schemaVersion === "2.0.0" ? chunked : client).decryptWorkspaceRevision(access, ...args);
+var prepareWorkspaceMutation = (access, ...args) => (access.schemaVersion === "2.0.0" ? chunked : client).prepareWorkspaceMutation(access, ...args);
+var commitWorkspaceMutation = (access, ...args) => (access.schemaVersion === "2.0.0" ? chunked : client).commitWorkspaceMutation(access, ...args);
+var prepareWorkspaceEvent = (access, ...args) => (access.schemaVersion === "2.0.0" ? chunked : client).prepareWorkspaceEvent(access, ...args);
+var appendWorkspaceEvent = (access, ...args) => (access.schemaVersion === "2.0.0" ? chunked : client).appendWorkspaceEvent(access, ...args);
+var readWorkspaceEvents = (access, ...args) => (access.schemaVersion === "2.0.0" ? chunked : client).readWorkspaceEvents(access, ...args);
+var workspaceReviewUrl = (access) => `${client.workspaceReviewUrl(access)}${access.schemaVersion === "2.0.0" ? "?v=2" : ""}`;
 
 // packages/artifact/lib/artifact/ui/annotations.mjs
 var ARTIFACT_ANNOTATION_EVENTS = Object.freeze({
@@ -1435,15 +1734,26 @@ function normalizeRegion(region) {
   if (!region || typeof region !== "object" || Array.isArray(region)) {
     invalid("pin.region must be an object.");
   }
-  const unit = (value, label) => {
+  const finite = (value, label) => {
     if (typeof value !== "number" || !Number.isFinite(value)) invalid(`${label} must be finite.`);
-    return Math.round(Math.min(1, Math.max(0, value)) * 1e6) / 1e6;
+    return value;
   };
-  const x = unit(region.x, "pin.region.x");
-  const y = unit(region.y, "pin.region.y");
-  const w = Math.round(Math.min(unit(region.w, "pin.region.w"), 1 - x) * 1e6) / 1e6;
-  const h = Math.round(Math.min(unit(region.h, "pin.region.h"), 1 - y) * 1e6) / 1e6;
-  return { x, y, w, h };
+  const x = finite(region.x, "pin.region.x");
+  const y = finite(region.y, "pin.region.y");
+  const w = finite(region.w, "pin.region.w");
+  const h = finite(region.h, "pin.region.h");
+  if (x >= 0 && y >= 0 && w >= 0 && h >= 0 && x + w <= 1 && y + h <= 1) {
+    return { x, y, w, h };
+  }
+  const unit = (value) => Math.round(Math.min(1, Math.max(0, value)) * 1e6) / 1e6;
+  const boundedX = unit(x);
+  const boundedY = unit(y);
+  return {
+    x: boundedX,
+    y: boundedY,
+    w: Math.round(Math.min(unit(w), 1 - boundedX) * 1e6) / 1e6,
+    h: Math.round(Math.min(unit(h), 1 - boundedY) * 1e6) / 1e6
+  };
 }
 function normalizeViewport(viewport) {
   if (!viewport || typeof viewport !== "object" || Array.isArray(viewport)) {
@@ -1727,12 +2037,7 @@ function prepareDesignShareBundle(file) {
 function custodyLocation(file, options = {}, { allowMissing = false } = {}) {
   const current = currentDesign(file);
   const env = options.env ?? process.env;
-  const root = resolve2(
-    options.custodyRoot ?? join2(
-      configuredPlanrHome(env) ?? join2(realpathSync2(env.HOME || homedir2()), ".openplanr"),
-      "design-shares"
-    )
-  );
+  const root = resolve2(options.custodyRoot ?? join2(planrHome(env), "design-shares"));
   let project = current.root;
   for (let candidate = current.root; dirname3(candidate) !== candidate; candidate = dirname3(candidate)) {
     if (existsSync3(join2(candidate, ".git")) || existsSync3(join2(candidate, ".planr"))) {
@@ -1748,81 +2053,72 @@ ${current.document.id}`);
     throw new Error(
       "Design owner credentials must be stored outside the project. Set PLANR_HOME to a private user-level directory."
     );
-  return { root, path, current };
-}
-function ensurePrivateDirectory(root) {
-  for (let path = root; dirname3(path) !== path; path = dirname3(path)) {
-    if (existsSync3(path) && lstatSync3(path).isSymbolicLink())
-      throw new Error("Design custody directory must not contain symbolic links.");
-  }
-  mkdirSync3(root, { recursive: true, mode: 448 });
-  const stat = lstatSync3(root);
-  if (!stat.isDirectory() || stat.isSymbolicLink())
-    throw new Error("Design custody must use a private local directory.");
-  if (process.platform !== "win32") chmodSync(root, 448);
-}
-function readCustody(path) {
-  if (!existsSync3(path)) return null;
-  const stat = lstatSync3(path);
-  if (!stat.isFile() || stat.isSymbolicLink() || process.platform !== "win32" && stat.mode & 63)
-    throw new Error("Design owner custody must be a private 0600 file.");
-  const record = JSON.parse(readFileSync3(path, "utf8"));
-  if (record.kind !== FORMAT || record.schemaVersion !== "1.0.0" || !record.custody)
-    throw new Error("Design owner custody is invalid.");
-  return record;
-}
-function writeCustody(path, record) {
-  const temp = `${path}.${randomBytes2(8).toString("hex")}.tmp`;
-  const fd = openSync(temp, "wx", 384);
-  try {
-    writeFileSync3(fd, `${JSON.stringify(record)}
-`);
-    fsyncSync(fd);
-  } finally {
-    closeSync(fd);
-  }
-  try {
-    renameSync3(temp, path);
-    if (process.platform !== "win32") {
-      chmodSync(path, 384);
-      const directory = openSync(dirname3(path), "r");
-      try {
-        fsyncSync(directory);
-      } finally {
-        closeSync(directory);
-      }
-    }
-  } catch (error) {
-    try {
-      unlinkSync(temp);
-    } catch {
-    }
-    throw error;
-  }
+  const legacyPath = !options.custodyRoot && !configuredPlanrHome(env) ? join2(realpathSync2(env.HOME || homedir2()), ".openplanr", "design-shares", `${key}.json`) : null;
+  return { root, path, current, legacyPath };
 }
 async function withCustody(file, options, action) {
   const location = custodyLocation(file, options);
-  ensurePrivateDirectory(location.root);
+  ensurePrivateDirectory(location.root, { label: "Design" });
   const unlock = await acquireStartLock(`${location.path}.lock`);
   try {
-    let record = readCustody(location.path);
+    let record = readCustody(location.path, { label: "Design", format: FORMAT });
+    if (!record && location.legacyPath && existsSync3(location.legacyPath)) {
+      readCustody(location.legacyPath, { label: "Design", format: FORMAT });
+      const legacyUnlock = await acquireStartLock(`${location.legacyPath}.lock`);
+      try {
+        const legacy = readCustody(location.legacyPath, { label: "Design", format: FORMAT });
+        if (legacy && !existsSync3(location.path)) {
+          const temporary = `${location.path}.${newWorkspaceId()}.migration`;
+          const fd = openSync(temporary, "wx", 384);
+          try {
+            writeFileSync3(fd, `${JSON.stringify(legacy)}
+`);
+            fsyncSync(fd);
+          } finally {
+            closeSync(fd);
+          }
+          try {
+            linkSync(temporary, location.path);
+            const directory = openSync(location.root, "r");
+            try {
+              fsyncSync(directory);
+            } finally {
+              closeSync(directory);
+            }
+          } finally {
+            unlinkSync(temporary);
+          }
+        }
+        record = readCustody(location.path, { label: "Design", format: FORMAT });
+      } finally {
+        legacyUnlock();
+      }
+    }
     return await action({
       ...location,
       record,
       save(value = record) {
         record = value;
-        writeCustody(location.path, value);
+        writeCustody(location.path, value, { label: "Design" });
       }
     });
   } finally {
     unlock();
   }
 }
+function uploadOptions(custody, options) {
+  const body = custody.pendingCreate ?? (custody.pendingMutation?.action === "publish" ? custody.pendingMutation.body : null);
+  return {
+    fetchImpl: options.fetchImpl,
+    ...custody.schemaVersion === "2.0.0" && body ? { readChunk: spoolChunkReader(custody.spoolDirectory, body) } : {}
+  };
+}
 async function commitMutation(record, save, options) {
   try {
-    return await commitWorkspaceMutation(record.custody, {
-      fetchImpl: options.fetchImpl
-    });
+    return await commitWorkspaceMutation(
+      record.custody,
+      uploadOptions(record.custody, options)
+    );
   } catch (error) {
     if (error.status === 409 && record.custody.pendingMutation) {
       const pending = structuredClone(record.custody.pendingMutation);
@@ -1831,7 +2127,12 @@ async function commitMutation(record, save, options) {
           fetchImpl: options.fetchImpl
         });
         if (remote.version > pending.body.expectedVersion) {
-          record.conflictedMutation = { ...pending, localRevision: record.pendingRevision ?? null };
+          record.conflictedMutation = {
+            ...pending,
+            localRevision: record.pendingRevision ?? null,
+            ...record.custody.spoolDirectory ? { spoolDirectory: record.custody.spoolDirectory } : {}
+          };
+          delete record.custody.spoolDirectory;
           delete record.custody.pendingMutation;
           delete record.pendingRevision;
           save(record);
@@ -1861,7 +2162,7 @@ var safeStatus = (record, current) => ({
   retention: "until-revoked",
   ...record ? {
     id: record.custody.id,
-    url: `${record.custody.baseUrl}/d/${encodeURIComponent(record.custody.id)}`,
+    url: workspaceReviewUrl(record.custody),
     revision: record.custody.currentRevision ?? record.publishedRevision ?? null,
     publishedRevision: record.publishedRevision ?? null,
     hasUpdate: record.publishedRevision !== current.revision || record.publishedPresentation !== presentationFingerprint(current),
@@ -1877,19 +2178,48 @@ var safeStatus = (record, current) => ({
   } : {}
 });
 function getDesignShareStatus(file, options = {}) {
-  const { path, current } = custodyLocation(file, options);
-  return safeStatus(readCustody(path), current);
+  const { path, current, legacyPath } = custodyLocation(file, options);
+  const record = readCustody(path, { label: "Design", format: FORMAT }) ?? (legacyPath ? readCustody(legacyPath, { label: "Design", format: FORMAT }) : null);
+  return safeStatus(record, current);
 }
 async function shareDesign(file, options = {}) {
-  return withCustody(file, options, async ({ record, current, save }) => {
+  return withCustody(file, options, async ({ record, current, save, root }) => {
     if (record?.deleted)
       throw new Error(
         "This shared review was deleted. Create a new design identity to share a new review."
       );
     if (!record) {
-      const custody = await prepareWorkspace(prepareDesignShareBundle(file), {
-        baseUrl: options.baseUrl ?? options.env?.OPENPLANR_SHARE_BASE ?? process.env.OPENPLANR_SHARE_BASE ?? "https://share.openplanr.dev"
-      });
+      let transport = options.transport;
+      if (!transport) {
+        try {
+          await discoverWorkspaceCapabilities({
+            baseUrl: options.baseUrl ?? options.env?.OPENPLANR_SHARE_BASE ?? process.env.OPENPLANR_SHARE_BASE ?? "https://share.openplanr.dev",
+            fetchImpl: options.fetchImpl
+          });
+          transport = "2";
+        } catch (error) {
+          if (![404, 426].includes(error.status)) throw error;
+          transport = "1";
+        }
+      }
+      let custody;
+      try {
+        custody = await prepareWorkspace(prepareDesignShareBundle(file), {
+          transport,
+          baseUrl: options.baseUrl ?? options.env?.OPENPLANR_SHARE_BASE ?? process.env.OPENPLANR_SHARE_BASE ?? "https://share.openplanr.dev"
+        });
+      } catch (error) {
+        if (transport === "1" && error.code === "E_WORKSPACE_PAYLOAD_TOO_LARGE")
+          throw Object.assign(
+            new Error(
+              "This sharing service needs the bounded resource upload upgrade. Retry after the hosted service is updated; your local work is unchanged."
+            ),
+            { code: "E_WORKSPACE_TRANSPORT_UNSUPPORTED", status: 426 }
+          );
+        throw error;
+      }
+      if (custody.schemaVersion === "2.0.0")
+        await persistUploadSpool(custody, join2(root, "uploads"));
       record = {
         schemaVersion: "1.0.0",
         kind: FORMAT,
@@ -1903,7 +2233,7 @@ async function shareDesign(file, options = {}) {
       save(record);
     }
     if (record.custody.pendingCreate) {
-      await commitWorkspace(record.custody, { fetchImpl: options.fetchImpl });
+      await commitWorkspace(record.custody, uploadOptions(record.custody, options));
       record.publishedRevision = record.pendingRevision;
       record.publishedPresentation = record.pendingPresentation;
       delete record.pendingRevision;
@@ -1914,7 +2244,7 @@ async function shareDesign(file, options = {}) {
   });
 }
 async function publishDesignShare(file, options = {}) {
-  return withCustody(file, options, async ({ record, current, save }) => {
+  return withCustody(file, options, async ({ record, current, save, root }) => {
     if (!record || record.custody.pendingCreate)
       throw new Error("Create the shared review before publishing an update.");
     if (record.deleted || record.revoked)
@@ -1930,6 +2260,8 @@ async function publishDesignShare(file, options = {}) {
         "publish",
         prepareDesignShareBundle(file)
       );
+      if (record.custody.schemaVersion === "2.0.0")
+        await persistUploadSpool(record.custody, join2(root, "uploads"));
       record.pendingRevision = current.revision;
       record.pendingPresentation = presentationFingerprint(current);
       save(record);
@@ -1946,7 +2278,7 @@ async function publishDesignShare(file, options = {}) {
 async function manageDesignShare(file, action, options = {}) {
   if (!["rotate", "pause", "resume", "revoke", "delete", "access"].includes(action))
     throw new Error("Unknown design sharing action.");
-  return withCustody(file, options, async ({ record, current, save }) => {
+  return withCustody(file, options, async ({ record, current, save, root }) => {
     if (!record || record.custody.pendingCreate) throw new Error("Create the shared review first.");
     if (action === "access") {
       if (record.revoked || record.deleted) throw new Error("This review is no longer accessible.");
@@ -2012,14 +2344,25 @@ async function exportDesignShareRecovery(file, { output, ...options } = {}) {
     if (!record) throw new Error("Create the shared review first.");
     const target = resolve2(output);
     mkdirSync3(dirname3(target), { recursive: true, mode: 448 });
-    writeFileSync3(target, `${JSON.stringify(record, null, 2)}
+    const recovery = structuredClone(record);
+    if (record.custody.schemaVersion === "2.0.0" && (record.custody.pendingCreate || record.custody.pendingMutation?.action === "publish")) {
+      const spool = `${target}.upload`;
+      await copyUploadSpool(record.custody, spool);
+      recovery.recoverySpool = basename(spool);
+      recovery.custody.spoolDirectory = spool;
+    }
+    writeFileSync3(target, `${JSON.stringify(recovery, null, 2)}
 `, { flag: "wx", mode: 384 });
     return { ok: true, output: target };
   });
 }
 async function importDesignShareRecovery(file, { input, ...options } = {}) {
   if (!input) throw new Error("Recovery restore requires --input <private recovery file>.");
-  const recovered = readCustody(resolve2(input));
+  const recovered = readCustody(resolve2(input), {
+    label: "Design",
+    format: FORMAT,
+    recoveryInput: true
+  });
   if (!recovered) throw new Error("Recovery file could not be found.");
   const custody = recovered.custody;
   workspaceReviewUrl(custody);
@@ -2032,7 +2375,7 @@ async function importDesignShareRecovery(file, { input, ...options } = {}) {
   await deriveWorkspaceAuthentication(custody.token, custody.id);
   if (!/^[A-Za-z0-9_-]{43}$/u.test(custody.ownerAuth ?? ""))
     throw new Error("Recovery owner capability is invalid.");
-  return withCustody(file, options, async ({ record, current, save }) => {
+  return withCustody(file, options, async ({ record, current, save, root }) => {
     if (recovered.designId !== current.document.id)
       throw new Error("Recovery belongs to a different design.");
     if (record && (record.custody.id !== custody.id || JSON.stringify(record.custody.ownerPublicKey) !== JSON.stringify(custody.ownerPublicKey)))
@@ -2049,6 +2392,20 @@ async function importDesignShareRecovery(file, { input, ...options } = {}) {
       if (bundle.design.id !== current.document.id)
         throw new Error("Recovery belongs to a different design.");
     }
+    if (custody.schemaVersion === "2.0.0" && (custody.pendingCreate || custody.pendingMutation?.action === "publish")) {
+      if (recovered.recoverySpool !== `${basename(resolve2(input))}.upload`)
+        throw new Error("Pending upload recovery requires its matching binary sidecar.");
+      custody.spoolDirectory = join2(dirname3(resolve2(input)), recovered.recoverySpool);
+      const pending = custody.pendingCreate ?? custody.pendingMutation.body;
+      const destination = join2(root, "uploads", custody.id, pending.operationId);
+      if (existsSync3(destination)) {
+        const { spoolChunkReader: spoolChunkReader2 } = await import("./design-generated-864393b693434d75.mjs");
+        const reader = spoolChunkReader2(destination, pending);
+        for (const part of pending.manifest.chunks) await reader(part.index);
+      } else await copyUploadSpool(custody, destination);
+      custody.spoolDirectory = destination;
+      delete recovered.recoverySpool;
+    }
     recovered.lastEvent = 0;
     save(recovered);
     return { ...safeStatus(recovered, current), restored: true };
@@ -2057,7 +2414,7 @@ async function importDesignShareRecovery(file, { input, ...options } = {}) {
 async function syncDesignShare(file, options = {}) {
   const location = custodyLocation(file, options, { allowMissing: true });
   if (!existsSync3(location.path)) return { ok: true, shared: false, imported: 0 };
-  return withCustody(file, options, async ({ record, current, save }) => {
+  return withCustody(file, options, async ({ record, current, save, root }) => {
     if (!record || record.custody.pendingCreate || record.deleted)
       return { ok: true, shared: Boolean(record), imported: 0 };
     await flushOwnerMetadata(record, save, options);
@@ -2210,11 +2567,13 @@ export {
   mergeReviewLedger,
   effectiveReviewDecision,
   ARTIFACT_REVIEW_MAX_STATE_BYTES,
+  normalizeArtifactReview,
   readArtifactReviewState,
   writeArtifactReviewState,
   withArtifactReviewLock,
   exportArtifactReview,
   resolveArtifactReviewDestination,
+  decodeArtifactReviewSources,
   prepareDesignShareBundle,
   getDesignShareStatus,
   shareDesign,

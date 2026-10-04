@@ -1,7 +1,7 @@
 # OpenPlanr for Claude Code
 
-OpenPlanr closes the loop from intent to delivery. This plugin adds 27 skills and
-9 role agents that plan, design, build, review, and operate from durable context in
+OpenPlanr closes the loop from intent to delivery. This plugin adds skills and specialist
+agents that plan, design, build, review, and operate from durable context in
 your repository. Specifications, user stories, tasks, and provenance live under `.planr/` in your
 repository, reviewed and versioned like code.
 
@@ -17,7 +17,7 @@ Follow with `/planr:plan` to decompose the specification into stories and tasks,
 ## Install the CLI
 
 Several skills call the deterministic `planr` CLI from the `openplanr` npm package, which ships
-this plugin at the same version (2.2640.4):
+this plugin at the same version (2.2640.7):
 
 ```bash
 npm install -g openplanr
