@@ -26,7 +26,12 @@ mode-specific file defines how to resolve its path and parent artifacts.
      `frontend/nextjs.md` or `database/prisma.md`);
    - read the installed default at
      `${CLAUDE_PLUGIN_ROOT}/references/pipeline/stacks/<logical-path>` when present;
-   - then read `.openplanr/stacks/<logical-path>` when present.
+   - then read `.planr/stacks/<logical-path>` when present; otherwise
+     use `.claude/stacks/<logical-path>` for the selected runtime,
+     then `.openplanr/stacks/<logical-path>` as the final legacy fallback.
+     Do not infer the active runtime from a stack path or read a different host's
+     directory. When multiple project sources differ, use the first source in
+     this order and report the conflict without mixing or rewriting their bytes.
 
    The project-local stack file overrides the installed default on a collision.
    Existing project code and configuration remain the primary reference for how

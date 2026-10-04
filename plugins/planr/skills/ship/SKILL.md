@@ -4,7 +4,7 @@ description: Implement an OpenPlanr plan, specification, task, or clearly stated
 license: MIT
 ---
 
-# Planr Ship
+# OpenPlanr Ship
 
 Produce an implementation-complete local repository in this active coding
 session. Landing and release preparation belong to `planr-land`. Ordinary
@@ -77,7 +77,10 @@ Ship artifacts after this separate invocation.
 
 ## Return
 
-Return the existing five fields:
+Summarize the existing five fields concisely where relevant. Lead with the achieved
+behavior, link material changes by purpose, and summarize actual verification.
+Retain complete file inventories and command diagnostics in their existing
+results instead of reproducing them in chat.
 
 - **Outcome:** `completed`, `partial`, or `blocked`, followed by what now works.
 - **Task:** task ID and path, or `direct-request`.
@@ -85,8 +88,14 @@ Return the existing five fields:
 - **Checks:** command, `passed`, `failed`, or `not-run`, plus a concise result.
 - **Issues:** problem, impact, and next action, or `none`.
 
-For a completed outcome, append `Next: planr-land` to the human summary. It is
-presentation guidance, not a sixth machine field.
+Keep the five machine fields unchanged. A human summary may omit empty or unavailable fields,
+but must make partial, blocked or unverified work clear and give the smallest
+recovery action. Preserve native transcripts; never require another execution
+or correction just to change summary wording.
+
+Suggest `planr-land` only when a landing step remains in the requested workflow.
+Do not add a next action when the requested scope is fulfilled. This guidance
+does not add a sixth machine field.
 
 When the OpenPlanr dashboard is running, the shipped work is browsable at
 `#/detail/<T-###>` and the board at `#/board`. This is navigation only.

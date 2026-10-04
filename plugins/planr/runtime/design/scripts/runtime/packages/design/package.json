@@ -1,0 +1,64 @@
+{
+  "name": "@openplanr/design",
+  "version": "0.4.1",
+  "private": true,
+  "type": "module",
+  "description": "Canonical OpenPlanr design helpers and design-loop engine",
+  "license": "MIT",
+  "exports": {
+    ".": "./lib/design/index.mjs",
+    "./handoff-readiness": {
+      "types": "./lib/design/handoff-readiness.d.mts",
+      "import": "./lib/design/handoff-readiness.mjs"
+    },
+    "./handoff-resolution": {
+      "types": "./lib/design/handoff-resolution.d.mts",
+      "import": "./lib/design/handoff-resolution.mjs"
+    },
+    "./implementation-handoff": {
+      "types": "./lib/design/implementation-handoff.d.mts",
+      "import": "./lib/design/implementation-handoff.mjs"
+    },
+    "./implementation-handoff-approval": {
+      "types": "./lib/design/implementation-handoff-approval.d.mts",
+      "import": "./lib/design/implementation-handoff-approval.mjs"
+    },
+    "./design-plan-handoff": {
+      "types": "./lib/design/design-plan-handoff.d.mts",
+      "import": "./lib/design/design-plan-handoff.mjs"
+    },
+    "./delivery-status": {
+      "types": "./lib/design/delivery-status.d.mts",
+      "import": "./lib/design/delivery-status.mjs"
+    },
+    "./package.json": "./package.json",
+    "./design/*": "./lib/design/*",
+    "./engine/*": "./lib/design-engine/*"
+  },
+  "files": [
+    "lib/",
+    "templates/",
+    "references/",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "dependencies": {
+    "@openplanr/artifact": "0.6.1",
+    "@openplanr/protocol": "0.10.0"
+  },
+  "scripts": {
+    "test": "node --test --test-concurrency=2 tests/*.test.mjs",
+    "check:boundaries": "node --test tests/boundaries.test.mjs"
+  },
+  "openplanr": {
+    "domain": "design",
+    "sourceCutoff": "fa591a7e7157b47e10d33e4c30997925779c692e",
+    "compatibilityProjection": [
+      "lib/design",
+      "lib/design-engine"
+    ]
+  }
+}

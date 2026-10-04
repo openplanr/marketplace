@@ -48,7 +48,11 @@ The flat `tasks/` directory is intentional — `storyId` frontmatter on each tas
    a. Read its `ActiveStackFiles` entries in declared order.
    b. For each entry, load the installed default from
       `${CLAUDE_PLUGIN_ROOT}/references/pipeline/stacks/...` first, then load the matching
-      `.openplanr/stacks/...` file when present. The project file overrides
+      `.planr/stacks/...` file when present. If absent, use the selected
+      runtime's `.claude/stacks/...`, then `.openplanr/stacks/...`.
+      Do not select a runtime from a stack path or read another host's stack.
+      When project sources differ, report the conflict and use this precedence
+      without mixing or rewriting them. The project file overrides
       the installed file on a filename collision.
    c. Apply the resulting folder, naming, framework, testing, and integration
       conventions when selecting task paths. If a declared stack file cannot be

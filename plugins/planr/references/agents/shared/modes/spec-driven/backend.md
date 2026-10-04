@@ -54,7 +54,7 @@ All files listed under `### Create` and `### Modify` in the task file (`<SPEC_DI
    Verification, and Done When. Follow `storyId` to the story, load its optional
    Gherkin sidecar when present, then load the enclosing specification.
 2. Load `input/tech/stack.md`. Resolve every `ActiveStackFiles` entry through the
-   installed stack root and the project-local `.openplanr/stacks` overlay as
+   installed stack root and the project-local `.planr/stacks` overlay as
    defined by the shared task-context guidance.
 3. Read each declared predecessor's output contract when `dependsOn` is non-empty.
    Load `output/db/schema.json` when the task references persistence, and validate

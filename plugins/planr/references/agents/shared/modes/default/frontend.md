@@ -51,7 +51,7 @@ All files listed under `### Create` and `### Modify` in the task file (`output/f
    the complete parent story and `input/specs/spec-{name}.md`; load the story's
    matching Gherkin sidecar when present.
 2. Load `input/tech/stack.md`. Resolve every `ActiveStackFiles` entry through the
-   installed stack root and the project-local `.openplanr/stacks` overlay as
+   installed stack root and the project-local `.planr/stacks` overlay as
    defined by the shared task-context guidance.
 3. Read each declared predecessor's output contract when `dependsOn` is non-empty.
    Load `output/feats/feat-{name}/design-spec.md` when it exists.

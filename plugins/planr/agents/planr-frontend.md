@@ -66,4 +66,4 @@ the active stack, e.g. Next.js + Zustand) and Design Token Application rules
 (sections 1-8 of `design-spec.md`) ship under
 `${CLAUDE_PLUGIN_ROOT}/references/pipeline/stacks/frontend/*.md`. Resolve every
 `ActiveStackFiles` entry through the shared task-context rules;
-`.openplanr/stacks` overlays win on collision.
+`.planr/stacks` overlays win on collision.
