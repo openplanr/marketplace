@@ -16,24 +16,22 @@ import {
   hash,
   readJson,
   reviewDigest
-} from "./design-escape.mjs";
+} from "./design-shared-artifact-support-dependencies-design-support-protocol-contracts-3d9b1a86.mjs";
 import {
   acquireStartLock
-} from "./design-planr-home.mjs";
+} from "./design-loopback-server.mjs";
 import {
   digestArtifactEnvelope
-} from "./design-artifact-sources.mjs";
+} from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
+import {
+  validateJson
+} from "./design-shared-protocol-contracts-31a760fc.mjs";
 import {
   assertPlainData,
   canonicalizeJson,
   deepFreeze,
-  sha256Hex,
-  validateJson
-} from "./design-bounded-json-data.mjs";
-
-// packages/design/lib/design/handoff.mjs
-import { existsSync as existsSync2, writeFileSync } from "node:fs";
-import { dirname as dirname2, join as join3 } from "node:path";
+  sha256Hex
+} from "./design-shared-protocol-contracts-75a938cc.mjs";
 
 // packages/design/lib/design/feedback-reader.mjs
 import { join } from "node:path";
@@ -80,6 +78,10 @@ function readDesignFeedback(file, env = process.env, options = {}) {
   };
 }
 
+// packages/design/lib/design/handoff-reader.mjs
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join as join2 } from "node:path";
+
 // packages/design/lib/design/handoff-format.mjs
 var safeMd = (text2) => String(text2).replaceAll("[", "\\[").replaceAll("]", "\\]").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 function renderMarkdown(draft, title2) {
@@ -123,10 +125,6 @@ function renderMarkdown(draft, title2) {
   );
   return lines.join("\n");
 }
-
-// packages/design/lib/design/handoff-reader.mjs
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join as join2 } from "node:path";
 
 // packages/protocol/src/design-handoff-contracts.mjs
 var DESIGN_HANDOFF_PROTOCOL_VERSION = "1.11.0";
@@ -1092,7 +1090,6 @@ function canApproveDesignHandoffResolution(value) {
 // packages/design/lib/design/handoff-reader.mjs
 var sections = ["agreedChanges", "openQuestions", "deferred", "rejected"];
 var metadataPath = (current) => join2(current.root, ".design/review-metadata.json");
-var designHandoffPath = (file, options = {}) => join2(dirname(designSpecPath(currentDesign(file, options).root)), "review-handoff.json");
 var revisionOf2 = (pin) => pin.revisionId ?? pin.reviewId;
 var pinKey = (pin) => `${revisionOf2(pin)}:${pin.id}`;
 function metadata(current, feedback) {
@@ -1314,6 +1311,8 @@ function assertDraft(draft) {
 }
 
 // packages/design/lib/design/handoff.mjs
+import { existsSync as existsSync2, writeFileSync } from "node:fs";
+import { dirname as dirname2, join as join3 } from "node:path";
 var conflict = (message2) => Object.assign(new Error(message2), { statusCode: 409 });
 function sourceItem(pin, shareUrl) {
   const source = pin.revisionId ? `${shareUrl ?? ""}#revision=${encodeURIComponent(pin.revisionId)}&pin=${encodeURIComponent(pin.id)}` : `#review=${encodeURIComponent(pin.reviewId)}&pin=${encodeURIComponent(pin.id)}`;
@@ -1570,7 +1569,6 @@ export {
   isDesignHandoffRelativePath,
   designImplementationHandoffDigest,
   assertDesignImplementationHandoff,
-  designHandoffPath,
   readDesignExperience,
   readDesignHandoff,
   readDesignHandoffReadiness,

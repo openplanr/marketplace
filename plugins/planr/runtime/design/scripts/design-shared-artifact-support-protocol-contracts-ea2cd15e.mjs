@@ -1,7 +1,7 @@
 import {
   LARGE_OBJECT_LIMITS,
   validateJson
-} from "./design-bounded-json-data.mjs";
+} from "./design-shared-protocol-contracts-31a760fc.mjs";
 
 // packages/protocol/src/errors.mjs
 var ARTIFACT_ERROR_CODES = Object.freeze({
