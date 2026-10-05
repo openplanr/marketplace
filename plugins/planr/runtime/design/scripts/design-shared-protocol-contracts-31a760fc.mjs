@@ -1,217 +1,51 @@
-// packages/protocol/src/canonical-json.mjs
-var hasOwn = (value, key) => Object.hasOwn(value, key);
-function assertUnicodeScalarString(value, path) {
-  for (let index2 = 0; index2 < value.length; index2 += 1) {
-    const code = value.charCodeAt(index2);
-    if (code >= 55296 && code <= 56319) {
-      const next = value.charCodeAt(index2 + 1);
-      if (!(next >= 56320 && next <= 57343)) {
-        throw new TypeError(`JCS cannot canonicalize a lone high surrogate at ${path}.`);
+import {
+  assertPlainData,
+  canonicalizeJson,
+  deepFreeze,
+  sha256Hex
+} from "./design-shared-protocol-contracts-75a938cc.mjs";
+
+// packages/protocol/src/bounded-json-data.mjs
+function assertLargeObjectData(value) {
+  const pending = [[value, 0]], visited = /* @__PURE__ */ new Set();
+  let nodes = 0;
+  for (let next = pending.pop(); next; next = pending.pop()) {
+    const [item2, depth, exit] = next;
+    if (exit) {
+      visited.delete(item2);
+      continue;
+    }
+    if (++nodes > 25e4 || depth > 40)
+      throw new RangeError("Large object complexity exceeds its limit.");
+    if (item2 && typeof item2 === "object") {
+      if (visited.has(item2)) throw new TypeError("Large objects require acyclic plain data.");
+      visited.add(item2);
+      pending.push([item2, depth, true]);
+      const array = Array.isArray(item2);
+      const prototype = Object.getPrototypeOf(item2);
+      if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null)
+        throw new TypeError("Large objects require plain data.");
+      const descriptors = Object.getOwnPropertyDescriptors(item2);
+      const keys = Reflect.ownKeys(descriptors);
+      const length = array ? descriptors.length.value : null;
+      if (array && keys.length !== length + 1)
+        throw new TypeError("Large objects require dense JSON arrays.");
+      for (const key of keys) {
+        if (typeof key !== "string" || ["__proto__", "constructor", "prototype"].includes(key))
+          throw new TypeError("Large objects cannot contain unsafe or symbolic keys.");
+        const descriptor = descriptors[key];
+        if (!("value" in descriptor))
+          throw new TypeError("Large objects cannot contain accessors.");
+        if (!(array && key === "length") && !descriptor.enumerable)
+          throw new TypeError("Large objects require enumerable JSON fields.");
+        if (array && key !== "length" && (!Number.isSafeInteger(Number(key)) || Number(key) < 0 || Number(key) >= length || String(Number(key)) !== key))
+          throw new TypeError("Large objects require numeric JSON array indices.");
+        pending.push([descriptor.value, depth + 1]);
       }
-      index2 += 1;
-    } else if (code >= 56320 && code <= 57343) {
-      throw new TypeError(`JCS cannot canonicalize a lone low surrogate at ${path}.`);
     }
   }
-}
-function serialize(value, path, seen) {
-  if (value === null) return "null";
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "string") {
-    assertUnicodeScalarString(value, path);
-    return JSON.stringify(value);
-  }
-  if (typeof value === "number") {
-    if (!Number.isFinite(value)) throw new TypeError(`JCS requires a finite number at ${path}.`);
-    return JSON.stringify(value);
-  }
-  if (typeof value !== "object")
-    throw new TypeError(`JCS cannot canonicalize ${typeof value} at ${path}.`);
-  if (seen.has(value)) throw new TypeError(`JCS cannot canonicalize a cycle at ${path}.`);
-  seen.add(value);
-  try {
-    if (Array.isArray(value)) {
-      const entries2 = [];
-      for (let index2 = 0; index2 < value.length; index2 += 1) {
-        if (!hasOwn(value, index2))
-          throw new TypeError(`JCS cannot canonicalize a sparse array at ${path}[${index2}].`);
-        entries2.push(serialize(value[index2], `${path}[${index2}]`, seen));
-      }
-      return `[${entries2.join(",")}]`;
-    }
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) {
-      throw new TypeError(`JCS requires a plain JSON object at ${path}.`);
-    }
-    const entries = Object.keys(value).sort().map((key) => {
-      assertUnicodeScalarString(key, `${path} key`);
-      return `${JSON.stringify(key)}:${serialize(value[key], `${path}.${key}`, seen)}`;
-    });
-    return `{${entries.join(",")}}`;
-  } finally {
-    seen.delete(value);
-  }
-}
-function canonicalizeJson(value) {
-  return serialize(value, "$", /* @__PURE__ */ new Set());
-}
-var SHA256_K = /* @__PURE__ */ new Int32Array([
-  1116352408,
-  1899447441,
-  3049323471,
-  3921009573,
-  961987163,
-  1508970993,
-  2453635748,
-  2870763221,
-  3624381080,
-  310598401,
-  607225278,
-  1426881987,
-  1925078388,
-  2162078206,
-  2614888103,
-  3248222580,
-  3835390401,
-  4022224774,
-  264347078,
-  604807628,
-  770255983,
-  1249150122,
-  1555081692,
-  1996064986,
-  2554220882,
-  2821834349,
-  2952996808,
-  3210313671,
-  3336571891,
-  3584528711,
-  113926993,
-  338241895,
-  666307205,
-  773529912,
-  1294757372,
-  1396182291,
-  1695183700,
-  1986661051,
-  2177026350,
-  2456956037,
-  2730485921,
-  2820302411,
-  3259730800,
-  3345764771,
-  3516065817,
-  3600352804,
-  4094571909,
-  275423344,
-  430227734,
-  506948616,
-  659060556,
-  883997877,
-  958139571,
-  1322822218,
-  1537002063,
-  1747873779,
-  1955562222,
-  2024104815,
-  2227730452,
-  2361852424,
-  2428436474,
-  2756734187,
-  3204031479,
-  3329325298
-]);
-var rotr = (value, bits) => value >>> bits | value << 32 - bits;
-function sha256Hex(value) {
-  const candidate = typeof value === "string" ? new TextEncoder().encode(value) : value;
-  if (!ArrayBuffer.isView(candidate) || Object.prototype.toString.call(candidate) !== "[object Uint8Array]") {
-    throw new TypeError("sha256Hex expects a string or Uint8Array.");
-  }
-  const input = new Uint8Array(candidate.buffer, candidate.byteOffset, candidate.byteLength);
-  const paddedLength = Math.ceil((input.length + 9) / 64) * 64;
-  const bytes = new Uint8Array(paddedLength);
-  bytes.set(input);
-  bytes[input.length] = 128;
-  const view = new DataView(bytes.buffer);
-  const bitLength = BigInt(input.length) * 8n;
-  view.setUint32(paddedLength - 8, Number(bitLength >> 32n & 0xffffffffn));
-  view.setUint32(paddedLength - 4, Number(bitLength & 0xffffffffn));
-  let h0 = 1779033703;
-  let h1 = 3144134277;
-  let h2 = 1013904242;
-  let h3 = 2773480762;
-  let h4 = 1359893119;
-  let h5 = 2600822924;
-  let h6 = 528734635;
-  let h7 = 1541459225;
-  const words = new Int32Array(64);
-  for (let offset = 0; offset < bytes.length; offset += 64) {
-    for (let index2 = 0; index2 < 16; index2 += 1) words[index2] = view.getUint32(offset + index2 * 4);
-    for (let index2 = 16; index2 < 64; index2 += 1) {
-      const s0 = rotr(words[index2 - 15], 7) ^ rotr(words[index2 - 15], 18) ^ words[index2 - 15] >>> 3;
-      const s1 = rotr(words[index2 - 2], 17) ^ rotr(words[index2 - 2], 19) ^ words[index2 - 2] >>> 10;
-      words[index2] = words[index2 - 16] + s0 + words[index2 - 7] + s1 | 0;
-    }
-    let a = h0;
-    let b = h1;
-    let c = h2;
-    let d = h3;
-    let e = h4;
-    let f = h5;
-    let g = h6;
-    let h = h7;
-    for (let index2 = 0; index2 < 64; index2 += 1) {
-      const s1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
-      const choice = e & f ^ ~e & g;
-      const temp1 = h + s1 + choice + SHA256_K[index2] + words[index2] | 0;
-      const s0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
-      const majority = a & b ^ a & c ^ b & c;
-      const temp2 = s0 + majority | 0;
-      h = g;
-      g = f;
-      f = e;
-      e = d + temp1 | 0;
-      d = c;
-      c = b;
-      b = a;
-      a = temp1 + temp2 | 0;
-    }
-    h0 = h0 + a | 0;
-    h1 = h1 + b | 0;
-    h2 = h2 + c | 0;
-    h3 = h3 + d | 0;
-    h4 = h4 + e | 0;
-    h5 = h5 + f | 0;
-    h6 = h6 + g | 0;
-    h7 = h7 + h | 0;
-  }
-  return [h0, h1, h2, h3, h4, h5, h6, h7].map((part) => (part >>> 0).toString(16).padStart(8, "0")).join("");
-}
-function deepFreeze(value) {
-  if (value && typeof value === "object" && !Object.isFrozen(value)) {
-    for (const nested of Object.values(value)) deepFreeze(nested);
-    Object.freeze(value);
-  }
+  assertPlainData(value, "Large object data");
   return value;
-}
-function assertPlainDataAt(value, label, depth, seen) {
-  if (depth > 64) throw new TypeError(`${label} exceeds the maximum nesting depth.`);
-  if (value === null || ["string", "boolean"].includes(typeof value)) return;
-  if (typeof value === "number" && Number.isFinite(value)) return;
-  if (typeof value !== "object" || seen.has(value))
-    throw new TypeError(`${label} must be finite, acyclic JSON.`);
-  if (!Array.isArray(value) && ![Object.prototype, null].includes(Object.getPrototypeOf(value)))
-    throw new TypeError(`${label} must contain only plain JSON objects.`);
-  seen.add(value);
-  for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
-    if (["__proto__", "prototype", "constructor"].includes(key) || !Object.hasOwn(descriptor, "value"))
-      throw new TypeError(`${label} contains a forbidden property.`);
-    assertPlainDataAt(descriptor.value, label, depth + 1, seen);
-  }
-  seen.delete(value);
-}
-function assertPlainData(value, label) {
-  assertPlainDataAt(value, label, 0, /* @__PURE__ */ new Set());
 }
 
 // packages/protocol/src/json-schema.mjs
@@ -502,247 +336,6 @@ var validateJson = (value, schema6, {
   });
   return errs;
 };
-
-// packages/protocol/src/design-contracts.mjs
-var DESIGN_DOCUMENT_VERSION = "1.0.0";
-var freeze = (value) => {
-  if (value && typeof value === "object") {
-    for (const nested of Object.values(value)) freeze(nested);
-    Object.freeze(value);
-  }
-  return value;
-};
-var DESIGN_DOCUMENT_SCHEMA = freeze({
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: "https://openplanr.dev/schemas/v1.9.0/design-document.schema.json",
-  "x-openplanr-contract": { id: "design-document", version: "1.9.0" },
-  title: "OpenPlanr authored design document",
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "kind",
-    "schemaVersion",
-    "id",
-    "title",
-    "brief",
-    "frames",
-    "screens",
-    "screenOrder",
-    "variants",
-    "selectedVariant",
-    "defaultView"
-  ],
-  properties: {
-    kind: { const: "openplanr-design-document" },
-    schemaVersion: { const: DESIGN_DOCUMENT_VERSION },
-    id: { $ref: "#/$defs/id" },
-    title: { $ref: "#/$defs/text" },
-    brief: {
-      type: "object",
-      additionalProperties: false,
-      required: ["text", "source", "provenance"],
-      properties: {
-        text: { $ref: "#/$defs/text" },
-        source: { enum: ["spec", "png", "describe"] },
-        provenance: { enum: ["spec", "inferred"] },
-        references: { type: "array", items: { $ref: "#/$defs/text" }, uniqueItems: true }
-      }
-    },
-    designSystem: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        path: { $ref: "#/$defs/localPath" },
-        tokens: { $ref: "#/$defs/localPath" },
-        spacing: {
-          type: "array",
-          minItems: 1,
-          uniqueItems: true,
-          items: { type: "number", minimum: 0, maximum: 16384 }
-        }
-      }
-    },
-    assets: { $ref: "#/$defs/paths" },
-    frames: {
-      type: "array",
-      minItems: 1,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "label", "width", "height"],
-        properties: {
-          id: { $ref: "#/$defs/id" },
-          label: { $ref: "#/$defs/text" },
-          width: { type: "integer", minimum: 1, maximum: 16384 },
-          height: { type: "integer", minimum: 1, maximum: 16384 }
-        }
-      }
-    },
-    screens: {
-      type: "array",
-      minItems: 1,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "title", "source"],
-        properties: {
-          id: { $ref: "#/$defs/id" },
-          title: { $ref: "#/$defs/text" },
-          description: { $ref: "#/$defs/text" },
-          source: { $ref: "#/$defs/source" },
-          anchors: { $ref: "#/$defs/ids" }
-        }
-      }
-    },
-    screenOrder: { type: "array", minItems: 1, items: { $ref: "#/$defs/id" }, uniqueItems: true },
-    flows: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "title", "screens"],
-        properties: {
-          id: { $ref: "#/$defs/id" },
-          title: { $ref: "#/$defs/text" },
-          screens: { type: "array", minItems: 1, items: { $ref: "#/$defs/id" } }
-        }
-      }
-    },
-    variants: {
-      type: "array",
-      minItems: 1,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "label", "status"],
-        properties: {
-          id: { $ref: "#/$defs/id" },
-          label: { $ref: "#/$defs/text" },
-          description: { $ref: "#/$defs/text" },
-          status: { enum: ["ready", "failed"] },
-          issue: { $ref: "#/$defs/text" },
-          sources: { type: "object", additionalProperties: { $ref: "#/$defs/source" } }
-        },
-        if: { properties: { status: { const: "failed" } } },
-        then: { required: ["issue"] }
-      }
-    },
-    selectedVariant: { $ref: "#/$defs/id" },
-    defaultView: { enum: ["canvas", "prototype", "walkthrough"] }
-  },
-  $defs: {
-    id: { type: "string", minLength: 1, maxLength: 128, pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
-    text: { type: "string", minLength: 1, pattern: "\\S" },
-    ids: { type: "array", items: { $ref: "#/$defs/id" }, uniqueItems: true },
-    localPath: {
-      type: "string",
-      minLength: 1,
-      description: "Path relative to the authored document directory. No URL, traversal, encoded path, query or fragment.",
-      pattern: "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*[/ ]$)[^\\\\:\\u0000-\\u001F%?#]+$"
-    },
-    paths: { type: "array", items: { $ref: "#/$defs/localPath" }, uniqueItems: true },
-    source: {
-      type: "object",
-      additionalProperties: false,
-      required: ["html"],
-      properties: {
-        html: { $ref: "#/$defs/localPath" },
-        styles: { $ref: "#/$defs/paths" },
-        scripts: { $ref: "#/$defs/paths" }
-      }
-    }
-  }
-});
-function validateDesignDocument(value) {
-  const errors = validateJson(value, DESIGN_DOCUMENT_SCHEMA).map(
-    ({ path, detail }) => `${path}: ${detail}`
-  );
-  if (errors.length > 0) return { ok: false, errors };
-  for (const field of ["frames", "screens", "flows", "variants"]) {
-    const seen = /* @__PURE__ */ new Set();
-    for (const [index2, item2] of (value[field] ?? []).entries()) {
-      if (seen.has(item2.id))
-        errors.push(`$.${field}[${index2}].id: duplicate identity '${item2.id}'`);
-      seen.add(item2.id);
-    }
-  }
-  const screenIds = new Set(value.screens.map(({ id: id7 }) => id7));
-  const orderedIds = new Set(value.screenOrder);
-  for (const id7 of value.screenOrder) {
-    if (!screenIds.has(id7)) errors.push(`$.screenOrder: unknown screen '${id7}'`);
-  }
-  for (const id7 of screenIds) {
-    if (!orderedIds.has(id7)) errors.push(`$.screenOrder: missing screen '${id7}'`);
-  }
-  for (const [index2, flow] of (value.flows ?? []).entries()) {
-    for (const id7 of flow.screens) {
-      if (!screenIds.has(id7)) errors.push(`$.flows[${index2}].screens: unknown screen '${id7}'`);
-    }
-  }
-  for (const [index2, variant] of value.variants.entries()) {
-    for (const id7 of Object.keys(variant.sources ?? {})) {
-      if (!screenIds.has(id7)) errors.push(`$.variants[${index2}].sources: unknown screen '${id7}'`);
-    }
-  }
-  const selected = value.variants.find(({ id: id7 }) => id7 === value.selectedVariant);
-  if (!selected) errors.push(`$.selectedVariant: unknown variant '${value.selectedVariant}'`);
-  else if (selected.status !== "ready")
-    errors.push("$.selectedVariant: selected variant must be ready");
-  for (const [index2, spacing] of (value.designSystem?.spacing ?? []).entries()) {
-    if (!Number.isFinite(spacing))
-      errors.push(`$.designSystem.spacing[${index2}]: expected a finite spacing value`);
-  }
-  return { ok: errors.length === 0, errors };
-}
-function assertDesignDocument(value) {
-  const result = validateDesignDocument(value);
-  if (!result.ok) throw new TypeError(`Invalid design document:
-${result.errors.join("\n")}`);
-  return value;
-}
-
-// packages/protocol/src/bounded-json-data.mjs
-function assertLargeObjectData(value) {
-  const pending = [[value, 0]], visited = /* @__PURE__ */ new Set();
-  let nodes = 0;
-  for (let next = pending.pop(); next; next = pending.pop()) {
-    const [item2, depth, exit] = next;
-    if (exit) {
-      visited.delete(item2);
-      continue;
-    }
-    if (++nodes > 25e4 || depth > 40)
-      throw new RangeError("Large object complexity exceeds its limit.");
-    if (item2 && typeof item2 === "object") {
-      if (visited.has(item2)) throw new TypeError("Large objects require acyclic plain data.");
-      visited.add(item2);
-      pending.push([item2, depth, true]);
-      const array = Array.isArray(item2);
-      const prototype = Object.getPrototypeOf(item2);
-      if (array ? prototype !== Array.prototype : prototype !== Object.prototype && prototype !== null)
-        throw new TypeError("Large objects require plain data.");
-      const descriptors = Object.getOwnPropertyDescriptors(item2);
-      const keys = Reflect.ownKeys(descriptors);
-      const length = array ? descriptors.length.value : null;
-      if (array && keys.length !== length + 1)
-        throw new TypeError("Large objects require dense JSON arrays.");
-      for (const key of keys) {
-        if (typeof key !== "string" || ["__proto__", "constructor", "prototype"].includes(key))
-          throw new TypeError("Large objects cannot contain unsafe or symbolic keys.");
-        const descriptor = descriptors[key];
-        if (!("value" in descriptor))
-          throw new TypeError("Large objects cannot contain accessors.");
-        if (!(array && key === "length") && !descriptor.enumerable)
-          throw new TypeError("Large objects require enumerable JSON fields.");
-        if (array && key !== "length" && (!Number.isSafeInteger(Number(key)) || Number(key) < 0 || Number(key) >= length || String(Number(key)) !== key))
-          throw new TypeError("Large objects require numeric JSON array indices.");
-        pending.push([descriptor.value, depth + 1]);
-      }
-    }
-  }
-  assertPlainData(value, "Large object data");
-  return value;
-}
 
 // packages/protocol/src/enterprise-contract-validation.mjs
 var timestamp = { pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{3})?Z$" };
@@ -4760,6 +4353,204 @@ var DIAGRAM_AUTHORING_CAPABILITIES = deepFreeze({
   unsupportedGrammars: DIAGRAM_REGISTRIES["diagram-grammars.json"].grammars.map((entry) => entry.grammarId).filter((value) => !profileIds.includes(value))
 });
 
+// packages/protocol/src/design-contracts.mjs
+var DESIGN_DOCUMENT_VERSION = "1.0.0";
+var freeze = (value) => {
+  if (value && typeof value === "object") {
+    for (const nested of Object.values(value)) freeze(nested);
+    Object.freeze(value);
+  }
+  return value;
+};
+var DESIGN_DOCUMENT_SCHEMA = freeze({
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "https://openplanr.dev/schemas/v1.9.0/design-document.schema.json",
+  "x-openplanr-contract": { id: "design-document", version: "1.9.0" },
+  title: "OpenPlanr authored design document",
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "kind",
+    "schemaVersion",
+    "id",
+    "title",
+    "brief",
+    "frames",
+    "screens",
+    "screenOrder",
+    "variants",
+    "selectedVariant",
+    "defaultView"
+  ],
+  properties: {
+    kind: { const: "openplanr-design-document" },
+    schemaVersion: { const: DESIGN_DOCUMENT_VERSION },
+    id: { $ref: "#/$defs/id" },
+    title: { $ref: "#/$defs/text" },
+    brief: {
+      type: "object",
+      additionalProperties: false,
+      required: ["text", "source", "provenance"],
+      properties: {
+        text: { $ref: "#/$defs/text" },
+        source: { enum: ["spec", "png", "describe"] },
+        provenance: { enum: ["spec", "inferred"] },
+        references: { type: "array", items: { $ref: "#/$defs/text" }, uniqueItems: true }
+      }
+    },
+    designSystem: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        path: { $ref: "#/$defs/localPath" },
+        tokens: { $ref: "#/$defs/localPath" },
+        spacing: {
+          type: "array",
+          minItems: 1,
+          uniqueItems: true,
+          items: { type: "number", minimum: 0, maximum: 16384 }
+        }
+      }
+    },
+    assets: { $ref: "#/$defs/paths" },
+    frames: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "label", "width", "height"],
+        properties: {
+          id: { $ref: "#/$defs/id" },
+          label: { $ref: "#/$defs/text" },
+          width: { type: "integer", minimum: 1, maximum: 16384 },
+          height: { type: "integer", minimum: 1, maximum: 16384 }
+        }
+      }
+    },
+    screens: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "title", "source"],
+        properties: {
+          id: { $ref: "#/$defs/id" },
+          title: { $ref: "#/$defs/text" },
+          description: { $ref: "#/$defs/text" },
+          source: { $ref: "#/$defs/source" },
+          anchors: { $ref: "#/$defs/ids" }
+        }
+      }
+    },
+    screenOrder: { type: "array", minItems: 1, items: { $ref: "#/$defs/id" }, uniqueItems: true },
+    flows: {
+      type: "array",
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "title", "screens"],
+        properties: {
+          id: { $ref: "#/$defs/id" },
+          title: { $ref: "#/$defs/text" },
+          screens: { type: "array", minItems: 1, items: { $ref: "#/$defs/id" } }
+        }
+      }
+    },
+    variants: {
+      type: "array",
+      minItems: 1,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        required: ["id", "label", "status"],
+        properties: {
+          id: { $ref: "#/$defs/id" },
+          label: { $ref: "#/$defs/text" },
+          description: { $ref: "#/$defs/text" },
+          status: { enum: ["ready", "failed"] },
+          issue: { $ref: "#/$defs/text" },
+          sources: { type: "object", additionalProperties: { $ref: "#/$defs/source" } }
+        },
+        if: { properties: { status: { const: "failed" } } },
+        then: { required: ["issue"] }
+      }
+    },
+    selectedVariant: { $ref: "#/$defs/id" },
+    defaultView: { enum: ["canvas", "prototype", "walkthrough"] }
+  },
+  $defs: {
+    id: { type: "string", minLength: 1, maxLength: 128, pattern: "^[A-Za-z][A-Za-z0-9_-]*$" },
+    text: { type: "string", minLength: 1, pattern: "\\S" },
+    ids: { type: "array", items: { $ref: "#/$defs/id" }, uniqueItems: true },
+    localPath: {
+      type: "string",
+      minLength: 1,
+      description: "Path relative to the authored document directory. No URL, traversal, encoded path, query or fragment.",
+      pattern: "^(?!/)(?!.*(?:^|/)\\.{1,2}(?:/|$))(?!.*//)(?!.*[/ ]$)[^\\\\:\\u0000-\\u001F%?#]+$"
+    },
+    paths: { type: "array", items: { $ref: "#/$defs/localPath" }, uniqueItems: true },
+    source: {
+      type: "object",
+      additionalProperties: false,
+      required: ["html"],
+      properties: {
+        html: { $ref: "#/$defs/localPath" },
+        styles: { $ref: "#/$defs/paths" },
+        scripts: { $ref: "#/$defs/paths" }
+      }
+    }
+  }
+});
+function validateDesignDocument(value) {
+  const errors = validateJson(value, DESIGN_DOCUMENT_SCHEMA).map(
+    ({ path, detail }) => `${path}: ${detail}`
+  );
+  if (errors.length > 0) return { ok: false, errors };
+  for (const field of ["frames", "screens", "flows", "variants"]) {
+    const seen = /* @__PURE__ */ new Set();
+    for (const [index2, item2] of (value[field] ?? []).entries()) {
+      if (seen.has(item2.id))
+        errors.push(`$.${field}[${index2}].id: duplicate identity '${item2.id}'`);
+      seen.add(item2.id);
+    }
+  }
+  const screenIds = new Set(value.screens.map(({ id: id7 }) => id7));
+  const orderedIds = new Set(value.screenOrder);
+  for (const id7 of value.screenOrder) {
+    if (!screenIds.has(id7)) errors.push(`$.screenOrder: unknown screen '${id7}'`);
+  }
+  for (const id7 of screenIds) {
+    if (!orderedIds.has(id7)) errors.push(`$.screenOrder: missing screen '${id7}'`);
+  }
+  for (const [index2, flow] of (value.flows ?? []).entries()) {
+    for (const id7 of flow.screens) {
+      if (!screenIds.has(id7)) errors.push(`$.flows[${index2}].screens: unknown screen '${id7}'`);
+    }
+  }
+  for (const [index2, variant] of value.variants.entries()) {
+    for (const id7 of Object.keys(variant.sources ?? {})) {
+      if (!screenIds.has(id7)) errors.push(`$.variants[${index2}].sources: unknown screen '${id7}'`);
+    }
+  }
+  const selected = value.variants.find(({ id: id7 }) => id7 === value.selectedVariant);
+  if (!selected) errors.push(`$.selectedVariant: unknown variant '${value.selectedVariant}'`);
+  else if (selected.status !== "ready")
+    errors.push("$.selectedVariant: selected variant must be ready");
+  for (const [index2, spacing] of (value.designSystem?.spacing ?? []).entries()) {
+    if (!Number.isFinite(spacing))
+      errors.push(`$.designSystem.spacing[${index2}]: expected a finite spacing value`);
+  }
+  return { ok: errors.length === 0, errors };
+}
+function assertDesignDocument(value) {
+  const result = validateDesignDocument(value);
+  if (!result.ok) throw new TypeError(`Invalid design document:
+${result.errors.join("\n")}`);
+  return value;
+}
+
 // packages/protocol/src/workspace-contracts.mjs
 var DESIGN_WORKSPACE_VERSION = "1.0.0";
 var DESIGN_WORKSPACE_API = "/api/v1/design-workspaces";
@@ -5506,10 +5297,6 @@ function assertLargeObjectContract(value, kind) {
 }
 
 export {
-  canonicalizeJson,
-  sha256Hex,
-  deepFreeze,
-  assertPlainData,
   validateJson,
   assertDesignDocument,
   DESIGN_WORKSPACE_VERSION,

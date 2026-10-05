@@ -1,6 +1,6 @@
 import {
   isProcessAlive
-} from "./design-planr-home.mjs";
+} from "./design-loopback-server.mjs";
 import {
   Parser,
   defaultTreeAdapter
@@ -12,18 +12,141 @@ import {
 } from "./design-parse5-tokenizer.mjs";
 import {
   MAX_ARTIFACT_HTML_BYTES
-} from "./design-artifact-sources.mjs";
+} from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
 import {
   DESIGN_REVIEW_BUNDLE_SCHEMA,
-  canonicalizeJson,
-  sha256Hex,
   validateJson
-} from "./design-bounded-json-data.mjs";
+} from "./design-shared-protocol-contracts-31a760fc.mjs";
+import {
+  canonicalizeJson,
+  sha256Hex
+} from "./design-shared-protocol-contracts-75a938cc.mjs";
+
+// packages/design/lib/design/document-state.mjs
+import { createHash, randomUUID } from "node:crypto";
+import {
+  closeSync,
+  lstatSync,
+  mkdirSync,
+  openSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  writeFileSync
+} from "node:fs";
+import { dirname, join, resolve } from "node:path";
+var hash = (value) => createHash("sha256").update(value).digest("hex");
+var json = (value) => `${JSON.stringify(value, null, 2)}
+`;
+function readJson(path, fallback = void 0) {
+  try {
+    return JSON.parse(readFileSync(path, "utf8"));
+  } catch (error) {
+    if (error.code === "ENOENT" && fallback !== void 0) return fallback;
+    throw error;
+  }
+}
+function atomicJson(path, value) {
+  atomicBytes(path, json(value));
+}
+function atomicBytes(path, bytes) {
+  mkdirSync(dirname(path), { recursive: true });
+  const temporary = `${path}.${randomUUID()}.tmp`;
+  try {
+    writeFileSync(temporary, bytes, { mode: 384, flag: "wx" });
+    renameSync(temporary, path);
+  } finally {
+    rmSync(temporary, { force: true });
+  }
+}
+function recoverDesignPublication(root, { ownsRenderLock = false } = {}) {
+  const journalPath = join(root, ".design/publication.json");
+  let journal = readJson(journalPath, null);
+  if (!journal) return;
+  const lockPath = join(root, ".design/render.lock");
+  let recoveryOwner;
+  if (!ownsRenderLock) {
+    const lock = readJson(lockPath, null);
+    if (lock && isProcessAlive(lock.pid)) return;
+    if (lock) rmSync(lockPath, { force: true });
+    recoveryOwner = randomUUID();
+    let descriptor;
+    try {
+      descriptor = openSync(lockPath, "wx", 384);
+      writeFileSync(
+        descriptor,
+        json({ pid: process.pid, owner: recoveryOwner, createdAt: Date.now() })
+      );
+    } catch (error) {
+      if (error.code === "EEXIST") return;
+      throw error;
+    } finally {
+      if (descriptor !== void 0) closeSync(descriptor);
+    }
+  }
+  try {
+    journal = readJson(journalPath, null);
+    if (!journal) return;
+    const pointer = readJson(join(root, ".design/current.json"), null);
+    const manifestPath = join(root, "finalized.json");
+    if (pointer?.revision === journal.revision) atomicJson(manifestPath, journal.manifest);
+    else if ((pointer?.revision ?? null) === journal.previousRevision) {
+      if (journal.previousManifest === null) rmSync(manifestPath, { force: true });
+      else atomicBytes(manifestPath, Buffer.from(journal.previousManifest, "base64"));
+    } else if (pointer?.revision && /^[a-f0-9]{64}$/u.test(pointer.revision)) {
+      atomicJson(
+        manifestPath,
+        readJson(join(root, ".design/revisions", pointer.revision, "render.json")).manifest
+      );
+    } else
+      throw new Error("Design publication recovery could not identify the committed revision.");
+    rmSync(journalPath, { force: true });
+  } finally {
+    if (recoveryOwner && readJson(lockPath, null)?.owner === recoveryOwner)
+      rmSync(lockPath, { force: true });
+  }
+}
+function designSpecPath(root) {
+  return /(?:^|\/)output\/feats\/feat-[^/]+\/design$/u.test(root.replaceAll("\\", "/")) ? join(dirname(root), "design-spec.md") : join(root, "design-spec.md");
+}
+function currentDesign(file, { recoverPublication = true } = {}) {
+  const root = realpathSync(dirname(resolve(file)));
+  if (recoverPublication) recoverDesignPublication(root);
+  else {
+    try {
+      lstatSync(join(root, ".design/publication.json"));
+      throw Object.assign(
+        new Error(
+          "Design publication state is pending or needs recovery. Finish or recover it with the Design utility; repair or restore an invalid .design/publication.json before retrying Plan handoff inspection."
+        ),
+        { code: "E_DESIGN_PUBLICATION_PENDING", statusCode: 409 }
+      );
+    } catch (error) {
+      if (error.code !== "ENOENT") throw error;
+    }
+  }
+  const pointer = readJson(join(root, ".design/current.json"), null);
+  if (!pointer || !/^[a-f0-9]{64}$/u.test(pointer.revision))
+    throw new Error("Design has no completed render. Run the render utility first.");
+  const directory = join(root, ".design/revisions", pointer.revision);
+  const prepared = readJson(join(directory, "render.json"));
+  return {
+    ...prepared,
+    root,
+    directory,
+    file: resolve(file),
+    verification: readJson(join(root, ".design/verification", `${pointer.revision}.json`), {
+      status: "unverified",
+      revision: pointer.revision
+    })
+  };
+}
 
 // packages/artifact/lib/artifact/local-document.mjs
-import { createHash } from "node:crypto";
-import { readFileSync, realpathSync, statSync } from "node:fs";
-import { dirname, extname, isAbsolute, relative, resolve } from "node:path";
+import { createHash as createHash2 } from "node:crypto";
+import { readFileSync as readFileSync2, realpathSync as realpathSync2, statSync } from "node:fs";
+import { dirname as dirname2, extname, isAbsolute, relative, resolve as resolve2 } from "node:path";
 import { Script } from "node:vm";
 
 // node_modules/entities/dist/escape.js
@@ -209,13 +332,13 @@ function element(name, value) {
 function resolveLocalDocumentFile(root, path, from = root) {
   if (typeof path !== "string" || !path || /^(?:[a-z][a-z\d+.-]*:|\/|\\)/iu.test(path))
     throw new Error(`Expected a local relative asset: ${path}`);
-  const candidate = resolve(from, path);
+  const candidate = resolve2(from, path);
   const inside = (file) => {
     const r = relative(root, file);
     return r !== ".." && !r.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) && !isAbsolute(r);
   };
   if (!inside(candidate)) throw new Error(`Asset escapes design root: ${path}`);
-  const actual = realpathSync(candidate);
+  const actual = realpathSync2(candidate);
   if (!inside(actual) || !statSync(actual).isFile())
     throw new Error(`Asset is not a contained regular file: ${path}`);
   return actual;
@@ -229,7 +352,7 @@ function bundleLocalDocument({
   readSource,
   passive = false
 }) {
-  const root = realpathSync(inputRoot);
+  const root = realpathSync2(inputRoot);
   const files = /* @__PURE__ */ new Map();
   const mediaStack = /* @__PURE__ */ new Set();
   let svgDepth = 0;
@@ -240,7 +363,7 @@ function bundleLocalDocument({
     const checked = readSource?.(path, from);
     const file = checked?.file ?? resolveLocalDocumentFile(root, path, from);
     if (!files.has(file)) {
-      const value = checked?.value ?? readFileSync(file);
+      const value = checked?.value ?? readFileSync2(file);
       bytes += value.length;
       if (bytes > maxBytes || files.size >= 1e3)
         throw new Error("Design source exceeds the local asset budget.");
@@ -269,7 +392,7 @@ function bundleLocalDocument({
         throw new Error("Circular or excessively nested SVG media cannot be published.");
       mediaStack.add(file);
       try {
-        payload = Buffer.from(passiveSvg(value.toString("utf8"), dirname(file)));
+        payload = Buffer.from(passiveSvg(value.toString("utf8"), dirname2(file)));
       } finally {
         mediaStack.delete(file);
       }
@@ -332,7 +455,7 @@ function bundleLocalDocument({
         if (stack.has(next.file)) throw new Error(`Circular stylesheet import: ${ref}`);
         const expanded = css(
           next.value.toString("utf8"),
-          dirname(next.file),
+          dirname2(next.file),
           /* @__PURE__ */ new Set([...stack, next.file])
         );
         return media.trim() ? `@media ${media.trim()}{${expanded}}` : expanded;
@@ -371,21 +494,21 @@ function bundleLocalDocument({
       );
     if (node.tagName === "meta" && attr(node, "http-equiv")?.value.toLowerCase() === "refresh")
       throw new Error("Design screens cannot redirect.");
-    if (node.tagName === "style") setText(node, css(text(node), dirname(input.file)));
+    if (node.tagName === "style") setText(node, css(text(node), dirname2(input.file)));
     if (node.tagName === "link" && attr(node, "rel")?.value.toLowerCase().split(/\s+/u).includes("stylesheet")) {
-      const linked = read(attr(node, "href")?.value, dirname(input.file));
+      const linked = read(attr(node, "href")?.value, dirname2(input.file));
       node.tagName = "style";
       node.nodeName = "style";
       node.attrs = [];
       setText(
         node,
-        css(linked.value.toString("utf8"), dirname(linked.file), /* @__PURE__ */ new Set([linked.file]))
+        css(linked.value.toString("utf8"), dirname2(linked.file), /* @__PURE__ */ new Set([linked.file]))
       );
     }
     if (node.tagName === "script") {
       const src = attr(node, "src");
       if (passive) {
-        if (src) read(src.value, dirname(input.file));
+        if (src) read(src.value, dirname2(input.file));
         node.parentNode.childNodes = node.parentNode.childNodes.filter((child) => child !== node);
         continue;
       }
@@ -393,7 +516,7 @@ function bundleLocalDocument({
       if (type === "module")
         throw new Error("Compile module scripts before using them in a portable design.");
       if (!type || /(?:javascript|ecmascript)/u.test(type)) {
-        const linked = src ? read(src.value, dirname(input.file)) : null;
+        const linked = src ? read(src.value, dirname2(input.file)) : null;
         setText(
           node,
           js(linked ? linked.value.toString("utf8") : text(node), linked?.file ?? input.file)
@@ -409,16 +532,16 @@ function bundleLocalDocument({
     }
     if (passive) node.attrs = (node.attrs ?? []).filter((item2) => !/^on/iu.test(item2.name));
     for (const item2 of node.attrs ?? []) {
-      if (item2.name === "style") item2.value = css(item2.value, dirname(input.file));
+      if (item2.name === "style") item2.value = css(item2.value, dirname2(input.file));
       if (["src", "poster"].includes(item2.name))
-        item2.value = asset(item2.value, dirname(input.file));
+        item2.value = asset(item2.value, dirname2(input.file));
       if (item2.name === "srcset")
         throw new Error("Use a local src and responsive CSS for portable design images.");
       if (["action", "formaction", "target", "formtarget"].includes(item2.name) && item2.value.trim())
         throw new Error("Design forms must use local submit handlers without navigation targets.");
       if (item2.name === "href" && !item2.value.startsWith("#")) {
         if (node.tagName === "link" || node.namespaceURI === "http://www.w3.org/2000/svg")
-          item2.value = asset(item2.value, dirname(input.file));
+          item2.value = asset(item2.value, dirname2(input.file));
         else if (node.tagName === "a")
           throw new Error('Use data-design-navigate="screen-id" for prototype navigation.');
       }
@@ -431,7 +554,7 @@ function bundleLocalDocument({
     prepend.push(
       element(
         "style",
-        css(linked.value.toString("utf8"), dirname(linked.file), /* @__PURE__ */ new Set([linked.file]))
+        css(linked.value.toString("utf8"), dirname2(linked.file), /* @__PURE__ */ new Set([linked.file]))
       )
     );
   }
@@ -458,7 +581,7 @@ function bundleLocalDocument({
     sourceDigests: Object.fromEntries(
       [...files].map(([path, value]) => [
         relative(root, path),
-        createHash("sha256").update(value).digest("hex")
+        createHash2("sha256").update(value).digest("hex")
       ])
     ),
     inputBytes: bytes,
@@ -706,10 +829,10 @@ var REVIEW_EXPERIENCE_SCHEMAS = Object.freeze({
 });
 
 // packages/design/lib/design/context.mjs
-import { createHash as createHash2 } from "node:crypto";
-import { existsSync, readdirSync, readFileSync as readFileSync2, realpathSync as realpathSync2 } from "node:fs";
-import { dirname as dirname2, join, resolve as resolve2 } from "node:path";
-var reviewDigest = (value) => createHash2("sha256").update(canonicalizeJson(value)).digest("hex");
+import { createHash as createHash3 } from "node:crypto";
+import { existsSync, readdirSync, readFileSync as readFileSync3, realpathSync as realpathSync3 } from "node:fs";
+import { dirname as dirname3, join as join2, resolve as resolve3 } from "node:path";
+var reviewDigest = (value) => createHash3("sha256").update(canonicalizeJson(value)).digest("hex");
 function emptyReviewContext(document) {
   return {
     kind: "openplanr-design-review-context",
@@ -720,10 +843,10 @@ function emptyReviewContext(document) {
   };
 }
 function loadReviewContext(root, document, { readSource } = {}) {
-  const file = join(root, "review-context.json");
+  const file = join2(root, "review-context.json");
   if (!existsSync(file)) return emptyReviewContext(document);
   const context = JSON.parse(
-    readSource ? readSource("review-context.json", root).value.toString("utf8") : readFileSync2(resolveLocalDocumentFile(root, "review-context.json"), "utf8")
+    readSource ? readSource("review-context.json", root).value.toString("utf8") : readFileSync3(resolveLocalDocumentFile(root, "review-context.json"), "utf8")
   );
   assertReviewExperience(context, DESIGN_REVIEW_CONTEXT_SCHEMA);
   if (context.designId !== document.id)
@@ -807,13 +930,13 @@ function bundleDesignRevision(current, state = {}) {
     fingerprints: current.fingerprints ?? []
   };
 }
-var localRoot = (file) => realpathSync2(dirname2(resolve2(file)));
+var localRoot = (file) => realpathSync3(dirname3(resolve3(file)));
 function listDesignRevisions(file) {
   const root = localRoot(file);
-  const pointer = JSON.parse(readFileSync2(join(root, ".design/current.json"), "utf8"));
-  const revisions = readdirSync(join(root, ".design/revisions")).filter((name) => /^[a-f0-9]{64}$/u.test(name)).map((revision) => {
+  const pointer = JSON.parse(readFileSync3(join2(root, ".design/current.json"), "utf8"));
+  const revisions = readdirSync(join2(root, ".design/revisions")).filter((name) => /^[a-f0-9]{64}$/u.test(name)).map((revision) => {
     const value = JSON.parse(
-      readFileSync2(join(root, ".design/revisions", revision, "render.json"), "utf8")
+      readFileSync3(join2(root, ".design/revisions", revision, "render.json"), "utf8")
     );
     return {
       revision,
@@ -828,133 +951,12 @@ function readDesignRevision(file, revision) {
   if (!/^[a-f0-9]{64}$/u.test(revision)) throw new Error("Invalid design revision identity.");
   const root = localRoot(file);
   const value = JSON.parse(
-    readFileSync2(
+    readFileSync3(
       resolveLocalDocumentFile(root, `.design/revisions/${revision}/render.json`),
       "utf8"
     )
   );
   return bundleDesignRevision(value);
-}
-
-// packages/design/lib/design/document-state.mjs
-import { createHash as createHash3, randomUUID } from "node:crypto";
-import {
-  closeSync,
-  lstatSync,
-  mkdirSync,
-  openSync,
-  readFileSync as readFileSync3,
-  realpathSync as realpathSync3,
-  renameSync,
-  rmSync,
-  writeFileSync
-} from "node:fs";
-import { dirname as dirname3, join as join2, resolve as resolve3 } from "node:path";
-var hash = (value) => createHash3("sha256").update(value).digest("hex");
-var json = (value) => `${JSON.stringify(value, null, 2)}
-`;
-function readJson(path, fallback = void 0) {
-  try {
-    return JSON.parse(readFileSync3(path, "utf8"));
-  } catch (error) {
-    if (error.code === "ENOENT" && fallback !== void 0) return fallback;
-    throw error;
-  }
-}
-function atomicJson(path, value) {
-  atomicBytes(path, json(value));
-}
-function atomicBytes(path, bytes) {
-  mkdirSync(dirname3(path), { recursive: true });
-  const temporary = `${path}.${randomUUID()}.tmp`;
-  try {
-    writeFileSync(temporary, bytes, { mode: 384, flag: "wx" });
-    renameSync(temporary, path);
-  } finally {
-    rmSync(temporary, { force: true });
-  }
-}
-function recoverDesignPublication(root, { ownsRenderLock = false } = {}) {
-  const journalPath = join2(root, ".design/publication.json");
-  let journal = readJson(journalPath, null);
-  if (!journal) return;
-  const lockPath = join2(root, ".design/render.lock");
-  let recoveryOwner;
-  if (!ownsRenderLock) {
-    const lock = readJson(lockPath, null);
-    if (lock && isProcessAlive(lock.pid)) return;
-    if (lock) rmSync(lockPath, { force: true });
-    recoveryOwner = randomUUID();
-    let descriptor;
-    try {
-      descriptor = openSync(lockPath, "wx", 384);
-      writeFileSync(
-        descriptor,
-        json({ pid: process.pid, owner: recoveryOwner, createdAt: Date.now() })
-      );
-    } catch (error) {
-      if (error.code === "EEXIST") return;
-      throw error;
-    } finally {
-      if (descriptor !== void 0) closeSync(descriptor);
-    }
-  }
-  try {
-    journal = readJson(journalPath, null);
-    if (!journal) return;
-    const pointer = readJson(join2(root, ".design/current.json"), null);
-    const manifestPath = join2(root, "finalized.json");
-    if (pointer?.revision === journal.revision) atomicJson(manifestPath, journal.manifest);
-    else if ((pointer?.revision ?? null) === journal.previousRevision) {
-      if (journal.previousManifest === null) rmSync(manifestPath, { force: true });
-      else atomicBytes(manifestPath, Buffer.from(journal.previousManifest, "base64"));
-    } else if (pointer?.revision && /^[a-f0-9]{64}$/u.test(pointer.revision)) {
-      atomicJson(
-        manifestPath,
-        readJson(join2(root, ".design/revisions", pointer.revision, "render.json")).manifest
-      );
-    } else
-      throw new Error("Design publication recovery could not identify the committed revision.");
-    rmSync(journalPath, { force: true });
-  } finally {
-    if (recoveryOwner && readJson(lockPath, null)?.owner === recoveryOwner)
-      rmSync(lockPath, { force: true });
-  }
-}
-function designSpecPath(root) {
-  return /(?:^|\/)output\/feats\/feat-[^/]+\/design$/u.test(root.replaceAll("\\", "/")) ? join2(dirname3(root), "design-spec.md") : join2(root, "design-spec.md");
-}
-function currentDesign(file, { recoverPublication = true } = {}) {
-  const root = realpathSync3(dirname3(resolve3(file)));
-  if (recoverPublication) recoverDesignPublication(root);
-  else {
-    try {
-      lstatSync(join2(root, ".design/publication.json"));
-      throw Object.assign(
-        new Error(
-          "Design publication state is pending or needs recovery. Finish or recover it with the Design utility; repair or restore an invalid .design/publication.json before retrying Plan handoff inspection."
-        ),
-        { code: "E_DESIGN_PUBLICATION_PENDING", statusCode: 409 }
-      );
-    } catch (error) {
-      if (error.code !== "ENOENT") throw error;
-    }
-  }
-  const pointer = readJson(join2(root, ".design/current.json"), null);
-  if (!pointer || !/^[a-f0-9]{64}$/u.test(pointer.revision))
-    throw new Error("Design has no completed render. Run the render utility first.");
-  const directory = join2(root, ".design/revisions", pointer.revision);
-  const prepared = readJson(join2(directory, "render.json"));
-  return {
-    ...prepared,
-    root,
-    directory,
-    file: resolve3(file),
-    verification: readJson(join2(root, ".design/verification", `${pointer.revision}.json`), {
-      status: "unverified",
-      revision: pointer.revision
-    })
-  };
 }
 
 export {

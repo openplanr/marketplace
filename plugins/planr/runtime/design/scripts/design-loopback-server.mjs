@@ -328,45 +328,23 @@ async function acquireStartLock(path, options = {}) {
   }
   return step.value;
 }
-
-// packages/artifact/lib/artifact/internal/planr-home.mjs
-import { homedir } from "node:os";
-import { join as join2, resolve } from "node:path";
-var WARNED = /* @__PURE__ */ Symbol.for("openplanr.home-variable-warning");
-function nonBlank(value) {
-  return typeof value === "string" && value.trim() ? value : void 0;
-}
-function warnOnce(message) {
-  if (globalThis[WARNED]) return;
-  globalThis[WARNED] = true;
-  process.stderr.write(`Warning: ${message}
-`);
-}
-function homeVariables(env) {
-  const home = nonBlank(env.PLANR_HOME);
-  const legacy = nonBlank(env.OPENPLANR_HOME);
-  if (legacy === void 0) return { home, legacy };
-  const legacyHome = join2(legacy, ".planr");
-  if (home === void 0) {
-    warnOnce(`OPENPLANR_HOME is deprecated; set PLANR_HOME=${legacyHome} instead.`);
-    return { home, legacy };
+function acquireStartLockSync(path, options = {}) {
+  const steps = startLockSteps(path, options);
+  const waitSync = options.waitImpl ?? ((milliseconds) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, milliseconds));
+  let step = steps.next();
+  while (!step.done) {
+    try {
+      waitSync(step.value);
+    } catch (error) {
+      steps.throw(error);
+      throw error;
+    }
+    step = steps.next();
   }
-  warnOnce(
-    resolve(home) === resolve(legacyHome) ? "OPENPLANR_HOME is deprecated and ignored because PLANR_HOME is set; unset OPENPLANR_HOME." : `PLANR_HOME=${home} and OPENPLANR_HOME=${legacy} name different OpenPlanr homes; using PLANR_HOME. OPENPLANR_HOME is deprecated; unset it.`
-  );
-  return { home, legacy: void 0 };
-}
-function configuredPlanrHome(env = process.env) {
-  const { home, legacy } = homeVariables(env);
-  return home ?? (legacy === void 0 ? void 0 : join2(legacy, ".planr"));
-}
-function planrHome(env = process.env) {
-  return configuredPlanrHome(env) ?? join2(homedir(), ".planr");
+  return step.value;
 }
 
 export {
-  configuredPlanrHome,
-  planrHome,
   LOOPBACK_HOST,
   readPrivateJsonState,
   writePrivateJsonState,
@@ -376,5 +354,6 @@ export {
   readRequestBody,
   assertLoopbackRequest,
   probeLoopbackJson,
-  acquireStartLock
+  acquireStartLock,
+  acquireStartLockSync
 };

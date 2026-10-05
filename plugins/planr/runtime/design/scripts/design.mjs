@@ -45,11 +45,17 @@ import {
   listDesignRevisions,
   readDesignRevision,
   readJson
-} from "./design-escape.mjs";
-import "./design-pako-esm.mjs";
+} from "./design-shared-artifact-support-dependencies-design-support-protocol-contracts-3d9b1a86.mjs";
+import "./design-encrypted-workspace-client.mjs";
+import "./design-upload-spool.mjs";
+import "./design-chunked-workspace-client.mjs";
+import "./design-resource-pack.mjs";
+import "./design-compression.mjs";
+import "./design-owner-custody.mjs";
+import "./design-runtime-home.mjs";
 import {
   acquireStartLock
-} from "./design-planr-home.mjs";
+} from "./design-loopback-server.mjs";
 import "./design-parse5-parser.mjs";
 import "./design-parse5-tokenizer.mjs";
 import "./design-entities.mjs";
@@ -57,8 +63,9 @@ import {
   ARTIFACT_ERROR_CODES,
   PipelineError,
   digestArtifactEnvelope
-} from "./design-artifact-sources.mjs";
-import "./design-bounded-json-data.mjs";
+} from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
+import "./design-shared-protocol-contracts-31a760fc.mjs";
+import "./design-shared-protocol-contracts-75a938cc.mjs";
 
 // packages/design/lib/design/utility.mjs
 import { spawn } from "node:child_process";

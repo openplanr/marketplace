@@ -26,10 +26,10 @@ import {
   reviewDigest,
   reviewFingerprints,
   serialize
-} from "./design-escape.mjs";
+} from "./design-shared-artifact-support-dependencies-design-support-protocol-contracts-3d9b1a86.mjs";
 import {
   acquireStartLock
-} from "./design-planr-home.mjs";
+} from "./design-loopback-server.mjs";
 import {
   ARTIFACT_ERROR_CODES,
   ARTIFACT_MAX_SOURCES,
@@ -38,10 +38,10 @@ import {
   createSharedArtifactEnvelope,
   digestArtifactEnvelope,
   resolveArtifactHtml
-} from "./design-artifact-sources.mjs";
+} from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
 import {
   assertDesignDocument
-} from "./design-bounded-json-data.mjs";
+} from "./design-shared-protocol-contracts-31a760fc.mjs";
 
 // packages/design/lib/design/document.mjs
 import { randomUUID } from "node:crypto";
@@ -1733,29 +1733,153 @@ import { readFileSync as readFileSync3 } from "node:fs";
 
 // packages/artifact/lib/artifact/internal/runtime-asset.mjs
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync as readFileSync2 } from "node:fs";
+import {
+  closeSync,
+  constants,
+  existsSync,
+  fstatSync,
+  lstatSync,
+  openSync,
+  readFileSync as readFileSync2,
+  readSync
+} from "node:fs";
 import { resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath as fileURLToPath2, pathToFileURL } from "node:url";
 var DIGEST = /^[a-f0-9]{64}$/u;
 var MAX_FRAGMENT_BYTES = 128 * 1024;
+var MAX_SOURCE_BYTES = 256 * 1024;
+var MAX_ASSET_BYTES = 16 * 1024 * 1024;
+var MAX_SOURCES = 256;
+var MAX_SCOPES = 16;
+var MAX_SCOPE_TEXT_BYTES = 4096;
+var MAX_MANIFEST_BYTES = 1024 * 1024;
+var SCOPE_ID = /^[a-z][a-z0-9-]{0,63}$/u;
 function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+var digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
+function boundedRead(url, label, { limit, exact, links = false }) {
+  if (!links) {
+    const stat = lstatSync(url, { throwIfNoEntry: false });
+    if (!stat?.isFile()) throw new Error(`${label} must be a regular file, not a link.`);
+  }
+  const descriptor = openSync(
+    fileURLToPath2(url),
+    constants.O_RDONLY | (links ? 0 : constants.O_NOFOLLOW ?? 0)
+  );
+  try {
+    const stat = fstatSync(descriptor);
+    if (!stat.isFile()) throw new Error(`${label} must be a regular file, not a link.`);
+    if (exact !== void 0 ? stat.size !== exact : stat.size > limit)
+      throw new Error(`${label} is ${stat.size} bytes; expected ${exact ?? `at most ${limit}`}.`);
+    const capacity = (exact ?? Math.min(stat.size, limit)) + 1;
+    const buffer = Buffer.alloc(capacity);
+    let length = 0;
+    for (let read = -1; read !== 0 && length < capacity; length += read)
+      read = readSync(descriptor, buffer, length, capacity - length, null);
+    if (length === capacity) throw new Error(`${label} changed size while it was read.`);
+    if (exact !== void 0 && length !== exact)
+      throw new Error(`${label} changed size while it was read.`);
+    return buffer.subarray(0, length);
+  } finally {
+    closeSync(descriptor);
+  }
+}
+function sourceManifest(value, basename) {
+  const path = new RegExp(
+    `^${basename.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}\\.sources/\\d{2,4}-[a-z0-9-]+\\.js$`,
+    "u"
+  );
+  if (!isRecord(value) || value.kind !== "openplanr-runtime-asset-sources" || value.schemaVersion !== "1.0.0" || value.asset !== basename || typeof value.sha256 !== "string" || !DIGEST.test(value.sha256) || !Number.isSafeInteger(value.bytes) || value.bytes <= 0 || value.bytes > MAX_ASSET_BYTES || !Array.isArray(value.scopes) || !value.scopes.length || value.scopes.length > MAX_SCOPES || !Array.isArray(value.sources) || !value.sources.length || value.sources.length > MAX_SOURCES)
+    throw new Error("Runtime source manifest is invalid.");
+  const ids = /* @__PURE__ */ new Set();
+  const scopes = value.scopes.map((scope, index) => {
+    if (!isRecord(scope) || typeof scope.id !== "string" || !SCOPE_ID.test(scope.id) || ids.has(scope.id) || (index === 0 ? scope.parent !== null : typeof scope.parent !== "string" || !ids.has(scope.parent)) || typeof scope.open !== "string" || typeof scope.close !== "string" || Buffer.byteLength(scope.open) > MAX_SCOPE_TEXT_BYTES || Buffer.byteLength(scope.close) > MAX_SCOPE_TEXT_BYTES)
+      throw new Error("Runtime source scope is invalid.");
+    ids.add(scope.id);
+    return scope;
+  });
+  const paths = /* @__PURE__ */ new Set();
+  const sources = value.sources.map((source) => {
+    if (!isRecord(source) || typeof source.path !== "string" || !path.test(source.path) || paths.has(source.path) || typeof source.scope !== "string" || !ids.has(source.scope) || !Number.isSafeInteger(source.bytes) || source.bytes <= 0 || source.bytes >= MAX_SOURCE_BYTES || typeof source.sha256 !== "string" || !DIGEST.test(source.sha256))
+      throw new Error("Runtime source identity is invalid.");
+    paths.add(source.path);
+    return source;
+  });
+  return { bytes: value.bytes, sha256: value.sha256, scopes, sources };
+}
+function readSourceUnits(url, basename) {
+  const manifestUrl = new URL(`${basename}.sources.json`, url);
+  const manifest = boundedRead(manifestUrl, "Runtime source manifest", {
+    limit: MAX_MANIFEST_BYTES
+  });
+  const expected = sourceManifest(JSON.parse(manifest.toString("utf8")), basename);
+  const directory = lstatSync(new URL(`${basename}.sources`, url), { throwIfNoEntry: false });
+  if (!directory?.isDirectory()) throw new Error("Runtime source directory must not be a link.");
+  const byId = new Map(expected.scopes.map((scope) => [scope.id, scope]));
+  const parts = [];
+  const open = [];
+  const closed = /* @__PURE__ */ new Set();
+  let total = 0;
+  const append = (bytes2) => {
+    total += bytes2.length;
+    if (total > expected.bytes) throw new Error("Runtime sources exceed their declared size.");
+    parts.push(bytes2);
+  };
+  const close = () => {
+    const scope = open.pop();
+    if (!scope) return;
+    closed.add(scope.id);
+    append(Buffer.from(scope.close, "utf8"));
+  };
+  for (const source of expected.sources) {
+    const chain = [];
+    for (let scope = byId.get(source.scope); scope; scope = byId.get(scope.parent ?? ""))
+      chain.unshift(scope);
+    while (open.length && !chain.includes(open[open.length - 1])) close();
+    for (const scope of chain.slice(open.length)) {
+      if (closed.has(scope.id)) throw new Error("Runtime source scopes are not contiguous.");
+      open.push(scope);
+      append(Buffer.from(scope.open, "utf8"));
+    }
+    const unitUrl = new URL(source.path, url);
+    const bytes2 = boundedRead(unitUrl, `Runtime source unit ${source.path}`, {
+      limit: MAX_SOURCE_BYTES,
+      exact: source.bytes
+    });
+    if (digest(bytes2) !== source.sha256)
+      throw new Error("Runtime source unit failed integrity verification.");
+    append(bytes2);
+  }
+  while (open.length) close();
+  const bytes = Buffer.concat(parts);
+  if (bytes.length !== expected.bytes || digest(bytes) !== expected.sha256)
+    throw new Error("Runtime sources failed integrity verification.");
+  return bytes;
 }
 function readRuntimeAsset(file) {
   const url = typeof file === "string" ? pathToFileURL(resolve(file)) : file;
   if (existsSync(url)) return readFileSync2(url);
   const basename = url.pathname.split("/").at(-1);
   if (!basename) throw new Error("Studio runtime asset identity is invalid.");
+  if (lstatSync(new URL(`${basename}.sources.json`, url), { throwIfNoEntry: false }))
+    return readSourceUnits(url, basename);
   const manifest = JSON.parse(
-    readFileSync2(new URL(`${basename}.parts.json`, url), "utf8")
+    boundedRead(new URL(`${basename}.parts.json`, url), "Studio runtime fragment manifest", {
+      limit: MAX_MANIFEST_BYTES,
+      links: true
+    }).toString("utf8")
   );
   if (!isRecord(manifest) || manifest.schemaVersion !== "1.0.0" || typeof manifest.sha256 !== "string" || !DIGEST.test(manifest.sha256) || !Array.isArray(manifest.parts) || !manifest.parts.length || manifest.parts.length > 64)
     throw new Error("Studio runtime fragment manifest is invalid.");
   const parts = manifest.parts.map((part, index) => {
     if (!isRecord(part) || part.name !== `${basename}.part-${String(index + 1).padStart(3, "0")}` || typeof part.sha256 !== "string" || !DIGEST.test(part.sha256))
       throw new Error("Studio runtime fragment identity is invalid.");
-    const bytes2 = readFileSync2(new URL(part.name, url));
-    if (bytes2.length > MAX_FRAGMENT_BYTES || createHash("sha256").update(bytes2).digest("hex") !== part.sha256)
+    const bytes2 = boundedRead(new URL(part.name, url), "Studio runtime fragment", {
+      limit: MAX_FRAGMENT_BYTES,
+      links: true
+    });
+    if (createHash("sha256").update(bytes2).digest("hex") !== part.sha256)
       throw new Error("Studio runtime fragment failed integrity verification.");
     return bytes2;
   });
@@ -2414,9 +2538,6 @@ export {
   renderArtifactParentRuntime,
   readRuntimeAsset,
   renderDesignStudio,
-  DESIGN_VIEWS,
-  DESIGN_RENDERER_VERSION,
-  loadDesignDocument,
   inspectDesignDocument,
   prepareDesignDocument,
   designRendererRevision,

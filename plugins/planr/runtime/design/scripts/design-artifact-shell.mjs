@@ -1,9 +1,9 @@
 import {
   digestArtifactEnvelope
-} from "./design-artifact-sources.mjs";
+} from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
 import {
   validateJson
-} from "./design-bounded-json-data.mjs";
+} from "./design-shared-protocol-contracts-31a760fc.mjs";
 
 // packages/artifact/lib/artifact/ui/shell.mjs
 import { readFileSync as readFileSync2 } from "node:fs";
@@ -1763,9 +1763,6 @@ ${shellMarkup}
 </html>
 `;
 }
-function renderArtifactShellTemplate({ theme } = {}) {
-  return renderArtifactShellDocument(DEFAULT_ARTIFACT_SHELL_INPUT, { theme });
-}
 
 export {
   contrastRatio,
@@ -1773,10 +1770,5 @@ export {
   escapeHtml,
   embedJson,
   renderPlanrMark,
-  ARTIFACT_SHELL_VERSION,
-  ARTIFACT_SHELL_ASSET_PATHS,
-  ARTIFACT_SHELL_CSS,
-  DEFAULT_ARTIFACT_SHELL_INPUT,
-  renderArtifactShellDocument,
-  renderArtifactShellTemplate
+  renderArtifactShellDocument
 };
