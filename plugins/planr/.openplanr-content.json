@@ -12,7 +12,7 @@
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:e1ebebcc234bbbd57f7640c3a72fdf9af355067595ca894b3afce5d5d71c2c07"
+      "digest": "sha256:b448dae6f869b2abb562369259f5c503af78869664029db227790ad0bc414254"
     },
     {
       "path": "agents/planr-backend.md",
@@ -56,7 +56,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:68aeaed72a8b8c3e0e8dd7278e1d01b7a9ab8648fb5b4f1c38ae7d91d3c22e8a"
+      "digest": "sha256:0ea422a52571c1fc1fb603c90baeb693d9ef7883b13e7e5a4c5027f0c36cf3bc"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -260,7 +260,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/lib/artifact/ui/studio-shell.css",
-      "digest": "sha256:1a1dd09e283b5790a222160d0694e81267ee0037b280ab8960de42a8f28c961f"
+      "digest": "sha256:4449fbe06d25ae0ad9b2faf15a4558f1c6fc8506d357e785dfdbc8befe69df59"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.sources.json",
@@ -300,7 +300,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/package.json",
-      "digest": "sha256:a33f15eb7ca18b8f5789b108f15d387d19e3e62d9b63751af6cb23763a7c37ff"
+      "digest": "sha256:3ef4c3a109054cd25e56d5dda2393977cff81641f62b3db0231d802d652e5aff"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/enhancements.css",
@@ -320,7 +320,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.css",
-      "digest": "sha256:ecb86a5f5517262f8dc71e518163ca55074404c6823d5f989edad5e9f71293af"
+      "digest": "sha256:c9291e20366315b23c73e920ec5426d4c33d0880863d39650d4c535956984b1c"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources.json",
@@ -1075,5 +1075,5 @@
       "digest": "sha256:72d69b0a4f322b295472c5c455308d0f17dfb113ea62481776f4b2b1ae39e656"
     }
   ],
-  "contentDigest": "sha256:822775a08075f5a1e9c29b43a5370e1f954c8521090ce46b6ff31963a9e76142"
+  "contentDigest": "sha256:16926d4ee25122d1ddbb4da72270b63d5b96b6b04412bd54f78ebee92808290e"
 }
