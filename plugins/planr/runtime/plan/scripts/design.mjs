@@ -1671,6 +1671,9 @@ import {
 import { homedir as homedir2 } from "node:os";
 import { dirname as dirname3, isAbsolute, join as join4, relative, resolve as resolve3 } from "node:path";
 
+// packages/protocol/src/names.mjs
+var PLANNING_FOLDER = ".planr";
+
 // packages/artifact/lib/artifact/internal/feedback.mjs
 var FEEDBACK_FILE = "feedback.json";
 
@@ -1839,7 +1842,7 @@ function inside(base, candidate) {
   return rel === "" || !rel.startsWith("..") && !isAbsolute(rel);
 }
 function parseablePlanrConfig(root) {
-  const path = join4(root, ".planr", "config.json");
+  const path = join4(root, PLANNING_FOLDER, "config.json");
   if (!existsSync2(path)) return false;
   try {
     if (lstatSync3(path).isSymbolicLink()) return false;
@@ -1968,7 +1971,11 @@ function resolveArtifactReviewDestination({
   }
   const projectRoot = findArtifactProjectRoot(cwd, { env });
   if (projectRoot) {
-    const directory2 = assertSafeDestination(projectRoot, [".planr", "artifacts", artifactId]);
+    const directory2 = assertSafeDestination(projectRoot, [
+      PLANNING_FOLDER,
+      "artifacts",
+      artifactId
+    ]);
     return Object.freeze({
       kind: "project",
       artifactId,
@@ -2533,7 +2540,7 @@ function custodyLocation(file, options = {}, { allowMissing = false } = {}) {
   const root = resolve5(options.custodyRoot ?? join7(planrHome(env), "design-shares"));
   let project = current.root;
   for (let candidate = current.root; dirname5(candidate) !== candidate; candidate = dirname5(candidate)) {
-    if (existsSync4(join7(candidate, ".git")) || existsSync4(join7(candidate, ".planr"))) {
+    if (existsSync4(join7(candidate, ".git")) || existsSync4(join7(candidate, PLANNING_FOLDER))) {
       project = candidate;
       break;
     }

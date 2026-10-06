@@ -20,6 +20,7 @@ import {
   createChunkedWorkspaceClient
 } from "./design-chunked-workspace-client.mjs";
 import {
+  PLANNING_FOLDER,
   ensurePrivateDirectory,
   readCustody,
   writeCustody
@@ -80,7 +81,7 @@ function custodyLocation(file, options = {}, { allowMissing = false } = {}) {
   const root = resolve(options.custodyRoot ?? join(planrHome(env), "design-shares"));
   let project = current.root;
   for (let candidate = current.root; dirname(candidate) !== candidate; candidate = dirname(candidate)) {
-    if (existsSync(join(candidate, ".git")) || existsSync(join(candidate, ".planr"))) {
+    if (existsSync(join(candidate, ".git")) || existsSync(join(candidate, PLANNING_FOLDER))) {
       project = candidate;
       break;
     }
@@ -684,7 +685,7 @@ function inside(base, candidate) {
   return rel === "" || !rel.startsWith("..") && !isAbsolute2(rel);
 }
 function parseablePlanrConfig(root) {
-  const path = join2(root, ".planr", "config.json");
+  const path = join2(root, PLANNING_FOLDER, "config.json");
   if (!existsSync3(path)) return false;
   try {
     if (lstatSync2(path).isSymbolicLink()) return false;
@@ -813,7 +814,11 @@ function resolveArtifactReviewDestination({
   }
   const projectRoot = findArtifactProjectRoot(cwd, { env });
   if (projectRoot) {
-    const directory2 = assertSafeDestination(projectRoot, [".planr", "artifacts", artifactId]);
+    const directory2 = assertSafeDestination(projectRoot, [
+      PLANNING_FOLDER,
+      "artifacts",
+      artifactId
+    ]);
     return Object.freeze({
       kind: "project",
       artifactId,
@@ -1799,7 +1804,7 @@ async function importDesignShareRecovery(file, { input, ...options } = {}) {
       const pending = custody.pendingCreate ?? custody.pendingMutation.body;
       const destination = join3(root, "uploads", custody.id, pending.operationId);
       if (existsSync4(destination)) {
-        const { spoolChunkReader: spoolChunkReader2 } = await import("./design-runtime-support-5cb7531bede8.mjs");
+        const { spoolChunkReader: spoolChunkReader2 } = await import("./design-runtime-support-336900df0d39.mjs");
         const reader = spoolChunkReader2(destination, pending);
         for (const part of pending.manifest.chunks) await reader(part.index);
       } else await copyUploadSpool(custody, destination);

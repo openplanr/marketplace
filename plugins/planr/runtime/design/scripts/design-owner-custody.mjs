@@ -16,6 +16,12 @@ import {
   writeFileSync
 } from "node:fs";
 import { basename, dirname, isAbsolute, join, relative, resolve } from "node:path";
+
+// packages/protocol/src/names.mjs
+var PLANNING_FOLDER = ".planr";
+var CLI_COMMAND = "openplanr";
+
+// packages/artifact/lib/artifact/owner-custody.mjs
 function custodyError(message, code = "E_OWNER_CUSTODY_LOCATION") {
   return Object.assign(new Error(message), { code, status: 400 });
 }
@@ -115,6 +121,8 @@ function writeCustody(path, record, { label = "Owner" } = {}) {
 }
 
 export {
+  PLANNING_FOLDER,
+  CLI_COMMAND,
   ensurePrivateDirectory,
   readCustody,
   writeCustody

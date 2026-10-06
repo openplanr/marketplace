@@ -53,6 +53,10 @@ import {
   reviewDigest
 } from "./design-shared-artifact-support-dependencies-design-support-protocol-contracts-3d9b1a86.mjs";
 import {
+  CLI_COMMAND,
+  PLANNING_FOLDER
+} from "./design-owner-custody.mjs";
+import {
   planrHome
 } from "./design-runtime-home.mjs";
 import {
@@ -410,8 +414,8 @@ ${fence}`;
 var { createDesignReviewExport, serializeDesignReviewExport } = reviewExportTools();
 
 // packages/design/lib/design/review.mjs
-import { existsSync as existsSync4, readFileSync as readFileSync4 } from "node:fs";
-import { dirname as dirname4, join as join4, relative, resolve as resolve3 } from "node:path";
+import { existsSync as existsSync5, readFileSync as readFileSync4 } from "node:fs";
+import { dirname as dirname4, join as join5, relative, resolve as resolve3 } from "node:path";
 
 // packages/artifact/lib/artifact/review-server.mjs
 import { existsSync, lstatSync, readdirSync, readFileSync, rmSync } from "node:fs";
@@ -1456,7 +1460,7 @@ function readReviewServerState(path) {
     throw artifactError(
       ARTIFACT_ERROR_CODES.LOOPBACK_STATE,
       "Local Studio owner state is unsafe or malformed. The original record was preserved.",
-      "Run planr doctor and recover the owner record before starting or stopping this service."
+      `Run ${CLI_COMMAND} doctor and recover the owner record before starting or stopping this service.`
     );
   }
 }
@@ -1533,6 +1537,34 @@ async function stopArtifactReviewServer(instanceId, { env = process.env, fetchIm
   return controlRequest({ state }, "/internal/v1/shutdown", { method: "POST", fetchImpl });
 }
 
+// packages/protocol/src/planning-folder.mjs
+import { existsSync as existsSync2, readdirSync as readdirSync2, statSync } from "node:fs";
+import { join as join2 } from "node:path";
+var FOREIGN_FILES = Object.freeze(["planr.config.json", "board.html"]);
+var GOAL_DIRECTORIES = Object.freeze(["tasks", "plans"]);
+var isDirectory = (path) => existsSync2(path) && statSync(path).isDirectory();
+function foreignPlanningFolderSigns(projectRoot2) {
+  const folder = join2(projectRoot2, PLANNING_FOLDER);
+  if (!isDirectory(folder) || existsSync2(join2(folder, "config.json"))) return [];
+  const signs = FOREIGN_FILES.filter((name) => existsSync2(join2(folder, name)));
+  for (const name of GOAL_DIRECTORIES) {
+    const directory = join2(folder, name);
+    if (isDirectory(directory) && readdirSync2(directory).some((entry) => entry.endsWith("-goal.md")))
+      signs.push(`*-goal.md files in ${name}`);
+  }
+  return signs;
+}
+function planningFolderConflict(projectRoot2) {
+  const signs = foreignPlanningFolderSigns(projectRoot2);
+  if (signs.length === 0) return null;
+  return Object.freeze({
+    code: "E_PLANNING_FOLDER_FOREIGN",
+    problem: `The ${PLANNING_FOLDER} folder in this project wasn't created by OpenPlanr: it has ${signs.join(", ")} and no OpenPlanr config.json. OpenPlanr wrote nothing there.`,
+    fix: `Move or rename that folder, or use ${CLI_COMMAND} in a project without it, then retry.`,
+    signs: Object.freeze(signs)
+  });
+}
+
 // packages/design/lib/design/design-plan-handoff.mjs
 var clone = (value) => JSON.parse(canonicalizeJson(value));
 function prepareDesignPlanHandoff(handoff, { subject } = {}) {
@@ -1571,7 +1603,7 @@ function prepareDesignPlanHandoff(handoff, { subject } = {}) {
 // packages/design/lib/design/implementation-handoff.mjs
 import { createHash, randomUUID } from "node:crypto";
 import {
-  existsSync as existsSync2,
+  existsSync as existsSync3,
   mkdirSync,
   readFileSync as readFileSync2,
   realpathSync,
@@ -1579,7 +1611,7 @@ import {
   rmSync as rmSync2,
   writeFileSync
 } from "node:fs";
-import { dirname as dirname2, join as join2, resolve as resolve2, sep } from "node:path";
+import { dirname as dirname2, join as join3, resolve as resolve2, sep } from "node:path";
 
 // packages/design/lib/design/implementation-handoff-markdown.mjs
 var line = (value) => String(value).replaceAll("\r\n", "\n").replaceAll("\r", "\n").trim().replaceAll("\n", " ").replace(/([\\`*_[\]<>#|])/gu, "\\$1");
@@ -1832,19 +1864,19 @@ function createRepositorySourceResolver(root) {
   };
 }
 function implementationHandoffPaths(root) {
-  const directory = join2(resolve2(root), "implementation-handoff");
+  const directory = join3(resolve2(root), "implementation-handoff");
   return Object.freeze({
     directory,
-    draftJson: join2(directory, "draft.json"),
-    draftMarkdown: join2(directory, "draft.md"),
-    journal: join2(directory, "draft-publication.json"),
-    current: join2(directory, "current.json"),
-    history: join2(directory, "versions")
+    draftJson: join3(directory, "draft.json"),
+    draftMarkdown: join3(directory, "draft.md"),
+    journal: join3(directory, "draft-publication.json"),
+    current: join3(directory, "current.json"),
+    history: join3(directory, "versions")
   });
 }
 function recoverImplementationHandoffDraft(root) {
   const paths = implementationHandoffPaths(root);
-  if (!existsSync2(paths.journal)) return false;
+  if (!existsSync3(paths.journal)) return false;
   const journal = JSON.parse(readFileSync2(paths.journal, "utf8"));
   const value = assertImplementationHandoffProjection(journal.package);
   if (journal.markdown !== value.markdown)
@@ -1857,14 +1889,14 @@ function recoverImplementationHandoffDraft(root) {
 function readImplementationHandoffDraft(root, { allowMissing = true } = {}) {
   const paths = implementationHandoffPaths(root);
   recoverImplementationHandoffDraft(root);
-  if (!existsSync2(paths.draftJson)) {
+  if (!existsSync3(paths.draftJson)) {
     if (allowMissing) return null;
     throw new Error("No implementation handoff draft exists.");
   }
   const value = assertImplementationHandoffProjection(
     JSON.parse(readFileSync2(paths.draftJson, "utf8"))
   );
-  if (!existsSync2(paths.draftMarkdown))
+  if (!existsSync3(paths.draftMarkdown))
     throw new Error("Implementation handoff Markdown is missing.");
   if (readFileSync2(paths.draftMarkdown, "utf8") !== value.markdown)
     throw new Error("Implementation handoff JSON and Markdown projections differ.");
@@ -1899,15 +1931,15 @@ function importImplementationHandoffPackage(input, { resolveSource } = {}) {
 // packages/design/lib/design/implementation-handoff-approval.mjs
 import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypto";
 import {
-  existsSync as existsSync3,
+  existsSync as existsSync4,
   mkdirSync as mkdirSync2,
-  readdirSync as readdirSync2,
+  readdirSync as readdirSync3,
   readFileSync as readFileSync3,
   renameSync as renameSync2,
   rmSync as rmSync3,
   writeFileSync as writeFileSync2
 } from "node:fs";
-import { dirname as dirname3, join as join3 } from "node:path";
+import { dirname as dirname3, join as join4 } from "node:path";
 var DIGEST2 = /^sha256:[a-f0-9]{64}$/u;
 var ID = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/u;
 var APPROVE_CAPABILITY = "design:implementation-handoff:approve";
@@ -1996,20 +2028,20 @@ function implementationHandoffApprovalPaths(root) {
   const base = implementationHandoffPaths(root);
   return Object.freeze({
     ...base,
-    events: join3(base.directory, "events"),
-    journal: join3(base.directory, "lifecycle-publication.json")
+    events: join4(base.directory, "events"),
+    journal: join4(base.directory, "lifecycle-publication.json")
   });
 }
 function archivePaths(root, value) {
-  const directory = join3(implementationHandoffPaths(root).history, packageKey(value));
+  const directory = join4(implementationHandoffPaths(root).history, packageKey(value));
   return {
     directory,
-    json: join3(directory, "handoff.json"),
-    markdown: join3(directory, "handoff.md")
+    json: join4(directory, "handoff.json"),
+    markdown: join4(directory, "handoff.md")
   };
 }
 function eventPath(root, requestId) {
-  return join3(implementationHandoffApprovalPaths(root).events, `${requestKey(requestId)}.json`);
+  return join4(implementationHandoffApprovalPaths(root).events, `${requestKey(requestId)}.json`);
 }
 function readJson2(path, fallback = void 0) {
   try {
@@ -2043,13 +2075,13 @@ function pointerFor(value, status, eventId, extra = {}) {
 }
 function writeLifecycleJournal(root, journal) {
   const paths = implementationHandoffApprovalPaths(root);
-  if (existsSync3(paths.journal)) recoverImplementationHandoffApproval(root);
+  if (existsSync4(paths.journal)) recoverImplementationHandoffApproval(root);
   atomicText2(paths.journal, jsonBytes2(journal));
   return recoverImplementationHandoffApproval(root);
 }
 function recoverImplementationHandoffApproval(root) {
   const paths = implementationHandoffApprovalPaths(root);
-  if (!existsSync3(paths.journal)) return false;
+  if (!existsSync4(paths.journal)) return false;
   const journal = readJson2(paths.journal);
   if (journal.kind !== "openplanr-design-implementation-handoff-lifecycle-publication" || journal.schemaVersion !== "1.0.0")
     throw new TypeError("The implementation handoff lifecycle journal is invalid.");
@@ -2080,16 +2112,16 @@ function readImplementationHandoffVersion(root, identity) {
 function listImplementationHandoffHistory(root) {
   recoverImplementationHandoffApproval(root);
   const directory = implementationHandoffPaths(root).history;
-  if (!existsSync3(directory)) return [];
-  return readdirSync2(directory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map(
-    (entry) => assertImplementationHandoffProjection(readJson2(join3(directory, entry.name, "handoff.json")))
+  if (!existsSync4(directory)) return [];
+  return readdirSync3(directory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map(
+    (entry) => assertImplementationHandoffProjection(readJson2(join4(directory, entry.name, "handoff.json")))
   ).sort((left, right) => left.version - right.version || left.id.localeCompare(right.id));
 }
 function readImplementationHandoffLifecycle(root) {
   recoverImplementationHandoffApproval(root);
   const paths = implementationHandoffApprovalPaths(root);
   const current = readJson2(paths.current, null);
-  const events = existsSync3(paths.events) ? readdirSync2(paths.events).filter((name) => name.endsWith(".json")).map((name) => readJson2(join3(paths.events, name))).sort(
+  const events = existsSync4(paths.events) ? readdirSync3(paths.events).filter((name) => name.endsWith(".json")).map((name) => readJson2(join4(paths.events, name))).sort(
     (left, right) => left.at.localeCompare(right.at) || left.eventId.localeCompare(right.eventId)
   ) : [];
   return Object.freeze({ current, history: listImplementationHandoffHistory(root), events });
@@ -2561,7 +2593,7 @@ function validateState(value, current) {
 function projectRoot(root) {
   let candidate = root;
   while (true) {
-    if (existsSync4(join4(candidate, ".planr")) || existsSync4(join4(candidate, ".git")))
+    if (existsSync5(join5(candidate, PLANNING_FOLDER)) || existsSync5(join5(candidate, ".git")))
       return candidate;
     const parent = dirname4(candidate);
     if (parent === candidate) return root;
@@ -2606,7 +2638,7 @@ function proposeImplementationPackage(file, env) {
       designSpecPath(current.root),
       ...(current.sourceFiles ?? []).map((path) => resolve3(current.root, path))
     ])
-  ].filter((path) => existsSync4(path));
+  ].filter((path) => existsSync5(path));
   const sources = paths.map((path, index) => {
     const logicalPath = relative(repository, path).replaceAll("\\", "/");
     const extension = logicalPath.split(".").pop()?.toLowerCase();
@@ -2652,7 +2684,10 @@ function proposeImplementationPackage(file, env) {
   };
 }
 async function persistDesignTaste(current, state) {
-  const path = join4(projectRoot(current.root), ".planr/design-system/taste.json");
+  const root = projectRoot(current.root);
+  const conflict = planningFolderConflict(root);
+  if (conflict) throw new PipelineError(conflict.code, conflict.problem, conflict.fix);
+  const path = join5(root, `${PLANNING_FOLDER}/design-system/taste.json`);
   const release = await acquireStartLock(`${path}.lock`);
   try {
     const taste = readJson(path, { designs: {} });
@@ -2693,7 +2728,7 @@ async function saveDesignState(file, { state, revision, stateVersion }) {
     throw Object.assign(new Error("The design changed. Reload before saving feedback."), {
       statusCode: 409
     });
-  const path = join4(current.root, ".design/studio-state.json");
+  const path = join5(current.root, ".design/studio-state.json");
   const release = await acquireStartLock(`${path}.lock`);
   try {
     current = currentDesign(file);
@@ -2731,7 +2766,7 @@ var readBody = async (req) => JSON.parse(await readRequestBody(req, { maxBytes: 
 var readImplementationBody = async (req) => JSON.parse(await readRequestBody(req, { maxBytes: 5 * 1024 * 1024, encoding: "utf8" }));
 async function startDesignReview(file, options = {}) {
   const { root } = currentDesign(file);
-  const release = await acquireStartLock(join4(root, ".design/start.lock"));
+  const release = await acquireStartLock(join5(root, ".design/start.lock"));
   try {
     return await startDesignReviewUnlocked(file, options);
   } finally {
@@ -2752,7 +2787,7 @@ async function startDesignReviewUnlocked(file, {
   let current = currentDesign(file);
   const applyInitialView = async () => {
     if (view === void 0) return;
-    const saved = readJson(join4(current.root, ".design/studio-state.json"), {
+    const saved = readJson(join5(current.root, ".design/studio-state.json"), {
       state: {},
       stateVersion: 0
     });
@@ -2762,7 +2797,7 @@ async function startDesignReviewUnlocked(file, {
       state: { ...saved.state, view }
     });
   };
-  const stateFile = join4(current.root, ".design/server.json");
+  const stateFile = join5(current.root, ".design/server.json");
   const old = readJson(stateFile, null);
   const services = (await listArtifactReviewServers({ env, fetchImpl })).filter(
     (service) => service.kind === "design" && service.projectRoot === current.root
@@ -2839,7 +2874,7 @@ async function startDesignReviewUnlocked(file, {
       session.designRevision = current.revision;
     },
     renderDocument({ model, base }) {
-      const state = readJson(join4(current.root, ".design/studio-state.json"), {
+      const state = readJson(join5(current.root, ".design/studio-state.json"), {
         state: {}
       }).state;
       const stalePins = readDesignFeedback(file, env).pins.filter((pin) => pin.stale);
@@ -2892,7 +2927,7 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           respond(res, 200, readDesignHandoff(file, { env }));
         } else if (route === "design-implementation-handoff" && req.method === "GET") {
           const design = currentDesign(file);
-          const unlock = await acquireStartLock(join4(design.root, ".design/render.lock"));
+          const unlock = await acquireStartLock(join5(design.root, ".design/render.lock"));
           try {
             const root = dirname4(designSpecPath(design.root));
             let proposal = null;
@@ -2938,7 +2973,7 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
             ].includes(input.action))
               throw new Error("Unknown implementation package action.");
             const initial = currentDesign(file);
-            const unlock = await acquireStartLock(join4(initial.root, ".design/render.lock"));
+            const unlock = await acquireStartLock(join5(initial.root, ".design/render.lock"));
             try {
               const design = currentDesign(file);
               const root = dirname4(designSpecPath(design.root));
@@ -3103,7 +3138,7 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           else if (action === "recovery")
             result = await exportDesignShareRecovery(file, {
               ...options,
-              output: join4(
+              output: join5(
                 env.HOME ?? process.env.HOME,
                 "Downloads",
                 `openplanr-design-recovery-${Date.now()}.json`
@@ -3112,7 +3147,7 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           else result = await manageDesignShare(file, action, options);
           respond(res, 200, result);
         } else if (route === "design-status" && req.method === "GET") {
-          const ready = readJson(join4(current.root, ".design/browser-ready.json"), null);
+          const ready = readJson(join5(current.root, ".design/browser-ready.json"), null);
           respond(res, 200, {
             ok: true,
             documentId: current.document.id,
@@ -3123,7 +3158,7 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           });
         } else if (route === "design-state" && req.method === "GET") {
           respond(res, 200, {
-            ...readJson(join4(current.root, ".design/studio-state.json"), {
+            ...readJson(join5(current.root, ".design/studio-state.json"), {
               state: {},
               stateVersion: 0
             }),
@@ -3136,7 +3171,7 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           const loadedArtifacts = new Set(Array.isArray(value?.artifacts) ? value.artifacts : []);
           if (value.revision !== current.revision || value.status !== "ready" || !Array.isArray(value.artifacts) || value.artifacts.length === 0 || loadedArtifacts.size !== value.artifacts.length || value.artifacts.some((id) => !current.entries.some((entry) => entry.artifactId === id)))
             throw new Error("Browser readiness must identify loaded design artboards.");
-          atomicJson(join4(current.root, ".design/browser-ready.json"), {
+          atomicJson(join5(current.root, ".design/browser-ready.json"), {
             status: "ready",
             revision: current.revision,
             artifacts: value.artifacts,
@@ -3145,7 +3180,7 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           });
           respond(res, 200, { ok: true });
         } else if (route === "design-export" && req.method === "GET") {
-          const state = readJson(join4(current.root, ".design/studio-state.json"), {
+          const state = readJson(join5(current.root, ".design/studio-state.json"), {
             state: {}
           }).state;
           res.writeHead(200, {
@@ -3269,8 +3304,8 @@ async function resolveDesignPins(file, { pinIds, summary, env = process.env }) {
         "One or more requested pins do not exist."
       );
     writeArtifactReviewState(path, createReviewLedger({ ...ledger, reviews: revisions }));
-    const history = readJson(join4(current.root, ".design/review-history.json"), []);
-    atomicJson(join4(current.root, ".design/review-history.json"), [
+    const history = readJson(join5(current.root, ".design/review-history.json"), []);
+    atomicJson(join5(current.root, ".design/review-history.json"), [
       ...history,
       {
         revision: current.revision,
