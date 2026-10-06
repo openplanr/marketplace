@@ -424,8 +424,12 @@ import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 var here = dirname(fileURLToPath(new URL("./runtime/packages/artifact/lib/artifact/review-server.mjs", import.meta.url).href));
 var STAGE_RUNTIME_PATH = join(here, "..", "..", "templates", "artifact-review-stage.js");
-var ARTIFACT_REVIEW_SERVER_VERSION = 2;
+var ARTIFACT_REVIEW_SERVER_VERSION = 3;
 var ARTIFACT_REVIEW_SERVER_KIND = "artifact-review";
+var CONTROL_HEADER = "x-openplanr-control";
+var CONTROLLABLE_SERVER_VERSIONS = /* @__PURE__ */ new Set([2, ARTIFACT_REVIEW_SERVER_VERSION]);
+var EXPORT_ONLY_SERVER_VERSIONS = /* @__PURE__ */ new Set([1]);
+var AUTHORIZATION_CONTROL_VERSIONS = /* @__PURE__ */ new Set([1, 2]);
 var CONTROL_WINDOW_BYTES = 64 * 1024 * 1024;
 var ARTIFACT_REVIEW_MAX_CONTROL_BYTES = Math.ceil((MAX_ARTIFACT_HTML_BYTES * 2 + ARTIFACT_REVIEW_MAX_STATE_BYTES) / CONTROL_WINDOW_BYTES) * CONTROL_WINDOW_BYTES;
 var ARTIFACT_REVIEW_MAX_STATE_BYTES2 = ARTIFACT_REVIEW_MAX_STATE_BYTES;
@@ -480,6 +484,12 @@ var PERMISSIONS_POLICY = [
 ].join(", ");
 function artifactError(code, message, fix = "", details) {
   return new PipelineError(code, message, fix, details);
+}
+function artifactReviewControlHeaders(controlToken) {
+  return { [CONTROL_HEADER]: controlToken };
+}
+function stateControlHeaders(state) {
+  return AUTHORIZATION_CONTROL_VERSIONS.has(state.serverVersion) ? { authorization: `Bearer ${state.controlToken}` } : artifactReviewControlHeaders(state.controlToken);
 }
 function reviewStateDir(env = process.env) {
   return join(planrHome(env), "artifact-daemon");
@@ -563,9 +573,9 @@ function parseRequestPath(rawUrl) {
   });
   return { segments, trailingSlash };
 }
-function bearerToken(req) {
-  const value = req.headers?.authorization;
-  return typeof value === "string" && value.startsWith("Bearer ") ? value.slice(7) : "";
+function presentedControlToken(req) {
+  const value = req.headers?.[CONTROL_HEADER];
+  return typeof value === "string" ? value : "";
 }
 function cloneAndValidateEnvelope(envelope) {
   let cloned;
@@ -875,7 +885,7 @@ function createArtifactReviewServer({
         return;
       }
       if (internal) {
-        if (!timingSafeTokenEqual(bearerToken(req), controlToken)) {
+        if (!timingSafeTokenEqual(presentedControlToken(req), controlToken)) {
           sendJson(res, 403, { ok: false, error: "forbidden" });
           return;
         }
@@ -1449,7 +1459,7 @@ function createArtifactReviewServer({
   return controller;
 }
 function validState(value, requestedPort, { allowLegacy = false } = {}) {
-  return value?.schemaVersion === "1.0.0" && value.kind === ARTIFACT_REVIEW_SERVER_KIND && (value.serverVersion === ARTIFACT_REVIEW_SERVER_VERSION || allowLegacy && value.serverVersion === 1) && Number.isInteger(value.pid) && value.pid > 0 && Number.isInteger(value.port) && value.port > 0 && value.port <= 65535 && (requestedPort === 0 || value.port === requestedPort) && isCapabilityToken(value.instanceId, { bytes: SESSION_ID_BYTES }) && isCapabilityToken(value.controlToken, { bytes: CONTROL_TOKEN_BYTES });
+  return value?.schemaVersion === "1.0.0" && value.kind === ARTIFACT_REVIEW_SERVER_KIND && (CONTROLLABLE_SERVER_VERSIONS.has(value.serverVersion) || allowLegacy && EXPORT_ONLY_SERVER_VERSIONS.has(value.serverVersion)) && Number.isInteger(value.pid) && value.pid > 0 && Number.isInteger(value.port) && value.port > 0 && value.port <= 65535 && (requestedPort === 0 || value.port === requestedPort) && isCapabilityToken(value.instanceId, { bytes: SESSION_ID_BYTES }) && isCapabilityToken(value.controlToken, { bytes: CONTROL_TOKEN_BYTES });
 }
 function readReviewServerState(path) {
   try {
@@ -1473,7 +1483,7 @@ async function controlRequest(descriptor, path, { method, body, fetchImpl } = {}
   const response = await fetchImpl(`http://${LOOPBACK_HOST}:${descriptor.state.port}${path}`, {
     method,
     headers: {
-      authorization: `Bearer ${descriptor.state.controlToken}`,
+      ...stateControlHeaders(descriptor.state),
       ...body === void 0 ? {} : { "content-type": "application/json" }
     },
     ...body === void 0 ? {} : { body: JSON.stringify(body) },
@@ -2852,7 +2862,12 @@ async function startDesignReviewUnlocked(file, {
   server = createArtifactReviewServer({
     env,
     serverMetadata: { kind: "design", projectRoot: current.root },
-    prepareSource: (options) => prepareArtifactDocument({ ...options, allowLocalForms: true }),
+    prepareSource: (options) => prepareArtifactDocument({
+      ...options,
+      allowLocalForms: true,
+      prototypeState: true,
+      screenId: current.entries.find((entry) => entry.artifactId === options.artifactId)?.screenId ?? options.artifactId
+    }),
     async refreshSession(session) {
       current = currentDesign(file);
       if (session.designRevision === current.revision) return;
@@ -3214,7 +3229,7 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
     const registered = await fetchImpl(`${origin}/internal/v1/sessions`, {
       method: "POST",
       headers: {
-        authorization: `Bearer ${server.controlToken}`,
+        ...artifactReviewControlHeaders(server.controlToken),
         "content-type": "application/json"
       },
       body: JSON.stringify({
