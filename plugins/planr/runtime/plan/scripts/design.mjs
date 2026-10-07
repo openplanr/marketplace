@@ -2551,7 +2551,7 @@ ${current.document.id}`);
   const within = relative3(project, root);
   if ((!allowMissing || existsSync4(path)) && (within === "" || !within.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) && within !== ".." && !isAbsolute3(within)))
     throw new Error(
-      "Design owner credentials must be stored outside the project. Set PLANR_HOME to a private user-level directory."
+      "Design owner keys must be stored outside the project. Set PLANR_HOME to a private user-level directory."
     );
   const legacyPath = !options.custodyRoot && !configuredPlanrHome(env) ? join7(realpathSync4(env.HOME || homedir3()), ".openplanr", "design-shares", `${key}.json`) : null;
   return { root, path, current, legacyPath };

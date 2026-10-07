@@ -92,7 +92,7 @@ ${current.document.id}`);
   const within = relative(project, root);
   if ((!allowMissing || existsSync(path)) && (within === "" || !within.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) && within !== ".." && !isAbsolute(within)))
     throw new Error(
-      "Design owner credentials must be stored outside the project. Set PLANR_HOME to a private user-level directory."
+      "Design owner keys must be stored outside the project. Set PLANR_HOME to a private user-level directory."
     );
   const legacyPath = !options.custodyRoot && !configuredPlanrHome(env) ? join(realpathSync(env.HOME || homedir()), ".openplanr", "design-shares", `${key}.json`) : null;
   return { root, path, current, legacyPath };
@@ -1785,10 +1785,10 @@ async function importDesignShareRecovery(file, { input, ...options } = {}) {
       throw new Error("Recovery belongs to a different design.");
     if (record && (record.custody.id !== custody.id || JSON.stringify(record.custody.ownerPublicKey) !== JSON.stringify(custody.ownerPublicKey)))
       throw new Error(
-        "This design already has different owner credentials. Recovery will not overwrite them."
+        "This design already has different owner keys. Recovery will not overwrite them."
       );
     if (record && record.custody.version > custody.version)
-      throw new Error("This recovery file is older than the locally saved owner credentials.");
+      throw new Error("This recovery file is older than the locally saved owner keys.");
     if (!custody.pendingCreate && !recovered.deleted && !recovered.revoked) {
       await getWorkspace(custody, { fetchImpl: options.fetchImpl });
       const bundle = await decryptWorkspaceRevision(custody, custody.currentRevision, {
