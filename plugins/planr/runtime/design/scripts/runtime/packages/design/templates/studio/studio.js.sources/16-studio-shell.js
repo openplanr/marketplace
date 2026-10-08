@@ -46,36 +46,114 @@
     actions,
     className = ""
   }) {
-    return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(Tag, { className: `planr-toolbar studio-toolbar ${className}`, "data-studio-react-chrome": "true", children: [
-      /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "studio-toolbar-leading design-toolbar-leading", children: [
-        leading,
-        /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "planr-brand", children: [
-          brand && /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(import_jsx_runtime15.Fragment, { children: [
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(StudioMark, {}),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "design-wordmark", children: [
-              "Open",
-              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { children: "Planr" })
+    const toolbar = (0, import_react3.useRef)(null);
+    (0, import_react3.useLayoutEffect)(() => {
+      const element = toolbar.current;
+      const window2 = element?.ownerDocument.defaultView;
+      if (!element || !window2) return;
+      const center = element.querySelector(".studio-toolbar-center");
+      const trailing = element.querySelector(".studio-toolbar-trailing");
+      const leading2 = element.querySelector(".studio-toolbar-leading");
+      if (!center || !trailing || !leading2) return;
+      const measure = () => {
+        const width = element.getBoundingClientRect().width;
+        if (!width) return;
+        element.dataset.studioDensity = width <= 680 ? "narrow" : "regular";
+        const style = window2.getComputedStyle(element);
+        const available = width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        const gap = parseFloat(style.columnGap) || 0;
+        element.dataset.studioCenter = "true";
+        const centerWidth = center.scrollWidth;
+        element.dataset.studioCenter = String(centerWidth > 0);
+        const controlSelector = 'button,a,summary,input,select,output,[role="status"]';
+        const controls = [...trailing.querySelectorAll(controlSelector)].filter(
+          (control) => control.getClientRects().length && !control.closest('[role="menu"],.studio-tooltip,[role="dialog"]') && (!control.closest("details") || !!control.closest("summary")) && !control.parentElement?.closest(controlSelector)
+        );
+        const actionWidth = controls.reduce((total, control) => total + control.getBoundingClientRect().width, 0) + Math.max(0, controls.length - 1) * (parseFloat(window2.getComputedStyle(trailing).gap) || 8);
+        const leadingControl = leading2.firstElementChild;
+        const branding = [
+          ...leading2.querySelectorAll(".planr-mark,.design-wordmark")
+        ].filter((node) => node.getClientRects().length);
+        const brandingWidth = branding.reduce(
+          (total, node) => total + node.getBoundingClientRect().width + 8,
+          0
+        );
+        const leadingFloor = 128 + brandingWidth + (leadingControl instanceof window2.HTMLElement && !leadingControl.classList.contains("planr-brand") ? leadingControl.getBoundingClientRect().width + 8 : 0);
+        const outerWidth = Math.max(leadingFloor, actionWidth);
+        element.dataset.studioLayout = centerWidth > 0 ? width <= 680 || centerWidth + outerWidth * 2 + gap * 2 > available ? "compact" : "inline" : leadingFloor + actionWidth + gap > available ? "compact" : "inline";
+      };
+      measure();
+      let frame = 0;
+      const scheduleMeasure = () => {
+        if (frame) return;
+        frame = window2.requestAnimationFrame(() => {
+          frame = 0;
+          measure();
+        });
+      };
+      const resize = typeof window2.ResizeObserver === "function" ? new window2.ResizeObserver(scheduleMeasure) : null;
+      for (const node of [element, center, trailing]) resize?.observe(node);
+      const mutations = new window2.MutationObserver(scheduleMeasure);
+      mutations.observe(element, {
+        subtree: true,
+        childList: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["hidden"]
+      });
+      window2.addEventListener("resize", scheduleMeasure);
+      let active = true;
+      void element.ownerDocument.fonts?.ready.then(() => {
+        if (active) scheduleMeasure();
+      });
+      return () => {
+        active = false;
+        resize?.disconnect();
+        mutations.disconnect();
+        window2.cancelAnimationFrame(frame);
+        window2.removeEventListener("resize", scheduleMeasure);
+      };
+    }, [Tag]);
+    return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+      Tag,
+      {
+        ref: (node) => {
+          toolbar.current = node;
+        },
+        className: `planr-toolbar studio-toolbar ${className}`,
+        "data-studio-react-chrome": "true",
+        children: [
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "studio-toolbar-leading design-toolbar-leading", children: [
+            leading,
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "planr-brand", children: [
+              brand && /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(import_jsx_runtime15.Fragment, { children: [
+                /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(StudioMark, {}),
+                /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "design-wordmark", children: [
+                  "Open",
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { children: "Planr" })
+                ] })
+              ] }),
+              /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "studio-identity", children: [
+                hierarchy.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("nav", { className: "studio-hierarchy", "aria-label": "Project path", children: hierarchy.map((item, index2) => /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { children: [
+                  index2 > 0 && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { "aria-hidden": "true", children: " / " }),
+                  item.href ? /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("a", { href: item.href, children: item.label }) : item.label
+                ] }, item.href ?? item.label)) }),
+                /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "planr-title-block", children: [
+                  /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(StudioBadge, { children: kind === "artifact" ? "Artifact" : kind === "diagram" ? "Diagram" : "Design" }),
+                  titleNode ?? /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("strong", { title, children: title })
+                ] }),
+                subtitle && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "studio-subtitle", children: subtitle })
+              ] })
             ] })
           ] }),
-          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "studio-identity", children: [
-            hierarchy.length > 0 && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("nav", { className: "studio-hierarchy", "aria-label": "Project path", children: hierarchy.map((item, index2) => /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { children: [
-              index2 > 0 && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { "aria-hidden": "true", children: " / " }),
-              item.href ? /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("a", { href: item.href, children: item.label }) : item.label
-            ] }, item.href ?? item.label)) }),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: "planr-title-block", children: [
-              /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(StudioBadge, { children: kind === "artifact" ? "Artifact" : kind === "diagram" ? "Diagram" : "Design" }),
-              titleNode ?? /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("strong", { title, children: title })
-            ] }),
-            subtitle && /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("span", { className: "studio-subtitle", children: subtitle })
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "studio-toolbar-center", children: viewPicker }),
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "studio-toolbar-trailing design-toolbar-trailing", children: [
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "studio-toolbar-status", children: status }),
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)("div", { className: "studio-toolbar-actions", children: actions })
           ] })
-        ] })
-      ] }),
-      viewPicker,
-      /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("div", { className: "studio-toolbar-trailing design-toolbar-trailing", children: [
-        status,
-        actions
-      ] })
-    ] });
+        ]
+      }
+    );
   }
   function StudioMenu({
     label,

@@ -1,7 +1,7 @@
 {
   "name": "planr",
   "displayName": "OpenPlanr",
-  "version": "2.2641.2",
+  "version": "3.0.0",
   "description": "Close the loop from intent to delivery. Plan, design, build, review, and operate from durable context in your repository.",
   "author": {
     "name": "OpenPlanr",
@@ -20,5 +20,5 @@
   "privacyPolicyUrl": "https://openplanr.dev/privacy",
   "termsOfServiceUrl": "https://openplanr.dev/terms",
   "supportUrl": "https://github.com/openplanr/OpenPlanr/blob/main/SUPPORT.md",
-  "documentationUrl": "https://github.com/openplanr/OpenPlanr/blob/main/docs/getting-started.md"
+  "documentationUrl": "https://openplanr.dev/docs"
 }
