@@ -18,13 +18,13 @@ skills.
 Restart Claude Code so it loads the skills, then invoke one as `/planr:<skill>`, for example
 `/planr:spec`.
 
-Several skills call the `planr` CLI, which ships in the `openplanr` npm package. The primary
-installation is that package, whose `planr setup` installs the same generated plugin as
+Several skills call the `openplanr` CLI, which ships in the `openplanr` npm package. The primary
+installation is that package, whose `openplanr setup` installs the same generated plugin as
 `planr@openplanr-local`. Use one path, not both:
 
 ```bash
 npm install -g openplanr
-planr setup --runtime claude --scope user
+openplanr setup --runtime claude --scope user
 ```
 
 The [getting started guide](https://github.com/openplanr/OpenPlanr/blob/main/docs/getting-started.md)
