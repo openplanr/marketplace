@@ -2307,6 +2307,33 @@ ${fence}`;
       );
       content.append(value, reason, save);
     }
+    function installStageContextGeometry() {
+      const context = q(".design-stage-context", root);
+      if (!context) return;
+      let frame = 0;
+      const measure = () => {
+        frame = 0;
+        if (disposed) return;
+        const height = Math.ceil(context.getBoundingClientRect().height);
+        const value = `${height}px`;
+        if (height && root.style.getPropertyValue("--design-stage-context-measured-height") !== value)
+          root.style.setProperty("--design-stage-context-measured-height", value);
+      };
+      const schedule = () => {
+        if (!frame && !disposed) frame = requestAnimationFrame(measure);
+      };
+      const observer = typeof ResizeObserver === "function" ? new ResizeObserver(schedule) : null;
+      observer?.observe(context);
+      on(window, "resize", schedule);
+      on(root, "planr:design-render", schedule);
+      void document.fonts?.ready.then(schedule);
+      measure();
+      destroyers.push(() => {
+        observer?.disconnect();
+        cancelAnimationFrame(frame);
+        root.style.removeProperty("--design-stage-context-measured-height");
+      });
+    }
     function installCanvas() {
       const tools = q(".design-canvas-tools");
       const more = node("details", "", { class: "design-tools-menu" });
@@ -3494,6 +3521,7 @@ ${fence}`;
       installComposerCategory();
       installInspector();
       installCanvas();
+      installStageContextGeometry();
       installThumbnails();
       installPersonalDrafts();
       about(true);

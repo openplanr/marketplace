@@ -12,7 +12,7 @@
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:5f0db6ddd763a7a61387c6a68b02cfd009a763e630135d36be74c4c00877f5d1"
+      "digest": "sha256:1bc5112dfd17d4d554001247521495bb4e7499020b572564610beaa549adf865"
     },
     {
       "path": "agents/planr-backend.md",
@@ -56,7 +56,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:fa01bb4431e11494fdd56ffb061108fa3dfeedbdcfa584dd2b9b0c6f3130eee6"
+      "digest": "sha256:8a74f8dd0406041a87104d12422a7aa34f694ee9cf3217e20e15e5bd0610f528"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -260,7 +260,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/lib/artifact/ui/studio-shell.css",
-      "digest": "sha256:4449fbe06d25ae0ad9b2faf15a4558f1c6fc8506d357e785dfdbc8befe69df59"
+      "digest": "sha256:61e3736cd81f15162d877bb29481e96538d8a32f19cc4a6718026e549e193c48"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.sources.json",
@@ -300,11 +300,11 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/package.json",
-      "digest": "sha256:b3d397b4bb27c37799f143ee6a83c7000f3d1a38aba3e321778ed6cc8916d702"
+      "digest": "sha256:7c884f7d4b1e20ffcfe58514413f1a36e8c00e88866fb07492c912949e87782c"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/enhancements.css",
-      "digest": "sha256:df58a7ee4ffcadac780d3170abbeb00cfecb1f42db692ba62eb6f66a251bd0ea"
+      "digest": "sha256:bdb55a9464e96fba112aad73354d54b6ccb8ac5d9bc100a90b51df4633ff11f7"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/handoff-center.css",
@@ -320,11 +320,11 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.css",
-      "digest": "sha256:c9291e20366315b23c73e920ec5426d4c33d0880863d39650d4c535956984b1c"
+      "digest": "sha256:75ca0c3036d5c281e60a4155765ad8c2e9373bd39d34d4facebfe9bf26278c88"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources.json",
-      "digest": "sha256:268b66e770a35e3f5606a4c7b44f6fb6bd5659c15d1813f7421781ef3e9bcf99"
+      "digest": "sha256:f517215a81d763cdc5aa903b0d6b2e679d10dc3592915e4f4c1f7062413cb6d3"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/01-module-runtime.js",
@@ -372,7 +372,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/12-design-review-experience.js",
-      "digest": "sha256:c40392e1328eb17f9d0a778d1f20e44118731d7c6a0a25f0aa731304a86994a0"
+      "digest": "sha256:9e2ac3d6b99028c7335aacf548f9e04fdf709d15f889db3e35bbebc389631000"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/13-studio-shell.js",
@@ -388,7 +388,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/16-studio-shell.js",
-      "digest": "sha256:a84049d6a41dd3f655e85a4a39e4874a4c7f6f2013ad9d8c192d22a7082bf407"
+      "digest": "sha256:5306387b1f59d43e1cd0ed2c471b18b0b35d5cc8c573ffe5439ea9315494c01e"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/17-design-studio.js",
@@ -396,7 +396,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:037b4f8f4fd2f1db03d5106ec974e250502d1a4ce39a018e668ab7e07d93de43"
+      "digest": "sha256:2ef4fe15be8e2037dda6786e075a02b94b3484f30465aab3565022ff7f0321e4"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -516,7 +516,7 @@
     },
     {
       "path": "runtime/plan/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:037b4f8f4fd2f1db03d5106ec974e250502d1a4ce39a018e668ab7e07d93de43"
+      "digest": "sha256:2ef4fe15be8e2037dda6786e075a02b94b3484f30465aab3565022ff7f0321e4"
     },
     {
       "path": "runtime/plan/scripts/runtime/packages/protocol/schemas/v1.1.0/artifact-review.schema.json",
@@ -628,7 +628,7 @@
     },
     {
       "path": "skills/delegate/references/capsule-contract.md",
-      "digest": "sha256:9bd80db920018a43cecc02f4996d65d5eb54a121fce6caa3c9198cb0ca01bf6a"
+      "digest": "sha256:22e5daac9ad9cb0951222fef4d0f45ae35de4a6b7ee2b47d660cc6b672188fff"
     },
     {
       "path": "skills/delegate/references/integration-review.md",
@@ -732,7 +732,7 @@
     },
     {
       "path": "skills/delegate/scripts/run-preparation.mjs",
-      "digest": "sha256:dbc03621c77946ad77e97db84d826714d2fe75eccd15963756791b1439b46589"
+      "digest": "sha256:746630b00e1c252cae6dd7e78cde4b2d6c65e75f1ef19a092111e1e4de5152e3"
     },
     {
       "path": "skills/delegate/scripts/run-record.mjs",
@@ -744,7 +744,7 @@
     },
     {
       "path": "skills/delegate/SKILL.md",
-      "digest": "sha256:e3bc67ad5506a9d360344a4071e9cad1667e0481603789c5fb7b45ae0e39f826"
+      "digest": "sha256:344d272793e81025c73d2c62333e786f4a073dec30f1ac8eb8ed560bea2c8e4f"
     },
     {
       "path": "skills/design-loop/references/craft.md",
@@ -780,7 +780,7 @@
     },
     {
       "path": "skills/design-loop/references/utilities.md",
-      "digest": "sha256:df4414af1974d8268af25cfb33ce27d967e0a7f0ca29e75de82b91f3dacf2543"
+      "digest": "sha256:cedeae549cda5434a768846dc3d83a1baddfa74940276485db6fba1c649301b5"
     },
     {
       "path": "skills/design-loop/schemas/design-document.schema.json",
@@ -836,7 +836,7 @@
     },
     {
       "path": "skills/design-review/references/utilities.md",
-      "digest": "sha256:df4414af1974d8268af25cfb33ce27d967e0a7f0ca29e75de82b91f3dacf2543"
+      "digest": "sha256:cedeae549cda5434a768846dc3d83a1baddfa74940276485db6fba1c649301b5"
     },
     {
       "path": "skills/design-review/schemas/design-document.schema.json",
@@ -892,7 +892,7 @@
     },
     {
       "path": "skills/design/references/utilities.md",
-      "digest": "sha256:df4414af1974d8268af25cfb33ce27d967e0a7f0ca29e75de82b91f3dacf2543"
+      "digest": "sha256:cedeae549cda5434a768846dc3d83a1baddfa74940276485db6fba1c649301b5"
     },
     {
       "path": "skills/design/schemas/design-document.schema.json",
@@ -936,11 +936,11 @@
     },
     {
       "path": "skills/doctor/references/upgrade.md",
-      "digest": "sha256:7370954450db1bac591d4f90b58df9022f6edac5b32d05051f93dbd35b0e35b9"
+      "digest": "sha256:b137e82d63ceeecef4e5c1cac72acbaaa2edbc29798214507ab9613d16088fde"
     },
     {
       "path": "skills/doctor/SKILL.md",
-      "digest": "sha256:417b1d1f860db1ccd59820c52cfd6873c7feed80a639537c43babea8d76ef3d3"
+      "digest": "sha256:ae1c90830273a51d54c60a846ea00e8c4412f50e43ad8172a2e112e2b51e6412"
     },
     {
       "path": "skills/investigate/SKILL.md",
@@ -996,7 +996,7 @@
     },
     {
       "path": "skills/plan/SKILL.md",
-      "digest": "sha256:6cfa23c318f29fbd5c6f34541c43a84bf7681376563170cfd241d99b49951f16"
+      "digest": "sha256:a2e82ebfbc71ceff6186779a60ba1a3b47ec8a6c42444a6953abb0bebbfa8c54"
     },
     {
       "path": "skills/release/assets/changelog-template.md",
@@ -1095,5 +1095,5 @@
       "digest": "sha256:a90f713ac4cda7fc0df0c2b40256ddba3cfa1ee8ea809705f1cf735324952022"
     }
   ],
-  "contentDigest": "sha256:47ce3e5570a777649647b93861d5e58bf94291252c770b485647055335bf959a"
+  "contentDigest": "sha256:55033e5d9ee110e1b7da4097083a187307b8696b1aedd8c3c1cae6e78c5df08d"
 }
