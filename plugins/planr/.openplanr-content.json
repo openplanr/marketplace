@@ -12,7 +12,7 @@
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:1bc5112dfd17d4d554001247521495bb4e7499020b572564610beaa549adf865"
+      "digest": "sha256:dffed0c7a0dbf82aec7be922b34e70a1a33de87dd4588345c6d1e205b7331a7b"
     },
     {
       "path": "agents/planr-backend.md",
@@ -56,7 +56,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:8a74f8dd0406041a87104d12422a7aa34f694ee9cf3217e20e15e5bd0610f528"
+      "digest": "sha256:4ed647ddd01824d27c0bd330eff9ee68fe333ec42866b86c900cc554f7e564e1"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -260,7 +260,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/lib/artifact/ui/studio-shell.css",
-      "digest": "sha256:61e3736cd81f15162d877bb29481e96538d8a32f19cc4a6718026e549e193c48"
+      "digest": "sha256:514295a7c32cf8359385de2cdf8369aa41ccc6b119c93daad757182099067661"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.sources.json",
@@ -300,7 +300,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/package.json",
-      "digest": "sha256:7c884f7d4b1e20ffcfe58514413f1a36e8c00e88866fb07492c912949e87782c"
+      "digest": "sha256:f1bd16719287e54ade15a9d4e6f889dd3385b6f1a8bf851332992533475cf3b5"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/enhancements.css",
@@ -324,7 +324,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources.json",
-      "digest": "sha256:f517215a81d763cdc5aa903b0d6b2e679d10dc3592915e4f4c1f7062413cb6d3"
+      "digest": "sha256:fb0d23636597168f9f139c21ce9c5af63e225ad765231b1f0b7c2af2675d8cb6"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/01-module-runtime.js",
@@ -388,7 +388,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/16-studio-shell.js",
-      "digest": "sha256:5306387b1f59d43e1cd0ed2c471b18b0b35d5cc8c573ffe5439ea9315494c01e"
+      "digest": "sha256:81af29a6a5a15fd4f0ef41fc48e1eca63c30b3745fd1d92830ba83f7cf2ba603"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/17-design-studio.js",
@@ -396,7 +396,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:2ef4fe15be8e2037dda6786e075a02b94b3484f30465aab3565022ff7f0321e4"
+      "digest": "sha256:ad2e601d993087146fcd4d049ddd1cf7e06f7102eb178e2c65017624a2252393"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -516,7 +516,7 @@
     },
     {
       "path": "runtime/plan/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:2ef4fe15be8e2037dda6786e075a02b94b3484f30465aab3565022ff7f0321e4"
+      "digest": "sha256:ad2e601d993087146fcd4d049ddd1cf7e06f7102eb178e2c65017624a2252393"
     },
     {
       "path": "runtime/plan/scripts/runtime/packages/protocol/schemas/v1.1.0/artifact-review.schema.json",
@@ -1095,5 +1095,5 @@
       "digest": "sha256:a90f713ac4cda7fc0df0c2b40256ddba3cfa1ee8ea809705f1cf735324952022"
     }
   ],
-  "contentDigest": "sha256:55033e5d9ee110e1b7da4097083a187307b8696b1aedd8c3c1cae6e78c5df08d"
+  "contentDigest": "sha256:be722e5c3970c9a49f0ea9b426290eba4e39f4c4e3ab87370e2c63ecb6a3d5c6"
 }

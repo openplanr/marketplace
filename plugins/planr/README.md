@@ -17,7 +17,7 @@ Follow with `/planr:plan` to decompose the specification into stories and tasks,
 ## Install the CLI
 
 Several skills call the deterministic `openplanr` CLI from the `openplanr` npm package, which ships
-this plugin at the same version (3.0.0):
+this plugin at the same version (3.0.1):
 
 ```bash
 npm install -g openplanr
