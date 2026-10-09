@@ -35,7 +35,7 @@ covers scopes, what setup writes, and how to undo it.
 <!-- plugin-table:start -->
 | Plugin | Version | Description |
 |---|---|---|
-| [`planr`](https://github.com/openplanr/OpenPlanr/tree/openplanr@3.0.0/packages/cli) | 3.0.0 | Close the loop from intent to delivery. Plan, design, build, review, and operate from durable context in your repository. Generated from [`openplanr@3.0.0`](https://www.npmjs.com/package/openplanr/v/3.0.0). |
+| [`planr`](https://github.com/openplanr/OpenPlanr/tree/openplanr@3.0.1/packages/cli) | 3.0.1 | Close the loop from intent to delivery. Plan, design, build, review, and operate from durable context in your repository. Generated from [`openplanr@3.0.1`](https://www.npmjs.com/package/openplanr/v/3.0.1). |
 <!-- plugin-table:end -->
 
 The release train writes this table, `.claude-plugin/marketplace.json`, and `plugins/planr/`
