@@ -1,6 +1,6 @@
 {
   "name": "@openplanr/protocol",
-  "version": "0.11.0",
+  "version": "0.13.0",
   "type": "module",
   "description": "Canonical OpenPlanr schemas, registries, typed errors, and portable contract validation",
   "license": "MIT",
@@ -115,6 +115,10 @@
     "./sharing-security-contracts": {
       "types": "./src/sharing-security-contracts.d.mts",
       "import": "./src/sharing-security-contracts.mjs"
+    },
+    "./enterprise-journey-contracts": {
+      "types": "./src/enterprise-journey-contracts.d.mts",
+      "import": "./src/enterprise-journey-contracts.mjs"
     }
   },
   "files": [
@@ -143,9 +147,9 @@
     "access": "public"
   },
   "devDependencies": {
-    "esbuild": "0.28.1",
-    "miniflare": "4.20260708.1",
-    "playwright": "1.61.1",
+    "esbuild": "0.28.2",
+    "miniflare": "4.20260730.0",
+    "playwright": "1.64.0",
     "typescript": "6.0.2"
   }
 }

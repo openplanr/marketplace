@@ -76,6 +76,7 @@
       var REACT_MEMO_TYPE = /* @__PURE__ */ Symbol.for("react.memo");
       var REACT_LAZY_TYPE2 = /* @__PURE__ */ Symbol.for("react.lazy");
       var REACT_ACTIVITY_TYPE = /* @__PURE__ */ Symbol.for("react.activity");
+      var REACT_VIEW_TRANSITION_TYPE = /* @__PURE__ */ Symbol.for("react.view_transition");
       var MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
       function getIteratorFn(maybeIterable) {
         if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -263,19 +264,18 @@
       }
       function lazyInitializer(payload) {
         if (-1 === payload._status) {
-          var ctor = payload._result;
-          ctor = ctor();
-          ctor.then(
+          var ctor = payload._result, thenable = ctor();
+          thenable.then(
             function(moduleObject) {
               if (0 === payload._status || -1 === payload._status)
-                payload._status = 1, payload._result = moduleObject;
+                payload._status = 1, payload._result = moduleObject, void 0 === thenable.status && (thenable.status = "fulfilled", thenable.value = moduleObject);
             },
             function(error) {
               if (0 === payload._status || -1 === payload._status)
-                payload._status = 2, payload._result = error;
+                payload._status = 2, payload._result = error, void 0 === thenable.status && (thenable.status = "rejected", thenable.reason = error);
             }
           );
-          -1 === payload._status && (payload._status = 0, payload._result = ctor);
+          -1 === payload._status && (payload._status = 0, payload._result = thenable);
         }
         if (1 === payload._status) return payload._result.default;
         throw payload._result;
@@ -295,6 +295,27 @@
         }
         console.error(error);
       };
+      function startTransition(scope) {
+        var prevTransition = ReactSharedInternals.T, currentTransition = {};
+        currentTransition.types = null !== prevTransition ? prevTransition.types : null;
+        ReactSharedInternals.T = currentTransition;
+        try {
+          var returnValue = scope(), onStartTransitionFinish = ReactSharedInternals.S;
+          null !== onStartTransitionFinish && onStartTransitionFinish(currentTransition, returnValue);
+          "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && returnValue.then(noop3, reportGlobalError);
+        } catch (error) {
+          reportGlobalError(error);
+        } finally {
+          null !== prevTransition && null !== currentTransition.types && (prevTransition.types = currentTransition.types), ReactSharedInternals.T = prevTransition;
+        }
+      }
+      function addTransitionType(type) {
+        var transition = ReactSharedInternals.T;
+        if (null !== transition) {
+          var transitionTypes = transition.types;
+          null === transitionTypes ? transition.types = [type] : -1 === transitionTypes.indexOf(type) && transitionTypes.push(type);
+        } else startTransition(addTransitionType.bind(null, type));
+      }
       var Children5 = {
         map: mapChildren,
         forEach: function(children, forEachFunc, forEachContext) {
@@ -334,6 +355,7 @@
       exports.PureComponent = PureComponent;
       exports.StrictMode = REACT_STRICT_MODE_TYPE;
       exports.Suspense = REACT_SUSPENSE_TYPE;
+      exports.ViewTransition = REACT_VIEW_TRANSITION_TYPE;
       exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = ReactSharedInternals;
       exports.__COMPILER_RUNTIME = {
         __proto__: null,
@@ -341,6 +363,7 @@
           return ReactSharedInternals.H.useMemoCache(size4);
         }
       };
+      exports.addTransitionType = addTransitionType;
       exports.cache = function(fn) {
         return function() {
           return fn.apply(null, arguments);
@@ -421,19 +444,7 @@
           compare: void 0 === compare ? null : compare
         };
       };
-      exports.startTransition = function(scope) {
-        var prevTransition = ReactSharedInternals.T, currentTransition = {};
-        ReactSharedInternals.T = currentTransition;
-        try {
-          var returnValue = scope(), onStartTransitionFinish = ReactSharedInternals.S;
-          null !== onStartTransitionFinish && onStartTransitionFinish(currentTransition, returnValue);
-          "object" === typeof returnValue && null !== returnValue && "function" === typeof returnValue.then && returnValue.then(noop3, reportGlobalError);
-        } catch (error) {
-          reportGlobalError(error);
-        } finally {
-          null !== prevTransition && null !== currentTransition.types && (prevTransition.types = currentTransition.types), ReactSharedInternals.T = prevTransition;
-        }
-      };
+      exports.startTransition = startTransition;
       exports.unstable_useCacheRefresh = function() {
         return ReactSharedInternals.H.useCacheRefresh();
       };
@@ -497,7 +508,7 @@
       exports.useTransition = function() {
         return ReactSharedInternals.H.useTransition();
       };
-      exports.version = "19.2.8";
+      exports.version = "19.3.0";
     }
   });
 
@@ -556,11 +567,13 @@
         findDOMNode: null
       };
       var REACT_PORTAL_TYPE = /* @__PURE__ */ Symbol.for("react.portal");
+      var REACT_RECOVERABLE_TYPE = /* @__PURE__ */ Symbol.for("react.recoverable");
+      var REACT_OPTIMISTIC_KEY = /* @__PURE__ */ Symbol.for("react.optimistic_key");
       function createPortal$1(children, containerInfo, implementation) {
         var key = 3 < arguments.length && void 0 !== arguments[3] ? arguments[3] : null;
         return {
           $$typeof: REACT_PORTAL_TYPE,
-          key: null == key ? null : "" + key,
+          key: null == key ? null : key === REACT_OPTIMISTIC_KEY ? REACT_OPTIMISTIC_KEY : "" + key,
           children,
           containerInfo,
           implementation
@@ -573,6 +586,9 @@
           return "use-credentials" === input ? input : "";
       }
       exports.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE = Internals;
+      exports.browser = function(reason) {
+        return { $$typeof: REACT_RECOVERABLE_TYPE, _reason: reason };
+      };
       exports.createPortal = function(children, container) {
         var key = 2 < arguments.length && void 0 !== arguments[2] ? arguments[2] : null;
         if (!container || 1 !== container.nodeType && 9 !== container.nodeType && 11 !== container.nodeType)
@@ -623,7 +639,8 @@
               Internals.d.M(href, {
                 crossOrigin,
                 integrity: "string" === typeof options2.integrity ? options2.integrity : void 0,
-                nonce: "string" === typeof options2.nonce ? options2.nonce : void 0
+                nonce: "string" === typeof options2.nonce ? options2.nonce : void 0,
+                fetchPriority: "string" === typeof options2.fetchPriority ? options2.fetchPriority : void 0
               });
             }
           } else null == options2 && Internals.d.M(href);
@@ -651,7 +668,9 @@
             Internals.d.m(href, {
               as: "string" === typeof options2.as && "script" !== options2.as ? options2.as : void 0,
               crossOrigin,
-              integrity: "string" === typeof options2.integrity ? options2.integrity : void 0
+              integrity: "string" === typeof options2.integrity ? options2.integrity : void 0,
+              nonce: "string" === typeof options2.nonce ? options2.nonce : void 0,
+              fetchPriority: "string" === typeof options2.fetchPriority ? options2.fetchPriority : void 0
             });
           } else Internals.d.m(href);
       };
@@ -667,7 +686,7 @@
       exports.useFormStatus = function() {
         return ReactSharedInternals.H.useHostTransitionStatus();
       };
-      exports.version = "19.2.8";
+      exports.version = "19.3.0";
     }
   });
 
