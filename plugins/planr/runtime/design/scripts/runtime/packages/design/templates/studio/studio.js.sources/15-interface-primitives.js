@@ -1,9 +1,40 @@
 
 
+  // ../../node_modules/@radix-ui/react-arrow/dist/index.mjs
+  var React30 = __toESM(require_react(), 1);
+  var import_jsx_runtime10 = __toESM(require_jsx_runtime(), 1);
+  var __defProp20 = Object.defineProperty;
+  var __name19 = (target, value) => __defProp20(target, "name", { value, configurable: true });
+  var Arrow = /* @__PURE__ */ React30.forwardRef(
+    /* @__PURE__ */ __name19(function Arrow2(props, forwardedRef) {
+      const { children, width = 10, height = 5, ...arrowProps } = props;
+      return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
+        Primitive.svg,
+        {
+          ...arrowProps,
+          ref: forwardedRef,
+          width,
+          height,
+          viewBox: "0 0 30 10",
+          preserveAspectRatio: "none",
+          children: props.asChild ? children : /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("polygon", { points: "0,0 30,0 15,10" })
+        }
+      );
+    }, "Arrow")
+  );
+
   // ../../node_modules/@radix-ui/react-popper/dist/index.mjs
   var import_jsx_runtime11 = __toESM(require_jsx_runtime(), 1);
   var __defProp21 = Object.defineProperty;
   var __name20 = (target, value) => __defProp21(target, "name", { value, configurable: true });
+  var Sticky = {
+    Partial: "partial",
+    Always: "always"
+  };
+  var UpdatePositionStrategy = {
+    Optimized: "optimized",
+    Always: "always"
+  };
   var POPPER_NAME = "Popper";
   var [createPopperContext, createPopperScope] = createContextScope(POPPER_NAME);
   var [PopperProvider, usePopperContext] = createPopperContext(POPPER_NAME);
@@ -79,9 +110,9 @@
         avoidCollisions = true,
         collisionBoundary = [],
         collisionPadding: collisionPaddingProp = 0,
-        sticky = "partial",
+        sticky = Sticky.Partial,
         hideWhenDetached = false,
-        updatePositionStrategy = "optimized",
+        updatePositionStrategy = UpdatePositionStrategy.Optimized,
         onPlaced,
         ...contentProps
       } = props;
@@ -108,7 +139,7 @@
         placement: desiredPlacement,
         whileElementsMounted: /* @__PURE__ */ __name20((...args) => {
           const cleanup = autoUpdate(...args, {
-            animationFrame: updatePositionStrategy === "always"
+            animationFrame: updatePositionStrategy === UpdatePositionStrategy.Always
           });
           return cleanup;
         }, "whileElementsMounted"),
@@ -120,7 +151,9 @@
           avoidCollisions && shift3({
             mainAxis: true,
             crossAxis: false,
-            limiter: sticky === "partial" ? limitShift3() : void 0,
+            // Spread rather than passing `limiter: undefined`, which
+            // `exactOptionalPropertyTypes` rejects for Floating UI's optional option.
+            ...sticky === Sticky.Partial ? { limiter: limitShift3() } : {},
             ...detectOverflowOptions
           }),
           avoidCollisions && flip3({ ...detectOverflowOptions }),
@@ -137,18 +170,22 @@
           }),
           arrow4 && arrow3({ element: arrow4, padding: arrowPadding }),
           transformOrigin({ arrowWidth, arrowHeight }),
-          hideWhenDetached && hide3({
-            strategy: "referenceHidden",
-            ...detectOverflowOptions,
-            // `hide` detects whether the anchor (reference) is clipped, so when
-            // no explicit `collisionBoundary` is set we fall back to Floating
-            // UI's default clipping ancestors (e.g. a scrollable menu). This
-            // lets an occluded submenu hide once its anchor scrolls out of view
-            // (#3237). The collision/size middlewares deliberately keep the
-            // viewport-based default to avoid clamping content rendered inside
-            // transformed or overflow-clipping portal containers.
-            boundary: hasExplicitBoundaries ? detectOverflowOptions.boundary : void 0
-          })
+          hideWhenDetached && // `hide` detects whether the anchor (reference) is clipped, so when
+          // no explicit `collisionBoundary` is set we omit `boundary` entirely
+          // and fall back to Floating UI's default clipping ancestors (e.g. a
+          // scrollable menu). This lets an occluded submenu hide once its anchor
+          // scrolls out of view (#3237). The collision/size middlewares
+          // deliberately keep the viewport-based default to avoid clamping
+          // content rendered inside transformed or overflow-clipping portal
+          // containers. The key is omitted rather than set to `undefined`
+          // because `exactOptionalPropertyTypes` rejects the explicit value.
+          hide3(
+            hasExplicitBoundaries ? { strategy: "referenceHidden", ...detectOverflowOptions } : {
+              strategy: "referenceHidden",
+              padding: detectOverflowOptions.padding,
+              altBoundary: detectOverflowOptions.altBoundary
+            }
+          )
         ]
       });
       const setPlacementState = context.setPlacementState;
@@ -268,7 +305,7 @@
               visibility: contentContext.shouldHideArrow ? "hidden" : void 0
             },
             children: /* @__PURE__ */ (0, import_jsx_runtime11.jsx)(
-              Root,
+              Arrow,
               {
                 ...arrowProps,
                 ref: forwardedRef,
@@ -324,10 +361,6 @@
     return [side, align];
   }
   __name20(getSideAndAlignFromPlacement, "getSideAndAlignFromPlacement");
-  var Root2 = Popper;
-  var Anchor = PopperAnchor;
-  var Content = PopperContent;
-  var Arrow3 = PopperArrow;
 
   // ../../node_modules/@radix-ui/react-roving-focus/dist/index.mjs
   var React33 = __toESM(require_react(), 1);
@@ -377,6 +410,14 @@
     GROUP_NAME,
     [createCollectionScope]
   );
+  var Orientation = {
+    Vertical: "vertical",
+    Horizontal: "horizontal"
+  };
+  var Direction2 = {
+    LTR: "ltr",
+    RTL: "rtl"
+  };
   var [RovingFocusProvider, useRovingFocusContext] = createRovingFocusGroupContext(GROUP_NAME);
   var RovingFocusGroup = /* @__PURE__ */ React33.forwardRef(
     // blank line to reduce diff noise
@@ -565,14 +606,18 @@
     End: "last"
   };
   function getDirectionAwareKey(key, dir) {
-    if (dir !== "rtl") return key;
+    if (dir !== Direction2.RTL) return key;
     return key === "ArrowLeft" ? "ArrowRight" : key === "ArrowRight" ? "ArrowLeft" : key;
   }
   __name22(getDirectionAwareKey, "getDirectionAwareKey");
   function getFocusIntent(event, orientation, dir) {
     const key = getDirectionAwareKey(event.key, dir);
-    if (orientation === "vertical" && ["ArrowLeft", "ArrowRight"].includes(key)) return void 0;
-    if (orientation === "horizontal" && ["ArrowUp", "ArrowDown"].includes(key)) return void 0;
+    if (orientation === Orientation.Vertical && ["ArrowLeft", "ArrowRight"].includes(key)) {
+      return void 0;
+    }
+    if (orientation === Orientation.Horizontal && ["ArrowUp", "ArrowDown"].includes(key)) {
+      return void 0;
+    }
     return MAP_KEY_TO_FOCUS_INTENT[key];
   }
   __name22(getFocusIntent, "getFocusIntent");
@@ -589,13 +634,15 @@
     return array.map((_, index2) => array[(startIndex + index2) % array.length]);
   }
   __name22(wrapArray, "wrapArray");
-  var Root3 = RovingFocusGroup;
-  var Item = RovingFocusGroupItem;
 
   // ../../node_modules/@radix-ui/react-menu/dist/index.mjs
   var import_jsx_runtime13 = __toESM(require_jsx_runtime(), 1);
   var __defProp24 = Object.defineProperty;
   var __name23 = (target, value) => __defProp24(target, "name", { value, configurable: true });
+  var Direction3 = {
+    LTR: "ltr",
+    RTL: "rtl"
+  };
   var SELECTION_KEYS = ["Enter", " "];
   var FIRST_KEYS = ["ArrowDown", "PageUp", "Home"];
   var LAST_KEYS = ["ArrowUp", "PageDown", "End"];
@@ -648,7 +695,7 @@
       window.addEventListener("blur", handleBlur);
       return () => window.removeEventListener("blur", handleBlur);
     }, [open, handleOpenChange]);
-    return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Root2, { ...popperScope, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Popper, { ...popperScope, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
       MenuProvider,
       {
         scope: __scopeMenu,
@@ -674,7 +721,7 @@
     /* @__PURE__ */ __name23(function MenuAnchor2(props, forwardedRef) {
       const { __scopeMenu, ...anchorProps } = props;
       const popperScope = usePopperScope(__scopeMenu);
-      return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Anchor, { ...popperScope, ...anchorProps, ref: forwardedRef });
+      return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(PopperAnchor, { ...popperScope, ...anchorProps, ref: forwardedRef });
     }, "MenuAnchor")
   );
   var PORTAL_NAME2 = "MenuPortal";
@@ -766,15 +813,32 @@
       const getItems = useCollection2(__scopeMenu);
       const [currentItemId, setCurrentItemId] = React34.useState(null);
       const contentRef = React34.useRef(null);
-      const composedRefs = useComposedRefs(forwardedRef, contentRef, context.onContentChange);
+      const [branchNode, setBranchNode] = React34.useState(null);
+      useFocusScopeBranch(branchNode);
+      const { nodes: branchNodes, registry: branchRegistry } = useFocusScopeBranchRegistry();
+      const isModal = Boolean(trapFocus || disableOutsideScroll);
+      const composedRefs = useComposedRefs(
+        forwardedRef,
+        contentRef,
+        context.onContentChange,
+        setBranchNode
+      );
       const timerRef = React34.useRef(0);
       const searchRef = React34.useRef("");
       const pointerGraceTimerRef = React34.useRef(0);
       const pointerGraceIntentRef = React34.useRef(null);
       const pointerDirRef = React34.useRef("right");
       const lastPointerXRef = React34.useRef(0);
+      const shards = React34.useMemo(
+        () => disableOutsideScroll ? [contentRef, ...branchNodes.map((node) => ({ current: node }))] : [],
+        [contentRef, branchNodes, disableOutsideScroll]
+      );
       const ScrollLockWrapper = disableOutsideScroll ? Combination_default : React34.Fragment;
-      const scrollLockWrapperProps = disableOutsideScroll ? { as: Slot2, allowPinchZoom: true } : void 0;
+      const scrollLockWrapperProps = disableOutsideScroll ? {
+        as: Slot2,
+        allowPinchZoom: true,
+        shards
+      } : void 0;
       const handleTypeaheadSearch = /* @__PURE__ */ __name23((key) => {
         const search = searchRef.current + key;
         const items = getItems().filter((item) => !item.disabled);
@@ -783,11 +847,13 @@
         const values = items.map((item) => item.textValue);
         const nextMatch = getNextMatch(values, search, currentMatch);
         const newItem = items.find((item) => item.textValue === nextMatch)?.ref.current;
-        (/* @__PURE__ */ __name23((function updateSearch(value) {
+        function updateSearch(value) {
           searchRef.current = value;
           window.clearTimeout(timerRef.current);
           if (value !== "") timerRef.current = window.setTimeout(() => updateSearch(""), 1e3);
-        }), "updateSearch"))(search);
+        }
+        __name23(updateSearch, "updateSearch");
+        updateSearch(search);
         if (newItem) {
           setTimeout(() => newItem.focus());
         }
@@ -829,11 +895,12 @@
           onPointerGraceIntentChange: React34.useCallback((intent) => {
             pointerGraceIntentRef.current = intent;
           }, []),
-          children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(ScrollLockWrapper, { ...scrollLockWrapperProps, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(FocusScopeBranchProvider, { registry: isModal ? branchRegistry : null, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(ScrollLockWrapper, { ...scrollLockWrapperProps, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
             FocusScope,
             {
               asChild: true,
               trapped: trapFocus,
+              branches: branchNodes,
               onMountAutoFocus: composeEventHandlers(onOpenAutoFocus, (event) => {
                 event.preventDefault();
                 contentRef.current?.focus({ preventScroll: true });
@@ -850,7 +917,7 @@
                   onInteractOutside,
                   onDismiss,
                   children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
-                    Root3,
+                    RovingFocusGroup,
                     {
                       asChild: true,
                       ...rovingFocusGroupScope,
@@ -864,7 +931,7 @@
                       }),
                       preventScrollOnEntryFocus: true,
                       children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
-                        Content,
+                        PopperContent,
                         {
                           role: "menu",
                           "aria-orientation": "vertical",
@@ -918,7 +985,7 @@
                 }
               )
             }
-          ) })
+          ) }) })
         }
       );
     }, "MenuContentImpl")
@@ -1011,7 +1078,7 @@
           scope: __scopeMenu,
           disabled,
           textValue: textValue ?? textContent,
-          children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Item, { asChild: true, ...rovingFocusGroupScope, focusable: !disabled, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+          children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(RovingFocusGroupItem, { asChild: true, ...rovingFocusGroupScope, focusable: !disabled, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
             Primitive.div,
             {
               role: "menuitem",
@@ -1147,7 +1214,7 @@
     /* @__PURE__ */ __name23(function MenuArrow2(props, forwardedRef) {
       const { __scopeMenu, ...arrowProps } = props;
       const popperScope = usePopperScope(__scopeMenu);
-      return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Arrow3, { ...popperScope, ...arrowProps, ref: forwardedRef });
+      return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(PopperArrow, { ...popperScope, ...arrowProps, ref: forwardedRef });
     }, "MenuArrow")
   );
   var SUB_NAME = "MenuSub";
@@ -1163,7 +1230,7 @@
       if (parentMenuContext.open === false) handleOpenChange(false);
       return () => handleOpenChange(false);
     }, [parentMenuContext.open, handleOpenChange]);
-    return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Root2, { ...popperScope, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
+    return /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(Popper, { ...popperScope, children: /* @__PURE__ */ (0, import_jsx_runtime13.jsx)(
       MenuProvider,
       {
         scope: __scopeMenu,
@@ -1309,7 +1376,7 @@
           ...subContentProps,
           ref: composedRefs,
           align,
-          side: rootContext.dir === "rtl" ? "left" : "right",
+          side: rootContext.dir === Direction3.RTL ? "left" : "right",
           disableOutsidePointerEvents: false,
           disableOutsideScroll: false,
           trapFocus: false,
@@ -1402,29 +1469,13 @@
     return (event) => event.pointerType === "mouse" ? handler(event) : void 0;
   }
   __name23(whenMouse, "whenMouse");
-  var Root32 = Menu;
-  var Anchor2 = MenuAnchor;
-  var Portal3 = MenuPortal;
-  var Content2 = MenuContent;
-  var Group = MenuGroup;
-  var Label = MenuLabel;
-  var Item2 = MenuItem;
-  var CheckboxItem = MenuCheckboxItem;
-  var RadioGroup = MenuRadioGroup;
-  var RadioItem = MenuRadioItem;
-  var ItemIndicator = MenuItemIndicator;
-  var Separator = MenuSeparator;
-  var Arrow22 = MenuArrow;
-  var Sub = MenuSub;
-  var SubTrigger = MenuSubTrigger;
-  var SubContent = MenuSubContent;
 
   // ../../node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs
   var dist_exports5 = {};
   __export(dist_exports5, {
-    Arrow: () => Arrow23,
-    CheckboxItem: () => CheckboxItem2,
-    Content: () => Content22,
+    Arrow: () => DropdownMenuArrow,
+    CheckboxItem: () => DropdownMenuCheckboxItem,
+    Content: () => DropdownMenuContent,
     DropdownMenu: () => DropdownMenu,
     DropdownMenuArrow: () => DropdownMenuArrow,
     DropdownMenuCheckboxItem: () => DropdownMenuCheckboxItem,
@@ -1441,19 +1492,19 @@
     DropdownMenuSubContent: () => DropdownMenuSubContent,
     DropdownMenuSubTrigger: () => DropdownMenuSubTrigger,
     DropdownMenuTrigger: () => DropdownMenuTrigger,
-    Group: () => Group2,
-    Item: () => Item22,
-    ItemIndicator: () => ItemIndicator2,
-    Label: () => Label2,
-    Portal: () => Portal22,
-    RadioGroup: () => RadioGroup2,
-    RadioItem: () => RadioItem2,
-    Root: () => Root22,
-    Separator: () => Separator2,
-    Sub: () => Sub2,
-    SubContent: () => SubContent2,
-    SubTrigger: () => SubTrigger2,
-    Trigger: () => Trigger,
+    Group: () => DropdownMenuGroup,
+    Item: () => DropdownMenuItem,
+    ItemIndicator: () => DropdownMenuItemIndicator,
+    Label: () => DropdownMenuLabel,
+    Portal: () => DropdownMenuPortal,
+    RadioGroup: () => DropdownMenuRadioGroup,
+    RadioItem: () => DropdownMenuRadioItem,
+    Root: () => DropdownMenu,
+    Separator: () => DropdownMenuSeparator,
+    Sub: () => DropdownMenuSub,
+    SubContent: () => DropdownMenuSubContent,
+    SubTrigger: () => DropdownMenuSubTrigger,
+    Trigger: () => DropdownMenuTrigger,
     createDropdownMenuScope: () => createDropdownMenuScope
   });
   var React35 = __toESM(require_react(), 1);
@@ -1496,7 +1547,7 @@
         onOpenChange: setOpen,
         onOpenToggle: React35.useCallback(() => setOpen((prevOpen) => !prevOpen), [setOpen]),
         modal,
-        children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Root32, { ...menuScope, open, onOpenChange: setOpen, dir, modal, children })
+        children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Menu, { ...menuScope, open, onOpenChange: setOpen, dir, modal, children })
       }
     );
   }, "DropdownMenu");
@@ -1508,7 +1559,7 @@
       const context = useDropdownMenuContext(TRIGGER_NAME2, __scopeDropdownMenu);
       const menuScope = useMenuScope(__scopeDropdownMenu);
       const composedRefs = useComposedRefs(forwardedRef, context.triggerRef);
-      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Anchor2, { asChild: true, ...menuScope, children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
+      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuAnchor, { asChild: true, ...menuScope, children: /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
         Primitive.button,
         {
           type: "button",
@@ -1540,7 +1591,7 @@
   var DropdownMenuPortal = /* @__PURE__ */ __name24((props) => {
     const { __scopeDropdownMenu, ...portalProps } = props;
     const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Portal3, { ...menuScope, ...portalProps });
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuPortal, { ...menuScope, ...portalProps });
   }, "DropdownMenuPortal");
   var CONTENT_NAME4 = "DropdownMenuContent";
   var DropdownMenuContent = /* @__PURE__ */ React35.forwardRef(
@@ -1551,7 +1602,7 @@
       const menuScope = useMenuScope(__scopeDropdownMenu);
       const hasInteractedOutsideRef = React35.useRef(false);
       return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
-        Content2,
+        MenuContent,
         {
           id: context.contentId,
           "aria-labelledby": context.triggerId,
@@ -1589,7 +1640,7 @@
     /* @__PURE__ */ __name24(function DropdownMenuGroup2(props, forwardedRef) {
       const { __scopeDropdownMenu, ...groupProps } = props;
       const menuScope = useMenuScope(__scopeDropdownMenu);
-      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Group, { ...menuScope, ...groupProps, ref: forwardedRef });
+      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuGroup, { ...menuScope, ...groupProps, ref: forwardedRef });
     }, "DropdownMenuGroup")
   );
   var DropdownMenuLabel = /* @__PURE__ */ React35.forwardRef(
@@ -1597,7 +1648,7 @@
     /* @__PURE__ */ __name24(function DropdownMenuLabel2(props, forwardedRef) {
       const { __scopeDropdownMenu, ...labelProps } = props;
       const menuScope = useMenuScope(__scopeDropdownMenu);
-      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Label, { ...menuScope, ...labelProps, ref: forwardedRef });
+      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuLabel, { ...menuScope, ...labelProps, ref: forwardedRef });
     }, "DropdownMenuLabel")
   );
   var DropdownMenuItem = /* @__PURE__ */ React35.forwardRef(
@@ -1605,40 +1656,40 @@
     /* @__PURE__ */ __name24(function DropdownMenuItem2(props, forwardedRef) {
       const { __scopeDropdownMenu, ...itemProps } = props;
       const menuScope = useMenuScope(__scopeDropdownMenu);
-      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Item2, { ...menuScope, ...itemProps, ref: forwardedRef });
+      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuItem, { ...menuScope, ...itemProps, ref: forwardedRef });
     }, "DropdownMenuItem")
   );
   var DropdownMenuCheckboxItem = /* @__PURE__ */ React35.forwardRef(/* @__PURE__ */ __name24(function DropdownMenuCheckboxItem2(props, forwardedRef) {
     const { __scopeDropdownMenu, ...checkboxItemProps } = props;
     const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(CheckboxItem, { ...menuScope, ...checkboxItemProps, ref: forwardedRef });
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuCheckboxItem, { ...menuScope, ...checkboxItemProps, ref: forwardedRef });
   }, "DropdownMenuCheckboxItem"));
   var DropdownMenuRadioGroup = /* @__PURE__ */ React35.forwardRef(/* @__PURE__ */ __name24(function DropdownMenuRadioGroup2(props, forwardedRef) {
     const { __scopeDropdownMenu, ...radioGroupProps } = props;
     const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(RadioGroup, { ...menuScope, ...radioGroupProps, ref: forwardedRef });
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuRadioGroup, { ...menuScope, ...radioGroupProps, ref: forwardedRef });
   }, "DropdownMenuRadioGroup"));
   var DropdownMenuRadioItem = /* @__PURE__ */ React35.forwardRef(/* @__PURE__ */ __name24(function DropdownMenuRadioItem2(props, forwardedRef) {
     const { __scopeDropdownMenu, ...radioItemProps } = props;
     const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(RadioItem, { ...menuScope, ...radioItemProps, ref: forwardedRef });
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuRadioItem, { ...menuScope, ...radioItemProps, ref: forwardedRef });
   }, "DropdownMenuRadioItem"));
   var DropdownMenuItemIndicator = /* @__PURE__ */ React35.forwardRef(/* @__PURE__ */ __name24(function DropdownMenuItemIndicator2(props, forwardedRef) {
     const { __scopeDropdownMenu, ...itemIndicatorProps } = props;
     const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(ItemIndicator, { ...menuScope, ...itemIndicatorProps, ref: forwardedRef });
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuItemIndicator, { ...menuScope, ...itemIndicatorProps, ref: forwardedRef });
   }, "DropdownMenuItemIndicator"));
   var DropdownMenuSeparator = /* @__PURE__ */ React35.forwardRef(/* @__PURE__ */ __name24(function DropdownMenuSeparator2(props, forwardedRef) {
     const { __scopeDropdownMenu, ...separatorProps } = props;
     const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Separator, { ...menuScope, ...separatorProps, ref: forwardedRef });
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuSeparator, { ...menuScope, ...separatorProps, ref: forwardedRef });
   }, "DropdownMenuSeparator"));
   var DropdownMenuArrow = /* @__PURE__ */ React35.forwardRef(
     // blank line to reduce diff noise
     /* @__PURE__ */ __name24(function DropdownMenuArrow2(props, forwardedRef) {
       const { __scopeDropdownMenu, ...arrowProps } = props;
       const menuScope = useMenuScope(__scopeDropdownMenu);
-      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Arrow22, { ...menuScope, ...arrowProps, ref: forwardedRef });
+      return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuArrow, { ...menuScope, ...arrowProps, ref: forwardedRef });
     }, "DropdownMenuArrow")
   );
   var DropdownMenuSub = /* @__PURE__ */ __name24((props) => {
@@ -1650,18 +1701,18 @@
       onChange: onOpenChange,
       caller: "DropdownMenuSub"
     });
-    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(Sub, { ...menuScope, open, onOpenChange: setOpen, children });
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuSub, { ...menuScope, open, onOpenChange: setOpen, children });
   }, "DropdownMenuSub");
   var DropdownMenuSubTrigger = /* @__PURE__ */ React35.forwardRef(/* @__PURE__ */ __name24(function DropdownMenuSubTrigger2(props, forwardedRef) {
     const { __scopeDropdownMenu, ...subTriggerProps } = props;
     const menuScope = useMenuScope(__scopeDropdownMenu);
-    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(SubTrigger, { ...menuScope, ...subTriggerProps, ref: forwardedRef });
+    return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(MenuSubTrigger, { ...menuScope, ...subTriggerProps, ref: forwardedRef });
   }, "DropdownMenuSubTrigger"));
   var DropdownMenuSubContent = /* @__PURE__ */ React35.forwardRef(/* @__PURE__ */ __name24(function DropdownMenuSubContent2(props, forwardedRef) {
     const { __scopeDropdownMenu, ...subContentProps } = props;
     const menuScope = useMenuScope(__scopeDropdownMenu);
     return /* @__PURE__ */ (0, import_jsx_runtime14.jsx)(
-      SubContent,
+      MenuSubContent,
       {
         ...menuScope,
         ...subContentProps,
@@ -1680,19 +1731,3 @@
       }
     );
   }, "DropdownMenuSubContent"));
-  var Root22 = DropdownMenu;
-  var Trigger = DropdownMenuTrigger;
-  var Portal22 = DropdownMenuPortal;
-  var Content22 = DropdownMenuContent;
-  var Group2 = DropdownMenuGroup;
-  var Label2 = DropdownMenuLabel;
-  var Item22 = DropdownMenuItem;
-  var CheckboxItem2 = DropdownMenuCheckboxItem;
-  var RadioGroup2 = DropdownMenuRadioGroup;
-  var RadioItem2 = DropdownMenuRadioItem;
-  var ItemIndicator2 = DropdownMenuItemIndicator;
-  var Separator2 = DropdownMenuSeparator;
-  var Arrow23 = DropdownMenuArrow;
-  var Sub2 = DropdownMenuSub;
-  var SubTrigger2 = DropdownMenuSubTrigger;
-  var SubContent2 = DropdownMenuSubContent;

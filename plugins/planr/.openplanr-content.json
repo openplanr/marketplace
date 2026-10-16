@@ -3,7 +3,7 @@
   "schemaVersion": "1.0.0",
   "protocolVersion": "1.8.0",
   "host": "claude-code",
-  "skillCount": 28,
+  "skillCount": 30,
   "roleCount": 9,
   "files": [
     {
@@ -12,7 +12,7 @@
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:1bc5112dfd17d4d554001247521495bb4e7499020b572564610beaa549adf865"
+      "digest": "sha256:f2850c567da9de551ab8f99dc48cc3f5344ef7ef52835fbfc45e1480c9eb4832"
     },
     {
       "path": "agents/planr-backend.md",
@@ -51,12 +51,16 @@
       "digest": "sha256:c3c69f000b6a3d046a20d145901018850f12183223a8f7fc4dfa3c9b80ff90f9"
     },
     {
+      "path": "CONNECTORS.md",
+      "digest": "sha256:0b2062a01690bbb6b5e9688663fc3c38e8128361c9ddedea149b5bccd4620296"
+    },
+    {
       "path": "LICENSE",
       "digest": "sha256:ff4ad7d960f2a89a51b5db88e1efb1a3b77e6c28e1c4fee27cbd35f6a5b3debb"
     },
     {
       "path": "README.md",
-      "digest": "sha256:8a74f8dd0406041a87104d12422a7aa34f694ee9cf3217e20e15e5bd0610f528"
+      "digest": "sha256:db9965aaa457d7d8deb499cf4b61acd171ea80d1b748710f0e3d29c6d06e96a7"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -219,7 +223,7 @@
       "digest": "sha256:c338765d9f5746bf375377bdd25e94490ac31985bab0b0335e49f9faadb5c08b"
     },
     {
-      "path": "runtime/design/scripts/design-runtime-support-336900df0d39.mjs",
+      "path": "runtime/design/scripts/design-runtime-support-e34c388a8e59.mjs",
       "digest": "sha256:6f9b75516c4c4e9468a3d27ba521664604547940a5a76e8d81425b3603a5ea4a"
     },
     {
@@ -228,7 +232,7 @@
     },
     {
       "path": "runtime/design/scripts/design-share.mjs",
-      "digest": "sha256:76a313211315e67b1fc9a216ce5b4ae415f472a34216a059fdbb4c9870ae9db7"
+      "digest": "sha256:688580ad2ecf3e4a32ea62ec8309fd1d7578ca5ebb05802d5010d95becdeb796"
     },
     {
       "path": "runtime/design/scripts/design-shared-artifact-support-dependencies-design-support-protocol-contracts-3d9b1a86.mjs",
@@ -240,7 +244,7 @@
     },
     {
       "path": "runtime/design/scripts/design-shared-protocol-contracts-31a760fc.mjs",
-      "digest": "sha256:f411ea92c48db776e2911094efeb4d22de2471330332f34a737d8d6763995715"
+      "digest": "sha256:215096cb7b59f2ec0daff6d4dd229b30ae2c0d5ab2f6fb96539f02dfd1c428b7"
     },
     {
       "path": "runtime/design/scripts/design-shared-protocol-contracts-75a938cc.mjs",
@@ -256,15 +260,15 @@
     },
     {
       "path": "runtime/design/scripts/runtime/notices/THIRD_PARTY_NOTICES.txt",
-      "digest": "sha256:2cd156e3285240dced643f0312875a23ec3681a0492bec96591bfc36c06256b9"
+      "digest": "sha256:66a4b5b0ce31ce6c5a5ea43c17dea76a48df6a1bcf5c2cd6b187b2b6c210143c"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/lib/artifact/ui/studio-shell.css",
-      "digest": "sha256:61e3736cd81f15162d877bb29481e96538d8a32f19cc4a6718026e549e193c48"
+      "digest": "sha256:b616c94f27575a9b354f53bc697a0f168aa8e17fd54ecec75c92504a17b547d3"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.sources.json",
-      "digest": "sha256:fc814562f0392d309efcb1232b72d0887e6815c0a5b0c26a2c658101acdd478c"
+      "digest": "sha256:d8afa31f819d5c76026a4c7f99991e981d28d047dd7f1414aacb886e08d4367f"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.sources/01-module-runtime.js",
@@ -276,7 +280,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.sources/03-protocol-contracts.js",
-      "digest": "sha256:2222cb9544f49c3af6ee1255085450119cb0973bba4b63c610964835c2ed0d54"
+      "digest": "sha256:3494e8e8cd50ff596dc2c00cc4c02f6dd2f016de50e0fb1c284ac03b6470b19d"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/artifact/templates/artifact-review-stage.js.sources/04-compression.js",
@@ -300,7 +304,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/package.json",
-      "digest": "sha256:7c884f7d4b1e20ffcfe58514413f1a36e8c00e88866fb07492c912949e87782c"
+      "digest": "sha256:1b285ebfcfd776807abf3d8278d4ced7b158b17a4172aa230030d4bf14d29e60"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/enhancements.css",
@@ -324,7 +328,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources.json",
-      "digest": "sha256:f517215a81d763cdc5aa903b0d6b2e679d10dc3592915e4f4c1f7062413cb6d3"
+      "digest": "sha256:37fd0d518f154d4918aefd7a3b2fc7a6c7b235e7cf7d2d0f5d3e45a82cb400b9"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/01-module-runtime.js",
@@ -332,35 +336,35 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/02-react.js",
-      "digest": "sha256:bf350d5126e53d2eebc29c96ce4c38d007dc205aded91cc3bb964c1d68e469e5"
+      "digest": "sha256:3d07031b0e1ebfe8d00491d70eb876cdd9ec829801ec3df4fc5aa72205b5ea7f"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/03-react-dom-client-fiber-foundations.js",
-      "digest": "sha256:f30ee0a7f2c9dbe1b13e64d33fd9f5a25bd816e60ca04eeda5153a1a3694cbb1"
+      "digest": "sha256:793a627a349d139397ff51c837c7cc911b08b34a49e5629af0c7967e5cb89715"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/04-react-dom-client-reconciliation-hooks.js",
-      "digest": "sha256:0f5687e30eb5029375818768c47b407d48946ad420adec5b3d9453d4e6e9b751"
+      "digest": "sha256:3839e5bdcca072a612ec48fffb6e340083f4692c516a2aeb9c8c8896ab4ea6a4"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/05-react-dom-client-render-phases.js",
-      "digest": "sha256:1fb2854c8642a5f9285fb5d30b015ef25006a5c2b433323eb6226173ec9f0d12"
+      "digest": "sha256:f057d07ab68567daebe124fe103d88157ee4ce68177e21d1a2166debf424309f"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/06-react-dom-client-commit-effects.js",
-      "digest": "sha256:6038d1c4d96e123d9f9ab7ee2516878c97bdbe5bc6149732d1064444d38b3b57"
+      "digest": "sha256:67291903232cb09062344ef0770638c9882a76178adba57c9a67f72bbdb80cbb"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/07-react-dom-client-work-loop-scheduling.js",
-      "digest": "sha256:89525ecc086cf31eff4fc4daf2e886ed603b301c8af6c855d409e9d6367df3e8"
+      "digest": "sha256:ed6b1c356c341efa060072cffa2a61fcbb425655bd00c8b58dc5b50a13d5a3ad"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/08-react-dom-client-dom-events-properties-hydration.js",
-      "digest": "sha256:02670980a272f781deb8d9e9d67c0ca5ea62fd31c9fff6ea55a1ccc7ade93262"
+      "digest": "sha256:fae78a4ea2c320638ca51a504b26dba90440d72882afdf1edf7ac49fe24853b6"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/09-react-dom-client-public-roots.js",
-      "digest": "sha256:631a2f59100373a07571b84cf75aeb8469d122721c32c5c30a85c26591721878"
+      "digest": "sha256:adca04c0e9079e354d467d17aaa6f49423611d290661f0cbbd7610545a98825e"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/10-react.js",
@@ -380,15 +384,15 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/14-interface-primitives.js",
-      "digest": "sha256:674115ab13d18062757b121898429a0ba0c6075d94cdc1318d3a1fd4d99252f7"
+      "digest": "sha256:c8d5ab2e7df79e22329daaf59e074d74345d11147c500553edd7910aaf96ed3e"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/15-interface-primitives.js",
-      "digest": "sha256:6228cf871238da64e48ae07c2998a754451462fdc0662137a15e99ce1c7408ee"
+      "digest": "sha256:e26c838db40b55f6df77606ac87b36f0298d7316ac832fa8c770c9dbab896596"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/16-studio-shell.js",
-      "digest": "sha256:5306387b1f59d43e1cd0ed2c471b18b0b35d5cc8c573ffe5439ea9315494c01e"
+      "digest": "sha256:81af29a6a5a15fd4f0ef41fc48e1eca63c30b3745fd1d92830ba83f7cf2ba603"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/design/templates/studio/studio.js.sources/17-design-studio.js",
@@ -396,7 +400,7 @@
     },
     {
       "path": "runtime/design/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:2ef4fe15be8e2037dda6786e075a02b94b3484f30465aab3565022ff7f0321e4"
+      "digest": "sha256:45ac1d8badf5ffb59a8bfafbb2af1eecd78843250a1eaf725682e4672d0647c0"
     },
     {
       "path": "runtime/design/scripts/runtime/packages/protocol/registries/artifact-theme.json",
@@ -504,7 +508,7 @@
     },
     {
       "path": "runtime/plan/scripts/design-protocol-contracts.mjs",
-      "digest": "sha256:153160758bd6d789b015d788c0bb3a7767508763049374e4c7c75f3729dfe763"
+      "digest": "sha256:d922b8a2dfa71ba5d17c45cdc75e944f18bdc6259fba99e384ecaf0562f6daf2"
     },
     {
       "path": "runtime/plan/scripts/design.mjs",
@@ -516,7 +520,7 @@
     },
     {
       "path": "runtime/plan/scripts/runtime/packages/protocol/package.json",
-      "digest": "sha256:2ef4fe15be8e2037dda6786e075a02b94b3484f30465aab3565022ff7f0321e4"
+      "digest": "sha256:45ac1d8badf5ffb59a8bfafbb2af1eecd78843250a1eaf725682e4672d0647c0"
     },
     {
       "path": "runtime/plan/scripts/runtime/packages/protocol/schemas/v1.1.0/artifact-review.schema.json",
@@ -581,6 +585,14 @@
     {
       "path": "skills/cmo-review/SKILL.md",
       "digest": "sha256:1a85d556992ea20c11046fb67535276fd6472c939f46f7920c26a5fae8fee217"
+    },
+    {
+      "path": "skills/connect/references/connectors.md",
+      "digest": "sha256:0b2062a01690bbb6b5e9688663fc3c38e8128361c9ddedea149b5bccd4620296"
+    },
+    {
+      "path": "skills/connect/SKILL.md",
+      "digest": "sha256:a66a81a5d8e1448dddc9f527c9dded435f045e1cf408f06dc5ede34be311d792"
     },
     {
       "path": "skills/coo-review/references/operate-advisor-contract.md",
@@ -952,7 +964,7 @@
     },
     {
       "path": "skills/openplanr/SKILL.md",
-      "digest": "sha256:76c0cd19e98d91a4a273f7960629ac9a4c3f8a88b9066f0bfbc347c57e63c499"
+      "digest": "sha256:e81058f5a898978b7c503e8a3ee8334a614ca43270aafb6df94bb2411bf8e1cc"
     },
     {
       "path": "skills/operate/scripts/validate-note.mjs",
@@ -992,11 +1004,11 @@
     },
     {
       "path": "skills/plan/scripts/planning-ids.mjs",
-      "digest": "sha256:5962fb674a45ce1c67c0fd7aa3085151ff1c817f4004baaa865acbdff5757adb"
+      "digest": "sha256:d7051fab0540e3beb176015f174e0851a3ceb8a24c43344495b43a28d2eaceae"
     },
     {
       "path": "skills/plan/SKILL.md",
-      "digest": "sha256:a2e82ebfbc71ceff6186779a60ba1a3b47ec8a6c42444a6953abb0bebbfa8c54"
+      "digest": "sha256:8fbe80627c9ae062af6b0775717f50399cedfae473d1cb6b68b782028d5bcd62"
     },
     {
       "path": "skills/release/assets/changelog-template.md",
@@ -1027,6 +1039,14 @@
       "digest": "sha256:6965c890c175598df291fcbb221904a48abe61361a73c714c73ae8e4a82b07c2"
     },
     {
+      "path": "skills/share/references/connectors.md",
+      "digest": "sha256:0b2062a01690bbb6b5e9688663fc3c38e8128361c9ddedea149b5bccd4620296"
+    },
+    {
+      "path": "skills/share/SKILL.md",
+      "digest": "sha256:a678310ecdc532045de14b9b10ef3c45234c89c2c059b737c17df89e051cbf6b"
+    },
+    {
       "path": "skills/ship/references/design-lineage.md",
       "digest": "sha256:0cf8cce235b6e258c066e65dcc25480f10aca6f0c3200de332fc278e3b7975a9"
     },
@@ -1036,11 +1056,11 @@
     },
     {
       "path": "skills/ship/scripts/discover-verification.mjs",
-      "digest": "sha256:e6c2bf04fc400529362a4f4e0d6bee6b81e19642e78167cf4f546f5757920b28"
+      "digest": "sha256:8805ac8d814a1d94364d455df6da350983d4c8436faa3749717da5f1b3ae63b1"
     },
     {
       "path": "skills/ship/SKILL.md",
-      "digest": "sha256:c5d4678a944e15f611efc47c238212738e1610a646d8a23baf7a8e7630c431a5"
+      "digest": "sha256:fcaace9baa973c476b78768f89fe602fb75f14f7bc385779061911d5cf38653d"
     },
     {
       "path": "skills/spec/references/specification-contract.md",
@@ -1049,6 +1069,10 @@
     {
       "path": "skills/spec/SKILL.md",
       "digest": "sha256:1ff5c57c86757aaed8693a2bb448099f810d23a532f5ccdfd241e972c7e43d9a"
+    },
+    {
+      "path": "skills/sprint/references/connectors.md",
+      "digest": "sha256:0b2062a01690bbb6b5e9688663fc3c38e8128361c9ddedea149b5bccd4620296"
     },
     {
       "path": "skills/sprint/references/refinement-contract.md",
@@ -1060,7 +1084,7 @@
     },
     {
       "path": "skills/sprint/references/tracker-connections.md",
-      "digest": "sha256:5f7d7126ca0db062c2b14c8ac35ca9758e44433329da610d7e75ad83b9417707"
+      "digest": "sha256:f9617486a5e2ecc861566d7a7eaf1c97725f9acfcc6bc64cfda1f9b6fd3c4d36"
     },
     {
       "path": "skills/sprint/schemas/refinement.schema.json",
@@ -1068,19 +1092,27 @@
     },
     {
       "path": "skills/sprint/SKILL.md",
-      "digest": "sha256:5c3b89308fb01454db92d7a93d166443054b645e223097649d1f52ad18dcb8c9"
+      "digest": "sha256:e21368479507c611fa2b8f547a320c8d0e387dacfe27f9dc38a6291dc8aecb27"
+    },
+    {
+      "path": "skills/status/references/connectors.md",
+      "digest": "sha256:0b2062a01690bbb6b5e9688663fc3c38e8128361c9ddedea149b5bccd4620296"
     },
     {
       "path": "skills/status/references/tracker-connections.md",
-      "digest": "sha256:5f7d7126ca0db062c2b14c8ac35ca9758e44433329da610d7e75ad83b9417707"
+      "digest": "sha256:f9617486a5e2ecc861566d7a7eaf1c97725f9acfcc6bc64cfda1f9b6fd3c4d36"
     },
     {
       "path": "skills/status/SKILL.md",
-      "digest": "sha256:35cc24a74739ae90e2a9f07c99a0f14652fe71c0827d2b4aa336966dbb8823e8"
+      "digest": "sha256:85d9327247810a5ca3df7e4c6638583d9e43fe8ae826ae72e936cb8480c53522"
+    },
+    {
+      "path": "skills/sync/references/connectors.md",
+      "digest": "sha256:0b2062a01690bbb6b5e9688663fc3c38e8128361c9ddedea149b5bccd4620296"
     },
     {
       "path": "skills/sync/references/tracker-connections.md",
-      "digest": "sha256:5f7d7126ca0db062c2b14c8ac35ca9758e44433329da610d7e75ad83b9417707"
+      "digest": "sha256:f9617486a5e2ecc861566d7a7eaf1c97725f9acfcc6bc64cfda1f9b6fd3c4d36"
     },
     {
       "path": "skills/sync/scripts/names.mjs",
@@ -1092,8 +1124,8 @@
     },
     {
       "path": "skills/sync/SKILL.md",
-      "digest": "sha256:a90f713ac4cda7fc0df0c2b40256ddba3cfa1ee8ea809705f1cf735324952022"
+      "digest": "sha256:79cb62f3f8b0c36ef55c9424ca694a37448f90170183d13d0654d500613da414"
     }
   ],
-  "contentDigest": "sha256:55033e5d9ee110e1b7da4097083a187307b8696b1aedd8c3c1cae6e78c5df08d"
+  "contentDigest": "sha256:52878a8addd33242af3f97ef5be8970433905a0ea9c9a28652fd6d19e23e7451"
 }

@@ -1804,7 +1804,7 @@ async function importDesignShareRecovery(file, { input, ...options } = {}) {
       const pending = custody.pendingCreate ?? custody.pendingMutation.body;
       const destination = join3(root, "uploads", custody.id, pending.operationId);
       if (existsSync4(destination)) {
-        const { spoolChunkReader: spoolChunkReader2 } = await import("./design-runtime-support-336900df0d39.mjs");
+        const { spoolChunkReader: spoolChunkReader2 } = await import("./design-runtime-support-e34c388a8e59.mjs");
         const reader = spoolChunkReader2(destination, pending);
         for (const part of pending.manifest.chunks) await reader(part.index);
       } else await copyUploadSpool(custody, destination);

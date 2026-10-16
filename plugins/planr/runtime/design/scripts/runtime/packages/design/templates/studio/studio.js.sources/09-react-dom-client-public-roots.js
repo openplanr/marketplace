@@ -17,6 +17,7 @@
         this.pooledCache = null;
         this.pooledCacheLanes = 0;
         this.formState = formState;
+        this.transitionTypes = null;
         this.incompleteTransitions = /* @__PURE__ */ new Map();
       }
       function createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydrationCallbacks, isStrictMode, identifierPrefix, formState, onUncaughtError, onCaughtError, onRecoverableError, onDefaultTransitionIndicator) {
@@ -240,7 +241,6 @@
           case "pointerup":
           case "ratechange":
           case "reset":
-          case "resize":
           case "seeked":
           case "submit":
           case "toggle":
@@ -259,6 +259,7 @@
           case "beforeinput":
           case "blur":
           case "fullscreenchange":
+          case "fullscreenerror":
           case "focus":
           case "hashchange":
           case "popstate":
@@ -276,6 +277,7 @@
           case "pointermove":
           case "pointerout":
           case "pointerover":
+          case "resize":
           case "scroll":
           case "touchmove":
           case "wheel":
@@ -607,13 +609,13 @@
           0 === i && attemptExplicitHydrationTarget(target);
         }
       };
-      var isomorphicReactPackageVersion$jscomp$inline_1840 = React36.version;
-      if ("19.2.8" !== isomorphicReactPackageVersion$jscomp$inline_1840)
+      var isomorphicReactPackageVersion$jscomp$inline_2043 = React36.version;
+      if ("19.3.0" !== isomorphicReactPackageVersion$jscomp$inline_2043)
         throw Error(
           formatProdErrorMessage(
             527,
-            isomorphicReactPackageVersion$jscomp$inline_1840,
-            "19.2.8"
+            isomorphicReactPackageVersion$jscomp$inline_2043,
+            "19.3.0"
           )
         );
       ReactDOMSharedInternals.findDOMNode = function(componentOrElement) {
@@ -629,24 +631,24 @@
         componentOrElement = null === componentOrElement ? null : componentOrElement.stateNode;
         return componentOrElement;
       };
-      var internals$jscomp$inline_2347 = {
+      var internals$jscomp$inline_2586 = {
         bundleType: 0,
-        version: "19.2.8",
+        version: "19.3.0",
         rendererPackageName: "react-dom",
         currentDispatcherRef: ReactSharedInternals,
-        reconcilerVersion: "19.2.8"
+        reconcilerVersion: "19.3.0"
       };
       if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-        hook$jscomp$inline_2348 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
-        if (!hook$jscomp$inline_2348.isDisabled && hook$jscomp$inline_2348.supportsFiber)
+        hook$jscomp$inline_2587 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+        if (!hook$jscomp$inline_2587.isDisabled && hook$jscomp$inline_2587.supportsFiber)
           try {
-            rendererID = hook$jscomp$inline_2348.inject(
-              internals$jscomp$inline_2347
-            ), injectedHook = hook$jscomp$inline_2348;
+            rendererID = hook$jscomp$inline_2587.inject(
+              internals$jscomp$inline_2586
+            ), injectedHook = hook$jscomp$inline_2587;
           } catch (err) {
           }
       }
-      var hook$jscomp$inline_2348;
+      var hook$jscomp$inline_2587;
       exports.createRoot = function(container, options3) {
         if (!isValidContainer(container)) throw Error(formatProdErrorMessage(299));
         var isStrictMode = false, identifierPrefix = "", onUncaughtError = defaultOnUncaughtError, onCaughtError = defaultOnCaughtError, onRecoverableError = defaultOnRecoverableError;
@@ -702,4 +704,4 @@
         listenToAllSupportedEvents(container);
         return new ReactDOMHydrationRoot(initialChildren);
       };
-      exports.version = "19.2.8";
+      exports.version = "19.3.0";

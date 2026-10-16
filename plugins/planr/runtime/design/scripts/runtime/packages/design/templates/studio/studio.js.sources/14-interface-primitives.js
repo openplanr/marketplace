@@ -59,15 +59,13 @@
       let slottableElement = null;
       let hasSlottable = false;
       const newChildren = [];
-      if (isLazyComponent(children) && typeof use === "function") {
-        children = use(children._payload);
-      }
+      children = useUnwrappedLazy(children);
       React2.Children.forEach(children, (maybeSlottable) => {
         if (isSlottable(maybeSlottable)) {
           hasSlottable = true;
           const slottable = maybeSlottable;
           let child = "child" in slottable.props ? slottable.props.child : slottable.props.children;
-          if (isLazyComponent(child) && typeof use === "function") {
+          while (isLazyComponent(child) && typeof use === "function") {
             child = use(child._payload);
           }
           slottableElement = getSlottableElementFromSlottable(slottable, child);
@@ -118,9 +116,8 @@
   __name2(createSlottable, "createSlottable");
   var getSlottableElementFromSlottable = /* @__PURE__ */ __name2((slottable, child) => {
     if ("child" in slottable.props) {
-      const child2 = slottable.props.child;
-      if (!React2.isValidElement(child2)) return null;
-      return React2.cloneElement(child2, void 0, slottable.props.children(child2.props.children));
+      if (!React2.isValidElement(child)) return null;
+      return React2.cloneElement(child, void 0, slottable.props.children(child.props.children));
     }
     return React2.isValidElement(child) ? child : null;
   }, "getSlottableElementFromSlottable");
@@ -144,6 +141,8 @@
         overrideProps[propName] = { ...slotPropValue, ...childPropValue };
       } else if (propName === "className") {
         overrideProps[propName] = [slotPropValue, childPropValue].filter(Boolean).join(" ");
+      } else if (propName === "aria-describedby") {
+        overrideProps[propName] = concatAriaDescribedby(childPropValue, slotPropValue);
       }
     }
     return { ...slotProps, ...overrideProps };
@@ -176,6 +175,25 @@
     return typeof value === "object" && value !== null && "then" in value;
   }
   __name2(isPromiseLike, "isPromiseLike");
+  function useUnwrappedLazy(value) {
+    let unwrapped = value;
+    while (isLazyComponent(unwrapped) && typeof use === "function") {
+      unwrapped = use(unwrapped._payload);
+    }
+    return unwrapped;
+  }
+  __name2(useUnwrappedLazy, "useUnwrappedLazy");
+  function concatAriaDescribedby(...values) {
+    const ids = /* @__PURE__ */ new Set();
+    for (const value of values) {
+      if (typeof value !== "string") continue;
+      for (const id of String(value).trim().split(/\s+/)) {
+        if (id) ids.add(id);
+      }
+    }
+    return ids.size > 0 ? Array.from(ids).join(" ") : void 0;
+  }
+  __name2(concatAriaDescribedby, "concatAriaDescribedby");
   var createSlotError = /* @__PURE__ */ __name2((ownerName) => {
     return `${ownerName} failed to slot onto its children. Expected a single React element child or \`Slottable\`.`;
   }, "createSlotError");
@@ -319,9 +337,16 @@
   __name4(composeContextScopes, "composeContextScopes");
 
   // ../../node_modules/@radix-ui/react-collection/dist/index.mjs
-  var React5 = __toESM(require_react(), 1);
+  var React6 = __toESM(require_react(), 1);
   var import_jsx_runtime3 = __toESM(require_jsx_runtime(), 1);
   var React22 = __toESM(require_react(), 1);
+
+  // ../../node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
+  var React5 = __toESM(require_react(), 1);
+  var useLayoutEffect2 = globalThis?.document ? React5.useLayoutEffect : () => {
+  };
+
+  // ../../node_modules/@radix-ui/react-collection/dist/index.mjs
   var import_jsx_runtime4 = __toESM(require_jsx_runtime(), 1);
   var __defProp6 = Object.defineProperty;
   var __name5 = (target, value) => __defProp6(target, "name", { value, configurable: true });
@@ -335,14 +360,14 @@
     );
     const CollectionProvider = /* @__PURE__ */ __name5((props) => {
       const { scope, children } = props;
-      const ref = React5.useRef(null);
-      const itemMap = React5.useRef(/* @__PURE__ */ new Map()).current;
+      const ref = React6.useRef(null);
+      const itemMap = React6.useRef(/* @__PURE__ */ new Map()).current;
       return /* @__PURE__ */ (0, import_jsx_runtime3.jsx)(CollectionProviderImpl, { scope, itemMap, collectionRef: ref, children });
     }, "CollectionProvider");
     CollectionProvider.displayName = PROVIDER_NAME;
     const COLLECTION_SLOT_NAME = name + "CollectionSlot";
     const CollectionSlotImpl = createSlot(COLLECTION_SLOT_NAME);
-    const CollectionSlot = React5.forwardRef(
+    const CollectionSlot = React6.forwardRef(
       (props, forwardedRef) => {
         const { scope, children } = props;
         const context = useCollectionContext(COLLECTION_SLOT_NAME, scope);
@@ -354,13 +379,13 @@
     const ITEM_SLOT_NAME = name + "CollectionItemSlot";
     const ITEM_DATA_ATTR = "data-radix-collection-item";
     const CollectionItemSlotImpl = createSlot(ITEM_SLOT_NAME);
-    const CollectionItemSlot = React5.forwardRef(
+    const CollectionItemSlot = React6.forwardRef(
       (props, forwardedRef) => {
         const { scope, children, ...itemData } = props;
-        const ref = React5.useRef(null);
+        const ref = React6.useRef(null);
         const composedRefs = useComposedRefs(forwardedRef, ref);
         const context = useCollectionContext(ITEM_SLOT_NAME, scope);
-        React5.useEffect(() => {
+        React6.useEffect(() => {
           context.itemMap.set(ref, { ref, ...itemData });
           return () => void context.itemMap.delete(ref);
         });
@@ -370,7 +395,7 @@
     CollectionItemSlot.displayName = ITEM_SLOT_NAME;
     function useCollection3(scope) {
       const context = useCollectionContext(name + "CollectionConsumer", scope);
-      const getItems = React5.useCallback(() => {
+      const getItems = React6.useCallback(() => {
         const collectionNode = context.collectionRef.current;
         if (!collectionNode) return [];
         const orderedNodes = Array.from(collectionNode.querySelectorAll(`[${ITEM_DATA_ATTR}]`));
@@ -402,54 +427,37 @@
       __instanciated.set(this, true);
     }
     set(key, value) {
-      if (__instanciated.get(this)) {
-        if (this.has(key)) {
-          this.#keys[this.#keys.indexOf(key)] = key;
-        } else {
-          this.#keys.push(key);
-        }
+      if (__instanciated.get(this) && !this.has(key)) {
+        this.#keys.push(key);
       }
       super.set(key, value);
       return this;
     }
+    /**
+     * Sets a key-value pair so that it ends up at the given index.
+     * - Existing keys are moved
+     * - Negative indices count from the end of the resulting dictionary, so
+     *   inserting at -1 makes the item the last one, -2 the second to last, etc.
+     * - Out-of-range indices are clamped
+     */
     insert(index2, key, value) {
       const has = this.has(key);
-      const length = this.#keys.length;
+      const finalSize = has ? this.size : this.size + 1;
       const relativeIndex = toSafeInteger(index2);
-      let actualIndex = relativeIndex >= 0 ? relativeIndex : length + relativeIndex;
-      const safeIndex = actualIndex < 0 || actualIndex >= length ? -1 : actualIndex;
-      if (safeIndex === this.size || has && safeIndex === this.size - 1 || safeIndex === -1) {
+      const targetIndex = relativeIndex >= 0 ? Math.min(relativeIndex, finalSize - 1) : Math.max(finalSize + relativeIndex, 0);
+      if (has ? this.#keys.indexOf(key) === targetIndex : targetIndex === this.size) {
         this.set(key, value);
         return this;
       }
-      const size4 = this.size + (has ? 0 : 1);
-      if (relativeIndex < 0) {
-        actualIndex++;
-      }
-      const keys = [...this.#keys];
-      let nextValue;
-      let shouldSkip = false;
-      for (let i = actualIndex; i < size4; i++) {
-        if (actualIndex === i) {
-          let nextKey = keys[i];
-          if (keys[i] === key) {
-            nextKey = keys[i + 1];
-          }
-          if (has) {
-            this.delete(key);
-          }
-          nextValue = this.get(nextKey);
-          this.set(key, value);
-        } else {
-          if (!shouldSkip && keys[i - 1] === key) {
-            shouldSkip = true;
-          }
-          const currentKey = keys[shouldSkip ? i : i - 1];
-          const currentValue = nextValue;
-          nextValue = this.get(currentKey);
-          this.delete(currentKey);
-          this.set(currentKey, currentValue);
-        }
+      const keys = this.#keys.filter((existingKey) => existingKey !== key);
+      keys.splice(targetIndex, 0, key);
+      const entries = keys.map((entryKey) => [
+        entryKey,
+        entryKey === key ? value : this.get(entryKey)
+      ]);
+      this.clear();
+      for (const [entryKey, entryValue] of entries) {
+        this.set(entryKey, entryValue);
       }
       return this;
     }
@@ -473,7 +481,9 @@
       if (index2 === -1) {
         return this;
       }
-      return this.insert(index2, newKey, value);
+      const currentIndex = this.#keys.indexOf(newKey);
+      const targetIndex = currentIndex !== -1 && currentIndex < index2 ? index2 - 1 : index2;
+      return this.insert(targetIndex, newKey, value);
     }
     after(key) {
       let index2 = this.#keys.indexOf(key);
@@ -491,7 +501,9 @@
       if (index2 === -1) {
         return this;
       }
-      return this.insert(index2 + 1, newKey, value);
+      const currentIndex = this.#keys.indexOf(newKey);
+      const targetIndex = currentIndex !== -1 && currentIndex <= index2 ? index2 : index2 + 1;
+      return this.insert(targetIndex, newKey, value);
     }
     first() {
       return this.entryAt(0);
@@ -597,10 +609,14 @@
     }
     reduce(...args) {
       const [callbackfn, initialValue] = args;
+      const hasInitialValue = args.length > 1;
+      if (!hasInitialValue && this.size === 0) {
+        throw new TypeError("Reduce of empty OrderedDict with no initial value");
+      }
       let index2 = 0;
-      let accumulator = initialValue ?? this.at(0);
+      let accumulator = initialValue;
       for (const entry of this) {
-        if (index2 === 0 && args.length === 1) {
+        if (index2 === 0 && !hasInitialValue) {
           accumulator = entry;
         } else {
           accumulator = Reflect.apply(callbackfn, this, [accumulator, entry, index2, this]);
@@ -611,10 +627,14 @@
     }
     reduceRight(...args) {
       const [callbackfn, initialValue] = args;
-      let accumulator = initialValue ?? this.at(-1);
+      const hasInitialValue = args.length > 1;
+      if (!hasInitialValue && this.size === 0) {
+        throw new TypeError("Reduce of empty OrderedDict with no initial value");
+      }
+      let accumulator = initialValue;
       for (let index2 = this.size - 1; index2 >= 0; index2--) {
-        const entry = this.at(index2);
-        if (index2 === this.size - 1 && args.length === 1) {
+        const entry = this.entryAt(index2);
+        if (index2 === this.size - 1 && !hasInitialValue) {
           accumulator = entry;
         } else {
           accumulator = Reflect.apply(callbackfn, this, [accumulator, entry, index2, this]);
@@ -622,7 +642,36 @@
       }
       return accumulator;
     }
+    /**
+     * Sorts the dictionary in place. This method mutates the dictionary and
+     * returns a reference to the same object
+     *
+     * @param compareFn Function used to determine the order of the elements. It
+     * is expected to return a negative value if the first argument is less than
+     * the second argument, zero if they're equal, and a positive value otherwise.
+     */
+    sort(compareFn) {
+      if (typeof compareFn !== "function") {
+        throw new TypeError(`OrderedDict.sort requires a compare function`);
+      }
+      const entries = [...this.entries()].sort(compareFn);
+      this.clear();
+      for (const [key, value] of entries) {
+        this.set(key, value);
+      }
+      return this;
+    }
+    /**
+     * Returns a copy of the dictionary with its elements sorted.
+     *
+     * @param compareFn Function used to determine the order of the elements. It
+     * is expected to return a negative value if the first argument is less than
+     * the second argument, zero if they're equal, and a positive value otherwise.
+     */
     toSorted(compareFn) {
+      if (typeof compareFn !== "function") {
+        throw new TypeError(`OrderedDict.toSorted requires a compare function`);
+      }
       const entries = [...this.entries()].sort(compareFn);
       return new _OrderedDict(entries);
     }
@@ -642,20 +691,8 @@
     }
     slice(start2, end) {
       const result = new _OrderedDict();
-      let stop = this.size - 1;
-      if (start2 === void 0) {
-        return result;
-      }
-      if (start2 < 0) {
-        start2 = start2 + this.size;
-      }
-      if (end !== void 0 && end > 0) {
-        stop = end - 1;
-      }
-      for (let index2 = start2; index2 <= stop; index2++) {
-        const key = this.keyAt(index2);
-        const element = this.get(key);
-        result.set(key, element);
+      for (const key of this.#keys.slice(start2, end)) {
+        result.set(key, this.get(key));
       }
       return result;
     }
@@ -703,16 +740,10 @@
   function createCollection2(name) {
     const PROVIDER_NAME = name + "CollectionProvider";
     const [createCollectionContext, createCollectionScope3] = createContextScope(PROVIDER_NAME);
-    const [CollectionContextProvider, useCollectionContext] = createCollectionContext(
-      PROVIDER_NAME,
-      {
-        collectionElement: null,
-        collectionRef: { current: null },
-        collectionRefObject: { current: null },
-        itemMap: new OrderedDict(),
-        setItemMap: /* @__PURE__ */ __name5(() => void 0, "setItemMap")
-      }
-    );
+    const [CollectionStableContextProvider, useStableCollectionContext] = createCollectionContext(PROVIDER_NAME);
+    CollectionStableContextProvider.displayName = name + "CollectionStableContextProvider";
+    const [CollectionStatefulContextProvider, useStatefulCollectionContext] = createCollectionContext(PROVIDER_NAME);
+    CollectionStatefulContextProvider.displayName = name + "CollectionStatefulContextProvider";
     const CollectionProvider = /* @__PURE__ */ __name5(({ state, ...props }) => {
       return state ? /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CollectionProviderImpl, { ...props, state }) : /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CollectionInit, { ...props });
     }, "CollectionProvider");
@@ -721,7 +752,7 @@
       const state = useInitCollection();
       return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CollectionProviderImpl, { ...props, state });
     }, "CollectionInit");
-    CollectionInit.displayName = PROVIDER_NAME + "Init";
+    CollectionInit.displayName = name + "CollectionInit";
     const CollectionProviderImpl = /* @__PURE__ */ __name5((props) => {
       const { scope, children, state } = props;
       const ref = React22.useRef(null);
@@ -729,10 +760,27 @@
         null
       );
       const composeRefs2 = useComposedRefs(ref, setCollectionElement);
-      const [itemMap, setItemMap] = state;
+      const [collection, setCollection] = state;
+      const registryRef = React22.useRef(
+        new OrderedDict()
+      );
+      const getCollection = React22.useCallback(() => {
+        const registry = registryRef.current;
+        if (!isInDocumentOrder(registry)) {
+          registry.sort(sortByDocumentPosition);
+        }
+        return registry;
+      }, []);
       React22.useEffect(() => {
-        if (!collectionElement) return;
+        if (!collectionElement) {
+          return;
+        }
         const observer = getChildListObserver(() => {
+          setCollection((map) => {
+            const sorted = map.toSorted(sortByDocumentPosition);
+            const orderChanged = sorted.some(([key], index2) => map.keyAt(index2) !== key);
+            return orderChanged ? sorted : map;
+          });
         });
         observer.observe(collectionElement, {
           childList: true,
@@ -741,28 +789,36 @@
         return () => {
           observer.disconnect();
         };
-      }, [collectionElement]);
+      }, [collectionElement, setCollection]);
       return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
-        CollectionContextProvider,
+        CollectionStableContextProvider,
         {
           scope,
-          itemMap,
-          setItemMap,
-          collectionRef: composeRefs2,
-          collectionRefObject: ref,
-          collectionElement,
-          children
+          collectionElementRef: composeRefs2,
+          collectionElementRefObject: ref,
+          getCollection,
+          setCollection,
+          registryRef,
+          children: /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(
+            CollectionStatefulContextProvider,
+            {
+              scope,
+              collectionElement,
+              collection,
+              children
+            }
+          )
         }
       );
     }, "CollectionProviderImpl");
-    CollectionProviderImpl.displayName = PROVIDER_NAME + "Impl";
+    CollectionProviderImpl.displayName = name + "CollectionProviderImpl";
     const COLLECTION_SLOT_NAME = name + "CollectionSlot";
     const CollectionSlotImpl = createSlot(COLLECTION_SLOT_NAME);
     const CollectionSlot = React22.forwardRef(
       (props, forwardedRef) => {
         const { scope, children } = props;
-        const context = useCollectionContext(COLLECTION_SLOT_NAME, scope);
-        const composedRefs = useComposedRefs(forwardedRef, context.collectionRef);
+        const context = useStableCollectionContext(COLLECTION_SLOT_NAME, scope);
+        const composedRefs = useComposedRefs(forwardedRef, context.collectionElementRef);
         return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CollectionSlotImpl, { ref: composedRefs, children });
       }
     );
@@ -774,37 +830,71 @@
       (props, forwardedRef) => {
         const { scope, children, ...itemData } = props;
         const ref = React22.useRef(null);
-        const [element, setElement] = React22.useState(null);
-        const composedRefs = useComposedRefs(forwardedRef, ref, setElement);
-        const context = useCollectionContext(ITEM_SLOT_NAME, scope);
-        const { setItemMap } = context;
+        const context = useStableCollectionContext(ITEM_SLOT_NAME, scope);
+        const { setCollection, registryRef } = context;
         const itemDataRef = React22.useRef(itemData);
         if (!shallowEqual(itemDataRef.current, itemData)) {
           itemDataRef.current = itemData;
         }
         const memoizedItemData = itemDataRef.current;
+        const registerElement = React22.useCallback(
+          (node) => {
+            const registry = registryRef.current;
+            if (node) {
+              registry.set(node, {
+                ...itemDataRef.current,
+                element: node
+              });
+            } else if (ref.current) {
+              registry.delete(ref.current);
+            }
+          },
+          [registryRef]
+        );
+        const composedRefs = useComposedRefs(forwardedRef, registerElement, ref);
+        useLayoutEffect2(() => {
+          const node = ref.current;
+          const registry = registryRef.current;
+          if (node && registry.has(node)) {
+            registry.set(node, { ...memoizedItemData, element: node });
+          }
+        }, [memoizedItemData, registryRef]);
+        const registeredRef = React22.useRef(null);
         React22.useEffect(() => {
-          const itemData2 = memoizedItemData;
-          setItemMap((map) => {
-            if (!element) {
-              return map;
+          const element = ref.current;
+          const registered = registeredRef.current;
+          if ((registered?.element ?? null) === element && (!element || registered?.itemData === memoizedItemData)) {
+            return;
+          }
+          registeredRef.current = element ? { element, itemData: memoizedItemData } : null;
+          setCollection((map) => {
+            const next = new OrderedDict(map);
+            if (registered && registered.element !== element) {
+              next.delete(registered.element);
             }
-            if (!map.has(element)) {
-              map.set(element, { ...itemData2, element });
-              return map.toSorted(sortByDocumentPosition);
+            if (element) {
+              next.set(element, { ...memoizedItemData, element });
             }
-            return map.set(element, { ...itemData2, element }).toSorted(sortByDocumentPosition);
+            return next.sort(sortByDocumentPosition);
           });
+        });
+        React22.useEffect(() => {
           return () => {
-            setItemMap((map) => {
-              if (!element || !map.has(element)) {
+            const registered = registeredRef.current;
+            registeredRef.current = null;
+            if (!registered) {
+              return;
+            }
+            setCollection((map) => {
+              if (!map.has(registered.element)) {
                 return map;
               }
-              map.delete(element);
-              return new OrderedDict(map);
+              const next = new OrderedDict(map);
+              next.delete(registered.element);
+              return next;
             });
           };
-        }, [element, memoizedItemData, setItemMap]);
+        }, [setCollection]);
         return /* @__PURE__ */ (0, import_jsx_runtime4.jsx)(CollectionItemSlotImpl, { ...{ [ITEM_DATA_ATTR]: "" }, ref: composedRefs, children });
       }
     );
@@ -814,13 +904,19 @@
     }
     __name5(useInitCollection, "useInitCollection");
     function useCollection3(scope) {
-      const { itemMap } = useCollectionContext(name + "CollectionConsumer", scope);
-      return itemMap;
+      const { collection } = useStatefulCollectionContext(name + "CollectionConsumer", scope);
+      return collection;
     }
     __name5(useCollection3, "useCollection");
+    function useGetCollection(scope) {
+      const { getCollection } = useStableCollectionContext(name + "CollectionConsumer", scope);
+      return getCollection;
+    }
+    __name5(useGetCollection, "useGetCollection");
     const functions = {
       createCollectionScope: createCollectionScope3,
       useCollection: useCollection3,
+      useGetCollection,
       useInitCollection
     };
     return [
@@ -847,6 +943,20 @@
     return !!(b.compareDocumentPosition(a) & Node.DOCUMENT_POSITION_PRECEDING);
   }
   __name5(isElementPreceding, "isElementPreceding");
+  function isInDocumentOrder(dict) {
+    let previous;
+    for (const element of dict.keys()) {
+      if (previous) {
+        const position = previous.compareDocumentPosition(element);
+        if (!(position & Node.DOCUMENT_POSITION_DISCONNECTED) && position & Node.DOCUMENT_POSITION_PRECEDING) {
+          return false;
+        }
+      }
+      previous = element;
+    }
+    return true;
+  }
+  __name5(isInDocumentOrder, "isInDocumentOrder");
   function sortByDocumentPosition(a, b) {
     return !a[1].element || !b[1].element ? 0 : isElementPreceding(a[1].element, b[1].element) ? -1 : 1;
   }
@@ -921,11 +1031,6 @@
 
   // ../../node_modules/@radix-ui/primitive/dist/internal/is-development.false.mjs
   var IS_DEVELOPMENT = false;
-
-  // ../../node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs
-  var React6 = __toESM(require_react(), 1);
-  var useLayoutEffect2 = globalThis?.document ? React6.useLayoutEffect : () => {
-  };
 
   // ../../node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs
   var React23 = __toESM(require_react(), 1);
@@ -1287,10 +1392,14 @@
   var import_jsx_runtime5 = __toESM(require_jsx_runtime(), 1);
   var __defProp12 = Object.defineProperty;
   var __name11 = (target, value) => __defProp12(target, "name", { value, configurable: true });
+  var Direction = {
+    LTR: "ltr",
+    RTL: "rtl"
+  };
   var DirectionContext = React11.createContext(void 0);
   function useDirection(localDir) {
     const globalDir = React11.useContext(DirectionContext);
-    return localDir || globalDir || "ltr";
+    return localDir || globalDir || Direction.LTR;
   }
   __name11(useDirection, "useDirection");
 
@@ -1325,11 +1434,18 @@
   var React12 = __toESM(require_react(), 1);
   var __defProp13 = Object.defineProperty;
   var __name12 = (target, value) => __defProp13(target, "name", { value, configurable: true });
+  var useReactInsertionEffect2 = React12[" useInsertionEffect ".trim().toString()];
   function useCallbackRef(callback) {
     const callbackRef = React12.useRef(callback);
-    React12.useEffect(() => {
-      callbackRef.current = callback;
-    });
+    if (typeof useReactInsertionEffect2 === "function") {
+      useReactInsertionEffect2(() => {
+        callbackRef.current = callback;
+      });
+    } else {
+      useLayoutEffect2(() => {
+        callbackRef.current = callback;
+      });
+    }
     return React12.useMemo(() => ((...args) => callbackRef.current?.(...args)), []);
   }
   __name12(useCallbackRef, "useCallbackRef");
@@ -1680,6 +1796,7 @@
       const {
         loop = false,
         trapped = false,
+        branches,
         onMountAutoFocus: onMountAutoFocusProp,
         onUnmountAutoFocus: onUnmountAutoFocusProp,
         ...scopeProps
@@ -1689,6 +1806,18 @@
       const onUnmountAutoFocus = useCallbackRef(onUnmountAutoFocusProp);
       const lastFocusedElementRef = React14.useRef(null);
       const composedRefs = useComposedRefs(forwardedRef, setContainer);
+      const branchesRef = React14.useRef(branches);
+      React14.useEffect(() => {
+        branchesRef.current = branches;
+      });
+      const isTargetInScope = React14.useCallback(
+        (target) => {
+          if (!target) return false;
+          if (container?.contains(target)) return true;
+          return Boolean(branchesRef.current?.some((branch) => branch.contains(target)));
+        },
+        [container]
+      );
       const focusScope = React14.useRef({
         paused: false,
         pause() {
@@ -1703,7 +1832,7 @@
           let handleFocusIn2 = function(event) {
             if (focusScope.paused || !container) return;
             const target = event.target;
-            if (container.contains(target)) {
+            if (isTargetInScope(target)) {
               lastFocusedElementRef.current = target;
             } else {
               focus(lastFocusedElementRef.current, { select: true });
@@ -1712,7 +1841,7 @@
             if (focusScope.paused || !container) return;
             const relatedTarget = event.relatedTarget;
             if (relatedTarget === null) return;
-            if (!container.contains(relatedTarget)) {
+            if (!isTargetInScope(relatedTarget)) {
               focus(lastFocusedElementRef.current, { select: true });
             }
           }, handleMutations2 = function(mutations) {
@@ -1736,7 +1865,7 @@
             mutationObserver.disconnect();
           };
         }
-      }, [trapped, container, focusScope.paused]);
+      }, [trapped, container, focusScope.paused, isTargetInScope]);
       React14.useEffect(() => {
         if (container) {
           focusScopesStack.add(focusScope);
@@ -1755,12 +1884,14 @@
           }
           return () => {
             container.removeEventListener(AUTOFOCUS_ON_MOUNT, onMountAutoFocus);
+            const ownerDocument = container.ownerDocument;
+            const UnmountEvent = CustomEvent;
             setTimeout(() => {
-              const unmountEvent = new CustomEvent(AUTOFOCUS_ON_UNMOUNT, EVENT_OPTIONS);
+              const unmountEvent = new UnmountEvent(AUTOFOCUS_ON_UNMOUNT, EVENT_OPTIONS);
               container.addEventListener(AUTOFOCUS_ON_UNMOUNT, onUnmountAutoFocus);
               container.dispatchEvent(unmountEvent);
               if (!unmountEvent.defaultPrevented) {
-                focus(previouslyFocusedElement ?? document.body, { select: true });
+                focus(previouslyFocusedElement ?? ownerDocument.body, { select: true });
               }
               container.removeEventListener(AUTOFOCUS_ON_UNMOUNT, onUnmountAutoFocus);
               focusScopesStack.remove(focusScope);
@@ -1796,6 +1927,35 @@
       return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(Primitive.div, { tabIndex: -1, ...scopeProps, ref: composedRefs, onKeyDown: handleKeyDown });
     }, "FocusScope")
   );
+  var FocusScopeBranchContext = React14.createContext(null);
+  function FocusScopeBranchProvider({ registry, children }) {
+    if (!registry) {
+      return children;
+    }
+    return /* @__PURE__ */ (0, import_jsx_runtime7.jsx)(FocusScopeBranchContext.Provider, { value: registry, children });
+  }
+  __name14(FocusScopeBranchProvider, "FocusScopeBranchProvider");
+  function useFocusScopeBranchRegistry() {
+    const [nodes, setNodes] = React14.useState([]);
+    const registry = React14.useMemo(
+      () => ({
+        add: /* @__PURE__ */ __name14((node) => setNodes((prev) => prev.includes(node) ? prev : [...prev, node]), "add"),
+        remove: /* @__PURE__ */ __name14((node) => setNodes((prev) => prev.filter((current) => current !== node)), "remove")
+      }),
+      []
+    );
+    return { nodes, registry };
+  }
+  __name14(useFocusScopeBranchRegistry, "useFocusScopeBranchRegistry");
+  function useFocusScopeBranch(node) {
+    const registry = React14.useContext(FocusScopeBranchContext);
+    React14.useEffect(() => {
+      if (!node || !registry) return;
+      registry.add(node);
+      return () => registry.remove(node);
+    }, [node, registry]);
+  }
+  __name14(useFocusScopeBranch, "useFocusScopeBranch");
   function focusFirst(candidates, { select = false } = {}) {
     const previouslyFocusedElement = document.activeElement;
     for (const candidate of candidates) {
@@ -1813,14 +1973,19 @@
   __name14(getTabbableEdges, "getTabbableEdges");
   function getTabbableCandidates(container) {
     const nodes = [];
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
+    const document2 = container.ownerDocument;
+    const walker = document2.createTreeWalker(container, NodeFilter.SHOW_ELEMENT, {
       acceptNode: /* @__PURE__ */ __name14((node) => {
         const isHiddenInput = node.tagName === "INPUT" && node.type === "hidden";
-        if (node.disabled || node.hidden || isHiddenInput) return NodeFilter.FILTER_SKIP;
+        if (node.disabled || node.hidden || isHiddenInput) {
+          return NodeFilter.FILTER_SKIP;
+        }
         return node.tabIndex >= 0 ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
       }, "acceptNode")
     });
-    while (walker.nextNode()) nodes.push(walker.currentNode);
+    while (walker.nextNode()) {
+      nodes.push(walker.currentNode);
+    }
     return nodes;
   }
   __name14(getTabbableCandidates, "getTabbableCandidates");
@@ -1845,12 +2010,13 @@
   }
   __name14(isHidden, "isHidden");
   function isSelectableInput(element) {
-    return element instanceof HTMLInputElement && "select" in element;
+    return element.tagName === "INPUT" && typeof element.select === "function";
   }
   __name14(isSelectableInput, "isSelectableInput");
   function focus(element, { select = false } = {}) {
     if (element && element.focus) {
-      const previouslyFocusedElement = document.activeElement;
+      const ownerDocument = element.ownerDocument ?? document;
+      const previouslyFocusedElement = ownerDocument.activeElement;
       element.focus({ preventScroll: true });
       if (element !== previouslyFocusedElement && isSelectableInput(element) && select)
         element.select();
@@ -2812,6 +2978,7 @@
     } = props;
     const triggerRef = React27.useRef(null);
     const contentRef = React27.useRef(null);
+    const { nodes: branchNodes, registry: branchRegistry } = useFocusScopeBranchRegistry();
     const [open, setOpen] = useControllableState({
       prop: openProp,
       defaultProp: defaultOpen ?? false,
@@ -2837,6 +3004,8 @@
         onOpenChange: setOpen,
         onOpenToggle: React27.useCallback(() => setOpen((prevOpen) => !prevOpen), [setOpen]),
         modal,
+        branchNodes,
+        branchRegistry,
         children
       }
     );
@@ -2889,17 +3058,30 @@
       const registerDismissableSurface = useDismissableLayerSurface();
       const composedRefs = useComposedRefs(forwardedRef, registerDismissableSurface);
       return (
-        // Make sure `Content` is scrollable even when it doesn't live inside `RemoveScroll`
-        // ie. when `Overlay` and `Content` are siblings
-        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Combination_default, { as: Slot, allowPinchZoom: true, shards: [context.contentRef], children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
-          Primitive.div,
+        // Make sure `Content` is scrollable even when it doesn't live inside
+        // `RemoveScroll` (eg. when `Overlay` and `Content` are siblings). Nested
+        // layers are registered as branches and added as shards so they remain
+        // scrollable too. See https://github.com/radix-ui/primitives/issues/3423
+        /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+          Combination_default,
           {
-            "data-state": getState(context.open),
-            ...overlayProps,
-            ref: composedRefs,
-            style: { pointerEvents: "auto", ...overlayProps.style }
+            as: Slot,
+            allowPinchZoom: true,
+            shards: React27.useMemo(
+              () => [context.contentRef, ...context.branchNodes.map((node) => ({ current: node }))],
+              [context.contentRef, context.branchNodes]
+            ),
+            children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+              Primitive.div,
+              {
+                "data-state": getState(context.open),
+                ...overlayProps,
+                ref: composedRefs,
+                style: { pointerEvents: "auto", ...overlayProps.style }
+              }
+            )
           }
-        ) })
+        )
       );
     }, "DialogOverlayImpl")
   );
@@ -2991,15 +3173,24 @@
   var DialogContentImpl = /* @__PURE__ */ React27.forwardRef(
     // blank line to reduce diff noise
     /* @__PURE__ */ __name17(function DialogContentImpl2(props, forwardedRef) {
-      const { __scopeDialog, trapFocus, onOpenAutoFocus, onCloseAutoFocus, ...contentProps } = props;
+      const {
+        __scopeDialog,
+        trapFocus,
+        onOpenAutoFocus,
+        onCloseAutoFocus,
+        "aria-describedby": ariaDescribedby,
+        children,
+        ...contentProps
+      } = props;
       const context = useDialogContext(CONTENT_NAME, __scopeDialog);
       useFocusGuards();
-      return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(import_jsx_runtime9.Fragment, { children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
+      return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(FocusScopeBranchProvider, { registry: context.branchRegistry, children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
         FocusScope,
         {
           asChild: true,
           loop: true,
           trapped: trapFocus,
+          branches: context.branchNodes,
           onMountAutoFocus: onOpenAutoFocus,
           onUnmountAutoFocus: onCloseAutoFocus,
           children: /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(
@@ -3007,24 +3198,24 @@
             {
               role: "dialog",
               id: context.contentId,
-              "aria-describedby": context.descriptionPresent ? context.descriptionId : void 0,
               "aria-labelledby": context.titlePresent ? context.titleId : void 0,
+              "aria-describedby": context.descriptionPresent ? concatAriaDescribedby2(ariaDescribedby, context.descriptionId) : ariaDescribedby,
               "data-state": getState(context.open),
               ...contentProps,
               ref: forwardedRef,
               deferPointerDownOutside: true,
-              onDismiss: () => context.onOpenChange(false)
+              onDismiss: () => context.onOpenChange(false),
+              children
             }
           )
         }
       ) });
     }, "DialogContentImpl")
   );
-  var TITLE_NAME = "DialogTitle";
   var DialogTitle = /* @__PURE__ */ React27.forwardRef(
     /* @__PURE__ */ __name17(function DialogTitle2(props, forwardedRef) {
       const { __scopeDialog, ...titleProps } = props;
-      const context = useDialogContext(TITLE_NAME, __scopeDialog);
+      const context = useDialogContext("DialogTitle", __scopeDialog);
       const { setTitleCount } = context;
       useLayoutEffect2(() => {
         setTitleCount((count3) => count3 + 1);
@@ -3033,12 +3224,11 @@
       return /* @__PURE__ */ (0, import_jsx_runtime9.jsx)(Primitive.h2, { id: context.titleId, ...titleProps, ref: forwardedRef });
     }, "DialogTitle")
   );
-  var DESCRIPTION_NAME = "DialogDescription";
   var DialogDescription = /* @__PURE__ */ React27.forwardRef(
     // blank line to reduce diff noise
     /* @__PURE__ */ __name17(function DialogDescription2(props, forwardedRef) {
       const { __scopeDialog, ...descriptionProps } = props;
-      const context = useDialogContext(DESCRIPTION_NAME, __scopeDialog);
+      const context = useDialogContext("DialogDescription", __scopeDialog);
       const { setDescriptionCount } = context;
       useLayoutEffect2(() => {
         setDescriptionCount((count3) => count3 + 1);
@@ -3066,6 +3256,17 @@
   var WarningProvider = /* @__PURE__ */ __name17((props) => {
     return props.children;
   }, "WarningProvider");
+  function concatAriaDescribedby2(...values) {
+    const ids = /* @__PURE__ */ new Set();
+    for (const value of values) {
+      if (typeof value !== "string") continue;
+      for (const id of String(value).trim().split(/\s+/)) {
+        if (id) ids.add(id);
+      }
+    }
+    return ids.size > 0 ? Array.from(ids).join(" ") : void 0;
+  }
+  __name17(concatAriaDescribedby2, "concatAriaDescribedby");
   function getState(open) {
     return open ? "open" : "closed";
   }
@@ -3080,6 +3281,7 @@
     useLayoutEffect2(() => {
       if (element) {
         setSize({ width: element.offsetWidth, height: element.offsetHeight });
+        let rAF = 0;
         const resizeObserver = new ResizeObserver((entries) => {
           if (!Array.isArray(entries)) {
             return;
@@ -3088,21 +3290,27 @@
             return;
           }
           const entry = entries[0];
-          let width;
-          let height;
-          if ("borderBoxSize" in entry) {
-            const borderSizeEntry = entry["borderBoxSize"];
-            const borderSize = Array.isArray(borderSizeEntry) ? borderSizeEntry[0] : borderSizeEntry;
-            width = borderSize["inlineSize"];
-            height = borderSize["blockSize"];
-          } else {
-            width = element.offsetWidth;
-            height = element.offsetHeight;
-          }
-          setSize({ width, height });
+          window.cancelAnimationFrame(rAF);
+          rAF = window.requestAnimationFrame(() => {
+            let width;
+            let height;
+            if ("borderBoxSize" in entry) {
+              const borderSizeEntry = entry["borderBoxSize"];
+              const borderSize = Array.isArray(borderSizeEntry) ? borderSizeEntry[0] : borderSizeEntry;
+              width = borderSize["inlineSize"];
+              height = borderSize["blockSize"];
+            } else {
+              width = element.offsetWidth;
+              height = element.offsetHeight;
+            }
+            setSize({ width, height });
+          });
         });
         resizeObserver.observe(element, { box: "border-box" });
-        return () => resizeObserver.unobserve(element);
+        return () => {
+          window.cancelAnimationFrame(rAF);
+          resizeObserver.unobserve(element);
+        };
       } else {
         setSize(void 0);
       }
@@ -5019,27 +5227,3 @@
       options: [options2, deps]
     };
   };
-
-  // ../../node_modules/@radix-ui/react-arrow/dist/index.mjs
-  var React30 = __toESM(require_react(), 1);
-  var import_jsx_runtime10 = __toESM(require_jsx_runtime(), 1);
-  var __defProp20 = Object.defineProperty;
-  var __name19 = (target, value) => __defProp20(target, "name", { value, configurable: true });
-  var Arrow = /* @__PURE__ */ React30.forwardRef(
-    /* @__PURE__ */ __name19(function Arrow2(props, forwardedRef) {
-      const { children, width = 10, height = 5, ...arrowProps } = props;
-      return /* @__PURE__ */ (0, import_jsx_runtime10.jsx)(
-        Primitive.svg,
-        {
-          ...arrowProps,
-          ref: forwardedRef,
-          width,
-          height,
-          viewBox: "0 0 30 10",
-          preserveAspectRatio: "none",
-          children: props.asChild ? children : /* @__PURE__ */ (0, import_jsx_runtime10.jsx)("polygon", { points: "0,0 30,0 15,10" })
-        }
-      );
-    }, "Arrow")
-  );
-  var Root = Arrow;

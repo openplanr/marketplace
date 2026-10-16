@@ -120,17 +120,179 @@ var matchesType = (v, t) => {
 };
 var FORMAT_DATE = /^\d{4}-\d{2}-\d{2}$/;
 var FORMAT_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+var SUPPORTED_FORMATS = /* @__PURE__ */ new Set(["date", "date-time"]);
+var ANNOTATION_KEYWORDS = [
+  "$schema",
+  "$id",
+  "$defs",
+  "$comment",
+  "title",
+  "description",
+  "default",
+  "examples",
+  "deprecated",
+  "readOnly",
+  "writeOnly"
+];
+var VALIDATION_KEYWORDS = [
+  "$ref",
+  "type",
+  "const",
+  "enum",
+  "minLength",
+  "maxLength",
+  "pattern",
+  "format",
+  "minimum",
+  "maximum",
+  "exclusiveMinimum",
+  "minItems",
+  "maxItems",
+  "prefixItems",
+  "items",
+  "uniqueItems",
+  "contains",
+  "minContains",
+  "maxContains",
+  "required",
+  "properties",
+  "additionalProperties",
+  "maxProperties",
+  "dependentRequired",
+  "unevaluatedProperties",
+  "oneOf",
+  "anyOf",
+  "allOf",
+  "if",
+  "then",
+  "else",
+  "not"
+];
+var KNOWN_KEYWORDS = /* @__PURE__ */ new Set([...ANNOTATION_KEYWORDS, ...VALIDATION_KEYWORDS]);
+var TYPE_NAMES = /* @__PURE__ */ new Set(["array", "boolean", "integer", "null", "number", "object", "string"]);
+var isSchema = (value) => typeof value === "boolean" || value !== null && typeof value === "object" && !Array.isArray(value);
+var isPlainObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+var isCount = (value) => Number.isSafeInteger(value) && value >= 0;
+var isUniqueStrings = (value) => Array.isArray(value) && value.every((item2) => typeof item2 === "string") && new Set(value).size === value.length;
+var isSchemaArray = (value) => Array.isArray(value) && value.length > 0 && value.every(isSchema);
+var isSchemaMap = (value) => isPlainObject(value) && Object.values(value).every(isSchema);
+var compiledPatterns = /* @__PURE__ */ new Map();
+var MAX_COMPILED_PATTERNS = 1024;
+var tryCompilePattern = (source) => {
+  try {
+    return new RegExp(source);
+  } catch (error) {
+    if (error instanceof SyntaxError) return null;
+    throw error;
+  }
+};
+var compilePattern = (source) => {
+  if (!compiledPatterns.has(source)) {
+    if (compiledPatterns.size >= MAX_COMPILED_PATTERNS) compiledPatterns.clear();
+    compiledPatterns.set(source, tryCompilePattern(source));
+  }
+  return compiledPatterns.get(source) ?? null;
+};
+var describeValue = (value) => {
+  const text3 = String(JSON.stringify(value));
+  return text3.length > 80 ? `${text3.slice(0, 77)}...` : text3;
+};
+var KEYWORD_SHAPES = {
+  $ref: ["a string", (value) => typeof value === "string"],
+  $defs: ["an object of schemas", isSchemaMap],
+  type: [
+    "a type name or a non-empty array of unique type names",
+    (value) => typeof value === "string" && TYPE_NAMES.has(value) || isUniqueStrings(value) && value.length > 0 && value.every((name) => TYPE_NAMES.has(name))
+  ],
+  enum: ["an array", Array.isArray],
+  minLength: ["a non-negative integer", isCount],
+  maxLength: ["a non-negative integer", isCount],
+  pattern: [
+    "a valid regular expression string",
+    (value) => typeof value === "string" && compilePattern(value) !== null
+  ],
+  minimum: ["a finite number", Number.isFinite],
+  maximum: ["a finite number", Number.isFinite],
+  exclusiveMinimum: ["a finite number", Number.isFinite],
+  minItems: ["a non-negative integer", isCount],
+  maxItems: ["a non-negative integer", isCount],
+  prefixItems: ["a non-empty array of schemas", isSchemaArray],
+  items: ["a schema", isSchema],
+  uniqueItems: ["a boolean", (value) => typeof value === "boolean"],
+  contains: ["a schema", isSchema],
+  minContains: ["a non-negative integer", isCount],
+  maxContains: ["a non-negative integer", isCount],
+  required: ["an array of unique strings", isUniqueStrings],
+  properties: ["an object of schemas", isSchemaMap],
+  additionalProperties: ["a schema", isSchema],
+  maxProperties: ["a non-negative integer", isCount],
+  dependentRequired: [
+    "an object of unique string arrays",
+    (value) => isPlainObject(value) && Object.values(value).every(isUniqueStrings)
+  ],
+  unevaluatedProperties: ["a schema", isSchema],
+  oneOf: ["a non-empty array of schemas", isSchemaArray],
+  anyOf: ["a non-empty array of schemas", isSchemaArray],
+  allOf: ["a non-empty array of schemas", isSchemaArray],
+  if: ["a schema", isSchema],
+  then: ["a schema", isSchema],
+  else: ["a schema", isSchema],
+  not: ["a schema", isSchema]
+};
 function resolveJsonPointer(root, reference) {
   if (reference === "#") return root;
   if (!reference.startsWith("#/")) return null;
   return reference.slice(2).split("/").map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~")).reduce((value, part) => value?.[part], root);
 }
+var wellFormedSchemas = /* @__PURE__ */ new WeakSet();
+var isFrozenNode = (schema6) => Object.isFrozen(schema6) && Object.values(schema6).every(Object.isFrozen) && (!isPlainObject(schema6.dependentRequired) || Object.values(schema6.dependentRequired).every(Object.isFrozen));
+var checkSchemaNode = (schema6, path, context) => {
+  if (wellFormedSchemas.has(schema6) || context.checkedSchemas.has(schema6)) return;
+  context.checkedSchemas.add(schema6);
+  const errorCount = context.schemaErrors.length;
+  for (const keyword of Object.keys(schema6)) {
+    if (!KNOWN_KEYWORDS.has(keyword) && !keyword.startsWith("x-")) {
+      context.schemaErrors.push({
+        path,
+        rule: "unsupported-keyword",
+        detail: `schema keyword '${keyword}' is not supported by this validator`
+      });
+    }
+  }
+  if (Object.hasOwn(schema6, "format") && !SUPPORTED_FORMATS.has(schema6.format)) {
+    context.schemaErrors.push({
+      path,
+      rule: "unsupported-format",
+      detail: `schema format ${JSON.stringify(schema6.format)} is not supported by this validator`
+    });
+  }
+  for (const [keyword, [expected, isValid]] of Object.entries(KEYWORD_SHAPES)) {
+    if (Object.hasOwn(schema6, keyword) && !isValid(schema6[keyword])) {
+      context.schemaErrors.push({
+        path,
+        rule: "schema",
+        detail: `schema keyword '${keyword}' must be ${expected}, got ${describeValue(schema6[keyword])}`
+      });
+    }
+  }
+  if (context.schemaErrors.length === errorCount && isFrozenNode(schema6)) {
+    wellFormedSchemas.add(schema6);
+  }
+};
+var reportReference = (schema6, path, detail, context) => {
+  if (context.reportedReferences.has(schema6)) return;
+  context.reportedReferences.add(schema6);
+  context.schemaErrors.push({ path, rule: "$ref", detail });
+};
 var validateNode = (value, schema6, path, errs, context) => {
-  if (schema6 === true) return;
+  const evaluated = /* @__PURE__ */ new Set();
+  if (schema6 === true) return evaluated;
   if (schema6 === false) {
     errs.push({ path, rule: "schema:false", detail: "value not allowed" });
-    return;
+    return evaluated;
   }
+  if (!isSchema(schema6)) return evaluated;
+  checkSchemaNode(schema6, path, context);
   if (typeof schema6?.$ref === "string") {
     const reference = schema6.$ref;
     let resolved;
@@ -144,21 +306,23 @@ var validateNode = (value, schema6, path, errs, context) => {
       nextRoot = result?.rootSchema ?? resolved;
       resolvedBase = result?.base ?? resolved?.$id ?? context.base;
     }
-    if (!resolved) {
-      errs.push({ path, rule: "$ref", detail: `could not resolve schema reference ${reference}` });
-      return;
+    if (!isSchema(resolved)) {
+      const detail = resolved === void 0 || resolved === null ? `could not resolve schema reference ${reference}` : `schema reference ${reference} resolved to ${typeOf(resolved)}, not a schema`;
+      reportReference(schema6, path, detail, context);
+      return evaluated;
     }
-    const referenceKey = `${context.base ?? "<root>"}:${reference}`;
+    const referenceKey = `${path} ${context.base ?? "<root>"}:${reference}`;
     if (context.referenceStack.includes(referenceKey)) {
-      errs.push({ path, rule: "$ref", detail: `circular schema reference ${reference}` });
-      return;
+      reportReference(schema6, path, `circular schema reference ${reference}`, context);
+      return evaluated;
     }
-    validateNode(value, resolved, path, errs, {
+    const referenced = validateNode(value, resolved, path, errs, {
       ...context,
       rootSchema: nextRoot,
       base: resolvedBase,
       referenceStack: [...context.referenceStack, referenceKey]
     });
+    for (const key of referenced) evaluated.add(key);
   }
   if (schema6.type !== void 0) {
     const types = Array.isArray(schema6.type) ? schema6.type : [schema6.type];
@@ -168,7 +332,7 @@ var validateNode = (value, schema6, path, errs, context) => {
         rule: "type",
         detail: `expected ${types.join("|")}, got ${typeOf(value)}`
       });
-      return;
+      return evaluated;
     }
   }
   if (schema6.const !== void 0) {
@@ -204,22 +368,13 @@ var validateNode = (value, schema6, path, errs, context) => {
         detail: `length ${value.length} > ${schema6.maxLength}`
       });
     }
-    if (typeof schema6.pattern === "string") {
-      try {
-        if (!new RegExp(schema6.pattern).test(value)) {
-          errs.push({
-            path,
-            rule: "pattern",
-            detail: `value ${JSON.stringify(value)} does not match /${schema6.pattern}/`
-          });
-        }
-      } catch (e) {
-        errs.push({
-          path,
-          rule: "pattern",
-          detail: `invalid regex /${schema6.pattern}/: ${e instanceof Error ? e.message : String(e)}`
-        });
-      }
+    const pattern = typeof schema6.pattern === "string" ? compilePattern(schema6.pattern) : null;
+    if (pattern && !pattern.test(value)) {
+      errs.push({
+        path,
+        rule: "pattern",
+        detail: `value ${JSON.stringify(value)} does not match /${schema6.pattern}/`
+      });
     }
     if (typeof schema6.format === "string") {
       if (schema6.format === "date" && !FORMAT_DATE.test(value)) {
@@ -243,6 +398,13 @@ var validateNode = (value, schema6, path, errs, context) => {
     }
     if (typeof schema6.maximum === "number" && value > schema6.maximum) {
       errs.push({ path, rule: "maximum", detail: `value ${value} > ${schema6.maximum}` });
+    }
+    if (typeof schema6.exclusiveMinimum === "number" && value <= schema6.exclusiveMinimum) {
+      errs.push({
+        path,
+        rule: "exclusiveMinimum",
+        detail: `value ${value} <= ${schema6.exclusiveMinimum}`
+      });
     }
   }
   if (Array.isArray(value)) {
@@ -307,8 +469,31 @@ var validateNode = (value, schema6, path, errs, context) => {
         }
       }
     }
+    if (typeof schema6.maxProperties === "number" && Object.keys(value).length > schema6.maxProperties) {
+      errs.push({
+        path,
+        rule: "maxProperties",
+        detail: `property count ${Object.keys(value).length} > ${schema6.maxProperties}`
+      });
+    }
+    if (schema6.dependentRequired !== null && typeof schema6.dependentRequired === "object") {
+      for (const [trigger, dependencies] of Object.entries(schema6.dependentRequired)) {
+        if (!Object.hasOwn(value, trigger) || !Array.isArray(dependencies)) continue;
+        for (const dependency of dependencies) {
+          if (!Object.hasOwn(value, dependency)) {
+            errs.push({
+              path,
+              rule: "dependentRequired",
+              detail: `property '${trigger}' requires property '${dependency}'`
+            });
+          }
+        }
+      }
+    }
     const props = schema6.properties || {};
     for (const [k, v] of Object.entries(value)) {
+      if (Object.hasOwn(props, k)) evaluated.add(k);
+      else if (schema6.additionalProperties !== void 0) evaluated.add(k);
       if (!Object.hasOwn(props, k)) {
         if (schema6.additionalProperties === false) {
           errs.push({ path, rule: "additionalProperties", detail: `unknown property '${k}'` });
@@ -325,8 +510,11 @@ var validateNode = (value, schema6, path, errs, context) => {
     let matched = 0;
     for (const sub of schema6.oneOf) {
       const e = [];
-      validateNode(value, sub, path, e, context);
-      if (e.length === 0) matched++;
+      const branch = validateNode(value, sub, path, e, context);
+      if (e.length === 0) {
+        matched++;
+        for (const key of branch) evaluated.add(key);
+      }
     }
     if (matched !== 1) {
       const titles = schema6.oneOf.map((s) => s.title || "(unnamed)").join(" | ");
@@ -341,8 +529,11 @@ var validateNode = (value, schema6, path, errs, context) => {
     let matched = 0;
     for (const sub of schema6.anyOf) {
       const candidateErrors = [];
-      validateNode(value, sub, path, candidateErrors, context);
-      if (candidateErrors.length === 0) matched += 1;
+      const branch = validateNode(value, sub, path, candidateErrors, context);
+      if (candidateErrors.length === 0) {
+        matched += 1;
+        for (const key of branch) evaluated.add(key);
+      }
     }
     if (matched === 0) {
       const titles = schema6.anyOf.map((sub) => sub.title || "(unnamed)").join(" | ");
@@ -355,14 +546,21 @@ var validateNode = (value, schema6, path, errs, context) => {
   }
   if (Array.isArray(schema6.allOf)) {
     for (const sub of schema6.allOf) {
-      validateNode(value, sub, path, errs, context);
+      for (const key of validateNode(value, sub, path, errs, context)) evaluated.add(key);
     }
   }
   if (schema6.if !== void 0) {
     const conditionErrors = [];
-    validateNode(value, schema6.if, path, conditionErrors, context);
-    const branch = conditionErrors.length === 0 ? schema6.then : schema6.else;
-    if (branch !== void 0) validateNode(value, branch, path, errs, context);
+    const condition = validateNode(value, schema6.if, path, conditionErrors, context);
+    const passed = conditionErrors.length === 0;
+    if (passed) for (const key of condition) evaluated.add(key);
+    const branch = passed ? schema6.then : schema6.else;
+    if (branch !== void 0) {
+      const branchErrors = [];
+      const branchEvaluated = validateNode(value, branch, path, branchErrors, context);
+      errs.push(...branchErrors);
+      if (branchErrors.length === 0) for (const key of branchEvaluated) evaluated.add(key);
+    }
   }
   if (schema6.not !== void 0) {
     const e = [];
@@ -371,6 +569,18 @@ var validateNode = (value, schema6, path, errs, context) => {
       errs.push({ path, rule: "not", detail: "value matched a forbidden subschema" });
     }
   }
+  if (schema6.unevaluatedProperties !== void 0 && value !== null && typeof value === "object" && !Array.isArray(value)) {
+    for (const [k, v] of Object.entries(value)) {
+      if (evaluated.has(k)) continue;
+      if (schema6.unevaluatedProperties === false) {
+        errs.push({ path, rule: "unevaluatedProperties", detail: `unevaluated property '${k}'` });
+      } else {
+        validateNode(v, schema6.unevaluatedProperties, `${path}.${k}`, errs, context);
+      }
+      evaluated.add(k);
+    }
+  }
+  return evaluated;
 };
 var validateJson = (value, schema6, {
   resolveRef,
@@ -380,13 +590,26 @@ var validateJson = (value, schema6, {
   )
 } = {}) => {
   const errs = [];
+  const schemaErrors = [];
+  if (!isSchema(schema6)) {
+    return [
+      {
+        path: "$",
+        rule: "schema",
+        detail: `expected a schema object or boolean, got ${typeOf(schema6)}`
+      }
+    ];
+  }
   validateNode(value, schema6, "$", errs, {
     rootSchema: schema6,
     resolveRef,
     base,
-    referenceStack: []
+    referenceStack: [],
+    schemaErrors,
+    checkedSchemas: /* @__PURE__ */ new WeakSet(),
+    reportedReferences: /* @__PURE__ */ new WeakSet()
   });
-  return errs;
+  return [...schemaErrors, ...errs];
 };
 
 // packages/protocol/src/enterprise-contracts.mjs
