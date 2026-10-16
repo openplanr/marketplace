@@ -12,7 +12,7 @@
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:f2850c567da9de551ab8f99dc48cc3f5344ef7ef52835fbfc45e1480c9eb4832"
+      "digest": "sha256:da8312ed5048fb3162638a0206b377f608cbab9a3458b131cffe420deb916fd7"
     },
     {
       "path": "agents/planr-backend.md",
@@ -60,7 +60,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:db9965aaa457d7d8deb499cf4b61acd171ea80d1b748710f0e3d29c6d06e96a7"
+      "digest": "sha256:2eb77dce6bb5132ba8b49cd51b0b192cb3aaacfe04efb0c36ff44b1d50cc906e"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -1127,5 +1127,5 @@
       "digest": "sha256:79cb62f3f8b0c36ef55c9424ca694a37448f90170183d13d0654d500613da414"
     }
   ],
-  "contentDigest": "sha256:52878a8addd33242af3f97ef5be8970433905a0ea9c9a28652fd6d19e23e7451"
+  "contentDigest": "sha256:349f3b53d9f70ce7ebc1f708beb9ba7bf818f06a177805428d9a8608c6a45e4e"
 }
