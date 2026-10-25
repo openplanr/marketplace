@@ -61,10 +61,15 @@ Discover checks in this order:
 3. package and task-runner scripts;
 4. applicable CI and pre-commit configuration.
 
-The packaged read-only [verification discovery helper](scripts/discover-verification.mjs)
-may list candidates. Resolve it relative to this `SKILL.md` and run
+Run `openplanr ship checks --json --task <task-path>` (omit `--task` for a direct
+request; add `--tier story` or `--tier push` before pushing) and run its `checks`
+from each `cwd`. The command never executes checks or writes files. When
+`complete` is `false`, report its error diagnostics and treat the check set as
+incomplete: a pass is not CI-equivalent. Without the CLI, the packaged read-only
+[verification discovery helper](scripts/discover-verification.mjs) may list
+candidates. Resolve it relative to this `SKILL.md` and run
 `node <helper> --project <repository-root> --task <task-path>`; omit `--task` for a
-direct request. It never executes checks or writes files. If it is unavailable,
+direct request. It never executes checks or writes files. If both are unavailable,
 inspect those four sources directly. Missing commands are diagnostics, not a
 reason to invent or skip all verification.
 
@@ -73,6 +78,11 @@ regression checks. Run each check on its own or under `set -o pipefail`, and jud
 it by its own exit code; to shorten output, write it to a log and read the tail.
 Fix failures caused by the change and rerun affected checks.
 Read [the result contract](references/result-contract.md) before reporting.
+
+Report defects you notice outside the task as [findings](references/findings.md),
+and never fix them in this change unless they block it. The packaged
+[backlog helper](scripts/backlog-item.mjs) lists and files backlog items when no
+CLI is installed; resolve it relative to this `SKILL.md`.
 
 Do not write progress into an approved design package. The studio derives
 approved, planned, implementing, and verified state from canonical planning and
@@ -89,7 +99,8 @@ results instead of reproducing them in chat.
 - **Task:** task ID and path, or `direct-request`.
 - **Changed:** material paths grouped by purpose.
 - **Checks:** command, `passed`, `failed`, or `not-run`, plus a concise result.
-- **Issues:** problem, impact, and next action, or `none`.
+- **Issues:** blockers with problem, impact, and next action, or `none`; then
+  findings outside the task, each with its disposition.
 
 Keep the five machine fields unchanged. A human summary may omit empty or unavailable fields,
 but must make partial, blocked or unverified work clear and give the smallest

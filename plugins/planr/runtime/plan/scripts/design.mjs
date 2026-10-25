@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import {
+  DESIGN_DOCUMENT_SCHEMA,
   DESIGN_REVIEW_BUNDLE_SCHEMA,
   LARGE_OBJECT_LIMITS,
   assertPlainData,
@@ -361,6 +362,33 @@ Object.assign(bundleV12.properties, {
   },
   fingerprints: list(DESIGN_FINGERPRINT_SCHEMA, 4096)
 });
+var bundleCurrent = (
+  /** @type {MutableSchema} */
+  structuredClone(bundleV12)
+);
+bundleCurrent.$id = "https://openplanr.dev/schemas/v1.20.0/design-review-bundle.schema.json";
+bundleCurrent["x-openplanr-contract"] = { id: "design-review-bundle", version: "1.20.0" };
+bundleCurrent.properties.schemaVersion = { enum: ["1.1.0", "1.2.0"] };
+bundleCurrent.properties.envelope = bundleV11.properties.envelope;
+bundleCurrent.allOf = [
+  {
+    if: { properties: { schemaVersion: { const: "1.2.0" } } },
+    then: { properties: { envelope: bundleV12.properties.envelope } }
+  }
+];
+var currentDesign = (
+  /** @type {MutableSchema} */
+  bundleCurrent.properties.design
+);
+for (const key of ["frames", "layout"])
+  currentDesign.properties[key] = /** @type {Record<string, unknown>} */
+  DESIGN_DOCUMENT_SCHEMA.properties[key];
+bundleCurrent.$defs = structuredClone(DESIGN_DOCUMENT_SCHEMA.$defs);
+var currentEntries = (
+  /** @type {{ items: { properties: Record<string, unknown> } }} */
+  bundleCurrent.properties.entries
+);
+currentEntries.items.properties.height = { const: "auto" };
 var item = closed(
   {
     pinId: id,
@@ -1522,6 +1550,7 @@ function emptyReviewContext(document) {
 // packages/design/lib/design/document-state.mjs
 import { createHash as createHash3, randomUUID } from "node:crypto";
 import {
+  chmodSync,
   closeSync,
   lstatSync,
   mkdirSync,
@@ -1557,14 +1586,15 @@ function readJson(path, fallback = void 0) {
     throw error;
   }
 }
-function atomicJson(path, value) {
-  atomicBytes(path, json(value));
+function atomicJson(path, value, { mode } = {}) {
+  atomicBytes(path, json(value), mode);
 }
-function atomicBytes(path, bytes) {
+function atomicBytes(path, bytes, mode) {
   mkdirSync(dirname2(path), { recursive: true });
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {
     writeFileSync(temporary, bytes, { mode: 384, flag: "wx" });
+    if (mode !== void 0) chmodSync(temporary, mode);
     renameSync(temporary, path);
   } finally {
     rmSync(temporary, { force: true });
@@ -1620,7 +1650,7 @@ function recoverDesignPublication(root, { ownsRenderLock = false } = {}) {
 function designSpecPath(root) {
   return /(?:^|\/)output\/feats\/feat-[^/]+\/design$/u.test(root.replaceAll("\\", "/")) ? join2(dirname2(root), "design-spec.md") : join2(root, "design-spec.md");
 }
-function currentDesign(file, { recoverPublication = true } = {}) {
+function currentDesign2(file, { recoverPublication = true } = {}) {
   const root = realpathSync(dirname2(resolve(file)));
   if (recoverPublication) recoverDesignPublication(root);
   else {
@@ -1998,7 +2028,7 @@ function resolveArtifactReviewDestination({
 // packages/design/lib/design/feedback-reader.mjs
 var designReviewKey = (document) => `design-${hash(document.id).slice(0, 24)}`;
 function designReviewPath(file, env = process.env, options = {}) {
-  const { root, document } = currentDesign(file, options);
+  const { root, document } = currentDesign2(file, options);
   return resolveArtifactReviewDestination({
     cwd: root,
     env,
@@ -2006,7 +2036,7 @@ function designReviewPath(file, env = process.env, options = {}) {
   }).path;
 }
 function readDesignFeedback(file, env = process.env, options = {}) {
-  const current = currentDesign(file, options);
+  const current = currentDesign2(file, options);
   const ledger = readArtifactReviewState(designReviewPath(file, env, options), {
     allowMissing: true
   });
@@ -2433,7 +2463,7 @@ import { dirname as dirname5, isAbsolute as isAbsolute3, join as join7, relative
 
 // packages/artifact/lib/artifact/owner-custody.mjs
 import {
-  chmodSync,
+  chmodSync as chmodSync2,
   closeSync as closeSync2,
   existsSync as existsSync3,
   fsyncSync,
@@ -2535,7 +2565,7 @@ var workspaceReviewUrl = (access) => `${address.workspaceReviewUrl(access)}${acc
 // packages/design/lib/design/share-status.mjs
 var FORMAT = "openplanr-design-owner-custody";
 function custodyLocation(file, options = {}, { allowMissing = false } = {}) {
-  const current = currentDesign(file, options);
+  const current = currentDesign2(file, options);
   const env = options.env ?? process.env;
   const root = resolve5(options.custodyRoot ?? join7(planrHome(env), "design-shares"));
   let project = current.root;
@@ -2556,13 +2586,13 @@ ${current.document.id}`);
   const legacyPath = !options.custodyRoot && !configuredPlanrHome(env) ? join7(realpathSync4(env.HOME || homedir3()), ".openplanr", "design-shares", `${key}.json`) : null;
   return { root, path, current, legacyPath };
 }
-function presentationFingerprint(current) {
+function presentationFingerprint(current, { legacy = false } = {}) {
   const state = readJson(join7(current.root, ".design/studio-state.json"), { state: {} }).state;
   return hash(
     JSON.stringify({
       revision: current.revision,
       selectedVariant: state.selectedVariant ?? current.document.selectedVariant,
-      positions: state.positions ?? {},
+      ...legacy ? { positions: state.positions ?? {} } : {},
       verification: current.verification.status
     })
   );
@@ -2578,7 +2608,10 @@ var safeStatus = (record, current) => ({
     url: workspaceReviewUrl(record.custody),
     revision: record.custody.currentRevision ?? record.publishedRevision ?? null,
     publishedRevision: record.publishedRevision ?? null,
-    hasUpdate: record.publishedRevision !== current.revision || record.publishedPresentation !== presentationFingerprint(current),
+    hasUpdate: record.publishedRevision !== current.revision || ![
+      presentationFingerprint(current),
+      presentationFingerprint(current, { legacy: true })
+    ].includes(record.publishedPresentation),
     epoch: record.custody.epoch,
     commentsPaused: Boolean(record.custody.commentsPaused ?? record.commentsPaused),
     revoked: Boolean(record.revoked),
@@ -2663,7 +2696,7 @@ function resolutionFor(value, shareStatus) {
   });
 }
 function snapshot(file, env, shareOptions = {}) {
-  const current = currentDesign(file, shareOptions), feedback = readDesignFeedback(file, env, shareOptions), meta = metadata(current, feedback);
+  const current = currentDesign2(file, shareOptions), feedback = readDesignFeedback(file, env, shareOptions), meta = metadata(current, feedback);
   const reviewContext = current.reviewContext ?? emptyReviewContext(current.document);
   const basis = {
     designId: current.document.id,

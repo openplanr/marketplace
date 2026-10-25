@@ -50,7 +50,7 @@ import {
   DESIGN_WORKSPACE_SCHEMA,
   DESIGN_WORKSPACE_VERSION,
   assertWorkspaceContract
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
+} from "./design-shared-protocol-contracts-b5f28f94.mjs";
 import {
   canonicalizeJson,
   deepFreeze,
@@ -97,13 +97,13 @@ ${current.document.id}`);
   const legacyPath = !options.custodyRoot && !configuredPlanrHome(env) ? join(realpathSync(env.HOME || homedir()), ".openplanr", "design-shares", `${key}.json`) : null;
   return { root, path, current, legacyPath };
 }
-function presentationFingerprint(current) {
+function presentationFingerprint(current, { legacy = false } = {}) {
   const state = readJson(join(current.root, ".design/studio-state.json"), { state: {} }).state;
   return hash(
     JSON.stringify({
       revision: current.revision,
       selectedVariant: state.selectedVariant ?? current.document.selectedVariant,
-      positions: state.positions ?? {},
+      ...legacy ? { positions: state.positions ?? {} } : {},
       verification: current.verification.status
     })
   );
@@ -119,7 +119,10 @@ var safeStatus = (record, current) => ({
     url: workspaceReviewUrl(record.custody),
     revision: record.custody.currentRevision ?? record.publishedRevision ?? null,
     publishedRevision: record.publishedRevision ?? null,
-    hasUpdate: record.publishedRevision !== current.revision || record.publishedPresentation !== presentationFingerprint(current),
+    hasUpdate: record.publishedRevision !== current.revision || ![
+      presentationFingerprint(current),
+      presentationFingerprint(current, { legacy: true })
+    ].includes(record.publishedPresentation),
     epoch: record.custody.epoch,
     commentsPaused: Boolean(record.custody.commentsPaused ?? record.commentsPaused),
     revoked: Boolean(record.revoked),
@@ -1804,7 +1807,7 @@ async function importDesignShareRecovery(file, { input, ...options } = {}) {
       const pending = custody.pendingCreate ?? custody.pendingMutation.body;
       const destination = join3(root, "uploads", custody.id, pending.operationId);
       if (existsSync4(destination)) {
-        const { spoolChunkReader: spoolChunkReader2 } = await import("./design-runtime-support-e34c388a8e59.mjs");
+        const { spoolChunkReader: spoolChunkReader2 } = await import("./design-runtime-support-6774fd3d5d02.mjs");
         const reader = spoolChunkReader2(destination, pending);
         for (const part of pending.manifest.chunks) await reader(part.index);
       } else await copyUploadSpool(custody, destination);

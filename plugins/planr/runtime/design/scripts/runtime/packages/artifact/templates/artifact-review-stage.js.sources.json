@@ -2,8 +2,8 @@
   "kind": "openplanr-runtime-asset-sources",
   "schemaVersion": "1.0.0",
   "asset": "artifact-review-stage.js",
-  "bytes": 528628,
-  "sha256": "8fe516175b5e135ea06b54a9a40776a140b27d6301d0a1530f953c4bcb7963a6",
+  "bytes": 537191,
+  "sha256": "d9f30ef394d0fb333e6f90f62b9d736bc84972f476ec1b1ec2e394de58938e84",
   "scopes": [
     {
       "id": "bundle",
@@ -30,8 +30,8 @@
         "packages/artifact/lib/artifact/ui/presentation.mjs",
         "packages/artifact/lib/artifact/ui/stage.mjs"
       ],
-      "bytes": 36116,
-      "sha256": "3a85052fa26098c06fcdaf07fe1529430d3f654f5b71b959c0267bd40278be86"
+      "bytes": 36146,
+      "sha256": "2aea72eea5307592d4bb3e0b27c2c226c1f209bf6d510557935c802db534b67b"
     },
     {
       "path": "artifact-review-stage.js.sources/03-protocol-contracts.js",
@@ -50,12 +50,13 @@
         "packages/protocol/src/json-schema.mjs",
         "packages/protocol/src/large-object-contracts.mjs",
         "packages/protocol/src/large-object-limits.mjs",
+        "packages/protocol/src/shape-library-contracts.mjs",
         "packages/protocol/src/sharing-security-contracts.mjs",
         "packages/protocol/src/studio-presentation-contracts.mjs",
         "packages/protocol/src/workspace-contracts.mjs"
       ],
-      "bytes": 181981,
-      "sha256": "3494e8e8cd50ff596dc2c00cc4c02f6dd2f016de50e0fb1c284ac03b6470b19d"
+      "bytes": 189121,
+      "sha256": "c5ecc1e13bc56b399f69808c609b21f69865ff134e50a8b4898dd8a93bd582ef"
     },
     {
       "path": "artifact-review-stage.js.sources/04-compression.js",
@@ -90,8 +91,8 @@
         "packages/artifact/lib/artifact/ui/feedback-rail.mjs",
         "packages/artifact/lib/artifact/ui/review-outbox.mjs"
       ],
-      "bytes": 70441,
-      "sha256": "afe05b9eb07ce7aa6eb305fd495640e81608f3941b6f4f56f3cf77d9fb633143"
+      "bytes": 70446,
+      "sha256": "d3d7941145f52dba33a81ad9168253db5f2849cb0005d1899ca45ad2c64dcb7c"
     },
     {
       "path": "artifact-review-stage.js.sources/07-artifact-sharing.js",
@@ -116,8 +117,8 @@
         "packages/artifact/lib/artifact/ui/stage-payload.mjs",
         "packages/artifact/lib/artifact/ui/stage.mjs"
       ],
-      "bytes": 111877,
-      "sha256": "ad07fa5156f0a59bbf3bcc467b8826c8af2ae2293afa9be9e97fac30aeb1d80f"
+      "bytes": 113265,
+      "sha256": "08b75c390ce4588969b166dd25650e43beeeaa4a7dcdfebefa2d5c5dc1f95898"
     }
   ]
 }

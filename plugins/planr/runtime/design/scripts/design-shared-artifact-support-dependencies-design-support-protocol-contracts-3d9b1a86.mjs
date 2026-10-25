@@ -14,9 +14,10 @@ import {
   MAX_ARTIFACT_HTML_BYTES
 } from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
 import {
+  DESIGN_DOCUMENT_SCHEMA,
   DESIGN_REVIEW_BUNDLE_SCHEMA,
   validateJson
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
+} from "./design-shared-protocol-contracts-b5f28f94.mjs";
 import {
   canonicalizeJson,
   sha256Hex
@@ -25,6 +26,7 @@ import {
 // packages/design/lib/design/document-state.mjs
 import { createHash, randomUUID } from "node:crypto";
 import {
+  chmodSync,
   closeSync,
   lstatSync,
   mkdirSync,
@@ -47,14 +49,15 @@ function readJson(path, fallback = void 0) {
     throw error;
   }
 }
-function atomicJson(path, value) {
-  atomicBytes(path, json(value));
+function atomicJson(path, value, { mode } = {}) {
+  atomicBytes(path, json(value), mode);
 }
-function atomicBytes(path, bytes) {
+function atomicBytes(path, bytes, mode) {
   mkdirSync(dirname(path), { recursive: true });
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {
     writeFileSync(temporary, bytes, { mode: 384, flag: "wx" });
+    if (mode !== void 0) chmodSync(temporary, mode);
     renameSync(temporary, path);
   } finally {
     rmSync(temporary, { force: true });
@@ -683,6 +686,34 @@ Object.assign(bundleV12.properties, {
   fingerprints: list(DESIGN_FINGERPRINT_SCHEMA, 4096)
 });
 var DESIGN_REVIEW_BUNDLE_V12_SCHEMA = bundleV12;
+var bundleCurrent = (
+  /** @type {MutableSchema} */
+  structuredClone(bundleV12)
+);
+bundleCurrent.$id = "https://openplanr.dev/schemas/v1.20.0/design-review-bundle.schema.json";
+bundleCurrent["x-openplanr-contract"] = { id: "design-review-bundle", version: "1.20.0" };
+bundleCurrent.properties.schemaVersion = { enum: ["1.1.0", "1.2.0"] };
+bundleCurrent.properties.envelope = bundleV11.properties.envelope;
+bundleCurrent.allOf = [
+  {
+    if: { properties: { schemaVersion: { const: "1.2.0" } } },
+    then: { properties: { envelope: bundleV12.properties.envelope } }
+  }
+];
+var currentDesign2 = (
+  /** @type {MutableSchema} */
+  bundleCurrent.properties.design
+);
+for (const key of ["frames", "layout"])
+  currentDesign2.properties[key] = /** @type {Record<string, unknown>} */
+  DESIGN_DOCUMENT_SCHEMA.properties[key];
+bundleCurrent.$defs = structuredClone(DESIGN_DOCUMENT_SCHEMA.$defs);
+var currentEntries = (
+  /** @type {{ items: { properties: Record<string, unknown> } }} */
+  bundleCurrent.properties.entries
+);
+currentEntries.items.properties.height = { const: "auto" };
+var DESIGN_REVIEW_BUNDLE_CURRENT_SCHEMA = bundleCurrent;
 var item = closed(
   {
     pinId: id,
@@ -801,7 +832,7 @@ function assertDesignReviewMetadata(value) {
 function assertDesignReviewBundle(value) {
   assertReviewExperience(
     value,
-    value?.schemaVersion === "1.2.0" ? DESIGN_REVIEW_BUNDLE_V12_SCHEMA : value?.schemaVersion === "1.1.0" ? DESIGN_REVIEW_BUNDLE_V11_SCHEMA : DESIGN_REVIEW_BUNDLE_SCHEMA
+    value?.design?.layout !== void 0 || Array.isArray(value?.design?.frames) && value.design.frames.some(({ height }) => height === "auto") ? DESIGN_REVIEW_BUNDLE_CURRENT_SCHEMA : value?.schemaVersion === "1.2.0" ? DESIGN_REVIEW_BUNDLE_V12_SCHEMA : value?.schemaVersion === "1.1.0" ? DESIGN_REVIEW_BUNDLE_V11_SCHEMA : DESIGN_REVIEW_BUNDLE_SCHEMA
   );
   if (["1.1.0", "1.2.0"].includes(value.schemaVersion)) {
     if (value.reviewContext.designId !== value.design.id || value.contextDigest !== sha256Hex(canonicalizeJson(value.reviewContext)))
@@ -910,7 +941,8 @@ function bundleDesignRevision(current, state = {}) {
         "selectedVariant",
         "screenOrder",
         "frames",
-        "flows"
+        "flows",
+        "layout"
       ]),
       screens: document.screens.map(
         (screen) => pick(screen, ["id", "title", "description", "anchors"])
@@ -922,7 +954,7 @@ function bundleDesignRevision(current, state = {}) {
     },
     envelope: structuredClone(current.envelope),
     entries: structuredClone(current.entries),
-    state: pick(state, ["positions"]),
+    state: {},
     revision: current.revision,
     verification: pick(current.verification ?? {}, ["status"]),
     reviewContext: context,
@@ -981,6 +1013,7 @@ export {
   json,
   readJson,
   atomicJson,
+  atomicBytes,
   recoverDesignPublication,
   designSpecPath,
   currentDesign

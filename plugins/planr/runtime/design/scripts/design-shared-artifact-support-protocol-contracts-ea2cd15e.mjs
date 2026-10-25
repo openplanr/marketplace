@@ -1,7 +1,7 @@
 import {
   LARGE_OBJECT_LIMITS,
   validateJson
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
+} from "./design-shared-protocol-contracts-b5f28f94.mjs";
 
 // packages/protocol/src/errors.mjs
 var ARTIFACT_ERROR_CODES = Object.freeze({

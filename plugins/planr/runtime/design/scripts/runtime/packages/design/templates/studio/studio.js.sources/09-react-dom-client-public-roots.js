@@ -1,27 +1,9 @@
 
       function FiberRootNode(containerInfo, tag, hydrate, identifierPrefix, onUncaughtError, onCaughtError, onRecoverableError, onDefaultTransitionIndicator, formState) {
-        this.tag = 1;
-        this.containerInfo = containerInfo;
-        this.pingCache = this.current = this.pendingChildren = null;
-        this.timeoutHandle = -1;
-        this.callbackNode = this.next = this.pendingContext = this.context = this.cancelPendingCommit = null;
-        this.callbackPriority = 0;
-        this.expirationTimes = createLaneMap(-1);
-        this.entangledLanes = this.shellSuspendCounter = this.errorRecoveryDisabledLanes = this.expiredLanes = this.warmLanes = this.pingedLanes = this.suspendedLanes = this.pendingLanes = 0;
-        this.entanglements = createLaneMap(0);
-        this.hiddenUpdates = createLaneMap(null);
-        this.identifierPrefix = identifierPrefix;
-        this.onUncaughtError = onUncaughtError;
-        this.onCaughtError = onCaughtError;
-        this.onRecoverableError = onRecoverableError;
-        this.pooledCache = null;
-        this.pooledCacheLanes = 0;
-        this.formState = formState;
-        this.transitionTypes = null;
-        this.incompleteTransitions = /* @__PURE__ */ new Map();
+        this.tag = 1, this.containerInfo = containerInfo, this.pingCache = this.current = this.pendingChildren = null, this.timeoutHandle = -1, this.callbackNode = this.next = this.pendingContext = this.context = this.cancelPendingCommit = null, this.callbackPriority = 0, this.expirationTimes = createLaneMap(-1), this.entangledLanes = this.shellSuspendCounter = this.errorRecoveryDisabledLanes = this.expiredLanes = this.warmLanes = this.pingedLanes = this.suspendedLanes = this.pendingLanes = 0, this.entanglements = createLaneMap(0), this.hiddenUpdates = createLaneMap(null), this.identifierPrefix = identifierPrefix, this.onUncaughtError = onUncaughtError, this.onCaughtError = onCaughtError, this.onRecoverableError = onRecoverableError, this.pooledCache = null, this.pooledCacheLanes = 0, this.formState = formState, this.transitionTypes = null, this.incompleteTransitions = /* @__PURE__ */ new Map();
       }
       function createFiberRoot(containerInfo, tag, hydrate, initialChildren, hydrationCallbacks, isStrictMode, identifierPrefix, formState, onUncaughtError, onCaughtError, onRecoverableError, onDefaultTransitionIndicator) {
-        containerInfo = new FiberRootNode(
+        return containerInfo = new FiberRootNode(
           containerInfo,
           tag,
           hydrate,
@@ -31,67 +13,42 @@
           onRecoverableError,
           onDefaultTransitionIndicator,
           formState
-        );
-        tag = 1;
-        true === isStrictMode && (tag |= 24);
-        isStrictMode = createFiberImplClass(3, null, null, tag);
-        containerInfo.current = isStrictMode;
-        isStrictMode.stateNode = containerInfo;
-        tag = createCache();
-        tag.refCount++;
-        containerInfo.pooledCache = tag;
-        tag.refCount++;
-        isStrictMode.memoizedState = {
+        ), tag = 1, isStrictMode === !0 && (tag |= 24), isStrictMode = createFiberImplClass(3, null, null, tag), containerInfo.current = isStrictMode, isStrictMode.stateNode = containerInfo, tag = createCache(), tag.refCount++, containerInfo.pooledCache = tag, tag.refCount++, isStrictMode.memoizedState = {
           element: initialChildren,
           isDehydrated: hydrate,
           cache: tag
-        };
-        initializeUpdateQueue(isStrictMode);
-        return containerInfo;
+        }, initializeUpdateQueue(isStrictMode), containerInfo;
       }
       function getContextForSubtree(parentComponent) {
-        if (!parentComponent) return emptyContextObject;
-        parentComponent = emptyContextObject;
-        return parentComponent;
+        return parentComponent ? (parentComponent = emptyContextObject, parentComponent) : emptyContextObject;
       }
       function updateContainerImpl(rootFiber, lane, element, container, parentComponent, callback) {
-        parentComponent = getContextForSubtree(parentComponent);
-        null === container.context ? container.context = parentComponent : container.pendingContext = parentComponent;
-        container = createUpdate(lane);
-        container.payload = { element };
-        callback = void 0 === callback ? null : callback;
-        null !== callback && (container.callback = callback);
-        element = enqueueUpdate(rootFiber, container, lane);
-        null !== element && (scheduleUpdateOnFiber(element, rootFiber, lane), entangleTransitions(element, rootFiber, lane));
+        parentComponent = getContextForSubtree(parentComponent), container.context === null ? container.context = parentComponent : container.pendingContext = parentComponent, container = createUpdate(lane), container.payload = { element }, callback = callback === void 0 ? null : callback, callback !== null && (container.callback = callback), element = enqueueUpdate(rootFiber, container, lane), element !== null && (scheduleUpdateOnFiber(element, rootFiber, lane), entangleTransitions(element, rootFiber, lane));
       }
       function markRetryLaneImpl(fiber, retryLane) {
-        fiber = fiber.memoizedState;
-        if (null !== fiber && null !== fiber.dehydrated) {
+        if (fiber = fiber.memoizedState, fiber !== null && fiber.dehydrated !== null) {
           var a = fiber.retryLane;
-          fiber.retryLane = 0 !== a && a < retryLane ? a : retryLane;
+          fiber.retryLane = a !== 0 && a < retryLane ? a : retryLane;
         }
       }
       function markRetryLaneIfNotHydrated(fiber, retryLane) {
-        markRetryLaneImpl(fiber, retryLane);
-        (fiber = fiber.alternate) && markRetryLaneImpl(fiber, retryLane);
+        markRetryLaneImpl(fiber, retryLane), (fiber = fiber.alternate) && markRetryLaneImpl(fiber, retryLane);
       }
       function attemptContinuousHydration(fiber) {
-        if (13 === fiber.tag || 31 === fiber.tag) {
+        if (fiber.tag === 13 || fiber.tag === 31) {
           var root2 = enqueueConcurrentRenderForLane(fiber, 67108864);
-          null !== root2 && scheduleUpdateOnFiber(root2, fiber, 67108864);
-          markRetryLaneIfNotHydrated(fiber, 67108864);
+          root2 !== null && scheduleUpdateOnFiber(root2, fiber, 67108864), markRetryLaneIfNotHydrated(fiber, 67108864);
         }
       }
       function attemptHydrationAtCurrentPriority(fiber) {
-        if (13 === fiber.tag || 31 === fiber.tag) {
+        if (fiber.tag === 13 || fiber.tag === 31) {
           var lane = requestUpdateLane();
           lane = getBumpedLaneForHydrationByLane(lane);
           var root2 = enqueueConcurrentRenderForLane(fiber, lane);
-          null !== root2 && scheduleUpdateOnFiber(root2, fiber, lane);
-          markRetryLaneIfNotHydrated(fiber, lane);
+          root2 !== null && scheduleUpdateOnFiber(root2, fiber, lane), markRetryLaneIfNotHydrated(fiber, lane);
         }
       }
-      var _enabled = true;
+      var _enabled = !0;
       function dispatchDiscreteEvent(domEventName, eventSystemFlags, container, nativeEvent) {
         var prevTransition = ReactSharedInternals.T;
         ReactSharedInternals.T = null;
@@ -115,7 +72,7 @@
       function dispatchEvent(domEventName, eventSystemFlags, targetContainer, nativeEvent) {
         if (_enabled) {
           var blockedOn = findInstanceBlockingEvent(nativeEvent);
-          if (null === blockedOn)
+          if (blockedOn === null)
             dispatchEventForPluginEventSystem(
               domEventName,
               eventSystemFlags,
@@ -132,43 +89,37 @@
           ))
             nativeEvent.stopPropagation();
           else if (clearIfContinuousEvent(domEventName, nativeEvent), eventSystemFlags & 4 && -1 < discreteReplayableEvents.indexOf(domEventName)) {
-            for (; null !== blockedOn; ) {
+            for (; blockedOn !== null; ) {
               var fiber = getInstanceFromNode(blockedOn);
-              if (null !== fiber)
+              if (fiber !== null)
                 switch (fiber.tag) {
                   case 3:
-                    fiber = fiber.stateNode;
-                    if (fiber.current.memoizedState.isDehydrated) {
+                    if (fiber = fiber.stateNode, fiber.current.memoizedState.isDehydrated) {
                       var lanes = getHighestPriorityLanes(fiber.pendingLanes);
-                      if (0 !== lanes) {
+                      if (lanes !== 0) {
                         var root2 = fiber;
-                        root2.pendingLanes |= 2;
-                        for (root2.entangledLanes |= 2; lanes; ) {
+                        for (root2.pendingLanes |= 2, root2.entangledLanes |= 2; lanes; ) {
                           var lane = 1 << 31 - clz32(lanes);
-                          root2.entanglements[1] |= lane;
-                          lanes &= ~lane;
+                          root2.entanglements[1] |= lane, lanes &= ~lane;
                         }
-                        ensureRootIsScheduled(fiber);
-                        0 === (executionContext & 6) && (workInProgressRootRenderTargetTime = now() + 500, flushSyncWorkAcrossRoots_impl(0, false));
+                        ensureRootIsScheduled(fiber), (executionContext & 6) === 0 && (workInProgressRootRenderTargetTime = now() + 500, flushSyncWorkAcrossRoots_impl(0, !1));
                       }
                     }
                     break;
                   case 31:
                   case 13:
-                    root2 = enqueueConcurrentRenderForLane(fiber, 2), null !== root2 && scheduleUpdateOnFiber(root2, fiber, 2), flushSyncWork$1(), markRetryLaneIfNotHydrated(fiber, 2);
+                    root2 = enqueueConcurrentRenderForLane(fiber, 2), root2 !== null && scheduleUpdateOnFiber(root2, fiber, 2), flushSyncWork$1(), markRetryLaneIfNotHydrated(fiber, 2);
                 }
-              fiber = findInstanceBlockingEvent(nativeEvent);
-              null === fiber && dispatchEventForPluginEventSystem(
+              if (fiber = findInstanceBlockingEvent(nativeEvent), fiber === null && dispatchEventForPluginEventSystem(
                 domEventName,
                 eventSystemFlags,
                 nativeEvent,
                 return_targetInst,
                 targetContainer
-              );
-              if (fiber === blockedOn) break;
+              ), fiber === blockedOn) break;
               blockedOn = fiber;
             }
-            null !== blockedOn && nativeEvent.stopPropagation();
+            blockedOn !== null && nativeEvent.stopPropagation();
           } else
             dispatchEventForPluginEventSystem(
               domEventName,
@@ -180,35 +131,29 @@
         }
       }
       function findInstanceBlockingEvent(nativeEvent) {
-        nativeEvent = getEventTarget(nativeEvent);
-        return findInstanceBlockingTarget(nativeEvent);
+        return nativeEvent = getEventTarget(nativeEvent), findInstanceBlockingTarget(nativeEvent);
       }
       var return_targetInst = null;
       function findInstanceBlockingTarget(targetNode) {
-        return_targetInst = null;
-        targetNode = getClosestInstanceFromNode(targetNode);
-        if (null !== targetNode) {
+        if (return_targetInst = null, targetNode = getClosestInstanceFromNode(targetNode), targetNode !== null) {
           var nearestMounted = getNearestMountedFiber(targetNode);
-          if (null === nearestMounted) targetNode = null;
+          if (nearestMounted === null) targetNode = null;
           else {
             var tag = nearestMounted.tag;
-            if (13 === tag) {
-              targetNode = getSuspenseInstanceFromFiber(nearestMounted);
-              if (null !== targetNode) return targetNode;
+            if (tag === 13) {
+              if (targetNode = getSuspenseInstanceFromFiber(nearestMounted), targetNode !== null) return targetNode;
               targetNode = null;
-            } else if (31 === tag) {
-              targetNode = getActivityInstanceFromFiber(nearestMounted);
-              if (null !== targetNode) return targetNode;
+            } else if (tag === 31) {
+              if (targetNode = getActivityInstanceFromFiber(nearestMounted), targetNode !== null) return targetNode;
               targetNode = null;
-            } else if (3 === tag) {
+            } else if (tag === 3) {
               if (nearestMounted.stateNode.current.memoizedState.isDehydrated)
-                return 3 === nearestMounted.tag ? nearestMounted.stateNode.containerInfo : null;
+                return nearestMounted.tag === 3 ? nearestMounted.stateNode.containerInfo : null;
               targetNode = null;
             } else nearestMounted !== targetNode && (targetNode = null);
           }
         }
-        return_targetInst = targetNode;
-        return null;
+        return return_targetInst = targetNode, null;
       }
       function getEventPriority(domEventName) {
         switch (domEventName) {
@@ -304,14 +249,7 @@
             return 32;
         }
       }
-      var hasScheduledReplayAttempt = false;
-      var queuedFocus = null;
-      var queuedDrag = null;
-      var queuedMouse = null;
-      var queuedPointers = /* @__PURE__ */ new Map();
-      var queuedPointerCaptures = /* @__PURE__ */ new Map();
-      var queuedExplicitHydrationTargets = [];
-      var discreteReplayableEvents = "mousedown mouseup touchcancel touchend touchstart auxclick dblclick pointercancel pointerdown pointerup dragend dragstart drop compositionend compositionstart keydown keypress keyup input textInput copy cut paste click change contextmenu reset".split(
+      var hasScheduledReplayAttempt = !1, queuedFocus = null, queuedDrag = null, queuedMouse = null, queuedPointers = /* @__PURE__ */ new Map(), queuedPointerCaptures = /* @__PURE__ */ new Map(), queuedExplicitHydrationTargets = [], discreteReplayableEvents = "mousedown mouseup touchcancel touchend touchstart auxclick dblclick pointercancel pointerdown pointerup dragend dragstart drop compositionend compositionstart keydown keypress keyup input textInput copy cut paste click change contextmenu reset".split(
         " "
       );
       function clearIfContinuousEvent(domEventName, nativeEvent) {
@@ -338,18 +276,13 @@
         }
       }
       function accumulateOrCreateContinuousQueuedReplayableEvent(existingQueuedEvent, blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
-        if (null === existingQueuedEvent || existingQueuedEvent.nativeEvent !== nativeEvent)
-          return existingQueuedEvent = {
-            blockedOn,
-            domEventName,
-            eventSystemFlags,
-            nativeEvent,
-            targetContainers: [targetContainer]
-          }, null !== blockedOn && (blockedOn = getInstanceFromNode(blockedOn), null !== blockedOn && attemptContinuousHydration(blockedOn)), existingQueuedEvent;
-        existingQueuedEvent.eventSystemFlags |= eventSystemFlags;
-        blockedOn = existingQueuedEvent.targetContainers;
-        null !== targetContainer && -1 === blockedOn.indexOf(targetContainer) && blockedOn.push(targetContainer);
-        return existingQueuedEvent;
+        return existingQueuedEvent === null || existingQueuedEvent.nativeEvent !== nativeEvent ? (existingQueuedEvent = {
+          blockedOn,
+          domEventName,
+          eventSystemFlags,
+          nativeEvent,
+          targetContainers: [targetContainer]
+        }, blockedOn !== null && (blockedOn = getInstanceFromNode(blockedOn), blockedOn !== null && attemptContinuousHydration(blockedOn)), existingQueuedEvent) : (existingQueuedEvent.eventSystemFlags |= eventSystemFlags, blockedOn = existingQueuedEvent.targetContainers, targetContainer !== null && blockedOn.indexOf(targetContainer) === -1 && blockedOn.push(targetContainer), existingQueuedEvent);
       }
       function queueIfContinuousEvent(blockedOn, domEventName, eventSystemFlags, targetContainer, nativeEvent) {
         switch (domEventName) {
@@ -361,7 +294,7 @@
               eventSystemFlags,
               targetContainer,
               nativeEvent
-            ), true;
+            ), !0;
           case "dragenter":
             return queuedDrag = accumulateOrCreateContinuousQueuedReplayableEvent(
               queuedDrag,
@@ -370,7 +303,7 @@
               eventSystemFlags,
               targetContainer,
               nativeEvent
-            ), true;
+            ), !0;
           case "mouseover":
             return queuedMouse = accumulateOrCreateContinuousQueuedReplayableEvent(
               queuedMouse,
@@ -379,10 +312,10 @@
               eventSystemFlags,
               targetContainer,
               nativeEvent
-            ), true;
+            ), !0;
           case "pointerover":
             var pointerId = nativeEvent.pointerId;
-            queuedPointers.set(
+            return queuedPointers.set(
               pointerId,
               accumulateOrCreateContinuousQueuedReplayableEvent(
                 queuedPointers.get(pointerId) || null,
@@ -392,8 +325,7 @@
                 targetContainer,
                 nativeEvent
               )
-            );
-            return true;
+            ), !0;
           case "gotpointercapture":
             return pointerId = nativeEvent.pointerId, queuedPointerCaptures.set(
               pointerId,
@@ -405,33 +337,31 @@
                 targetContainer,
                 nativeEvent
               )
-            ), true;
+            ), !0;
         }
-        return false;
+        return !1;
       }
       function attemptExplicitHydrationTarget(queuedTarget) {
         var targetInst = getClosestInstanceFromNode(queuedTarget.target);
-        if (null !== targetInst) {
+        if (targetInst !== null) {
           var nearestMounted = getNearestMountedFiber(targetInst);
-          if (null !== nearestMounted) {
-            if (targetInst = nearestMounted.tag, 13 === targetInst) {
-              if (targetInst = getSuspenseInstanceFromFiber(nearestMounted), null !== targetInst) {
-                queuedTarget.blockedOn = targetInst;
-                runWithPriority(queuedTarget.priority, function() {
+          if (nearestMounted !== null) {
+            if (targetInst = nearestMounted.tag, targetInst === 13) {
+              if (targetInst = getSuspenseInstanceFromFiber(nearestMounted), targetInst !== null) {
+                queuedTarget.blockedOn = targetInst, runWithPriority(queuedTarget.priority, function() {
                   attemptHydrationAtCurrentPriority(nearestMounted);
                 });
                 return;
               }
-            } else if (31 === targetInst) {
-              if (targetInst = getActivityInstanceFromFiber(nearestMounted), null !== targetInst) {
-                queuedTarget.blockedOn = targetInst;
-                runWithPriority(queuedTarget.priority, function() {
+            } else if (targetInst === 31) {
+              if (targetInst = getActivityInstanceFromFiber(nearestMounted), targetInst !== null) {
+                queuedTarget.blockedOn = targetInst, runWithPriority(queuedTarget.priority, function() {
                   attemptHydrationAtCurrentPriority(nearestMounted);
                 });
                 return;
               }
-            } else if (3 === targetInst && nearestMounted.stateNode.current.memoizedState.isDehydrated) {
-              queuedTarget.blockedOn = 3 === nearestMounted.tag ? nearestMounted.stateNode.containerInfo : null;
+            } else if (targetInst === 3 && nearestMounted.stateNode.current.memoizedState.isDehydrated) {
+              queuedTarget.blockedOn = nearestMounted.tag === 3 ? nearestMounted.stateNode.containerInfo : null;
               return;
             }
           }
@@ -439,37 +369,30 @@
         queuedTarget.blockedOn = null;
       }
       function attemptReplayContinuousQueuedEvent(queuedEvent) {
-        if (null !== queuedEvent.blockedOn) return false;
+        if (queuedEvent.blockedOn !== null) return !1;
         for (var targetContainers = queuedEvent.targetContainers; 0 < targetContainers.length; ) {
           var nextBlockedOn = findInstanceBlockingEvent(queuedEvent.nativeEvent);
-          if (null === nextBlockedOn) {
+          if (nextBlockedOn === null) {
             nextBlockedOn = queuedEvent.nativeEvent;
             var nativeEventClone = new nextBlockedOn.constructor(
               nextBlockedOn.type,
               nextBlockedOn
             );
-            currentReplayingEvent = nativeEventClone;
-            nextBlockedOn.target.dispatchEvent(nativeEventClone);
-            currentReplayingEvent = null;
+            currentReplayingEvent = nativeEventClone, nextBlockedOn.target.dispatchEvent(nativeEventClone), currentReplayingEvent = null;
           } else
-            return targetContainers = getInstanceFromNode(nextBlockedOn), null !== targetContainers && attemptContinuousHydration(targetContainers), queuedEvent.blockedOn = nextBlockedOn, false;
+            return targetContainers = getInstanceFromNode(nextBlockedOn), targetContainers !== null && attemptContinuousHydration(targetContainers), queuedEvent.blockedOn = nextBlockedOn, !1;
           targetContainers.shift();
         }
-        return true;
+        return !0;
       }
       function attemptReplayContinuousQueuedEventInMap(queuedEvent, key, map) {
         attemptReplayContinuousQueuedEvent(queuedEvent) && map.delete(key);
       }
       function replayUnblockedEvents() {
-        hasScheduledReplayAttempt = false;
-        null !== queuedFocus && attemptReplayContinuousQueuedEvent(queuedFocus) && (queuedFocus = null);
-        null !== queuedDrag && attemptReplayContinuousQueuedEvent(queuedDrag) && (queuedDrag = null);
-        null !== queuedMouse && attemptReplayContinuousQueuedEvent(queuedMouse) && (queuedMouse = null);
-        queuedPointers.forEach(attemptReplayContinuousQueuedEventInMap);
-        queuedPointerCaptures.forEach(attemptReplayContinuousQueuedEventInMap);
+        hasScheduledReplayAttempt = !1, queuedFocus !== null && attemptReplayContinuousQueuedEvent(queuedFocus) && (queuedFocus = null), queuedDrag !== null && attemptReplayContinuousQueuedEvent(queuedDrag) && (queuedDrag = null), queuedMouse !== null && attemptReplayContinuousQueuedEvent(queuedMouse) && (queuedMouse = null), queuedPointers.forEach(attemptReplayContinuousQueuedEventInMap), queuedPointerCaptures.forEach(attemptReplayContinuousQueuedEventInMap);
       }
       function scheduleCallbackIfUnblocked(queuedEvent, unblocked) {
-        queuedEvent.blockedOn === unblocked && (queuedEvent.blockedOn = null, hasScheduledReplayAttempt || (hasScheduledReplayAttempt = true, Scheduler.unstable_scheduleCallback(
+        queuedEvent.blockedOn === unblocked && (queuedEvent.blockedOn = null, hasScheduledReplayAttempt || (hasScheduledReplayAttempt = !0, Scheduler.unstable_scheduleCallback(
           Scheduler.unstable_NormalPriority,
           replayUnblockedEvents
         )));
@@ -482,15 +405,16 @@
             lastScheduledReplayQueue === formReplayingQueue && (lastScheduledReplayQueue = null);
             for (var i = 0; i < formReplayingQueue.length; i += 3) {
               var form = formReplayingQueue[i], submitterOrAction = formReplayingQueue[i + 1], formData = formReplayingQueue[i + 2];
-              if ("function" !== typeof submitterOrAction)
-                if (null === findInstanceBlockingTarget(submitterOrAction || form))
+              if (typeof submitterOrAction != "function") {
+                if (findInstanceBlockingTarget(submitterOrAction || form) === null)
                   continue;
-                else break;
+                break;
+              }
               var formInst = getInstanceFromNode(form);
-              null !== formInst && (formReplayingQueue.splice(i, 3), i -= 3, startHostTransition(
+              formInst !== null && (formReplayingQueue.splice(i, 3), i -= 3, startHostTransition(
                 formInst,
                 {
-                  pending: true,
+                  pending: !0,
                   data: formData,
                   method: form.method,
                   action: submitterOrAction
@@ -506,40 +430,32 @@
         function unblock(queuedEvent) {
           return scheduleCallbackIfUnblocked(queuedEvent, unblocked);
         }
-        null !== queuedFocus && scheduleCallbackIfUnblocked(queuedFocus, unblocked);
-        null !== queuedDrag && scheduleCallbackIfUnblocked(queuedDrag, unblocked);
-        null !== queuedMouse && scheduleCallbackIfUnblocked(queuedMouse, unblocked);
-        queuedPointers.forEach(unblock);
-        queuedPointerCaptures.forEach(unblock);
+        queuedFocus !== null && scheduleCallbackIfUnblocked(queuedFocus, unblocked), queuedDrag !== null && scheduleCallbackIfUnblocked(queuedDrag, unblocked), queuedMouse !== null && scheduleCallbackIfUnblocked(queuedMouse, unblocked), queuedPointers.forEach(unblock), queuedPointerCaptures.forEach(unblock);
         for (var i = 0; i < queuedExplicitHydrationTargets.length; i++) {
           var queuedTarget = queuedExplicitHydrationTargets[i];
           queuedTarget.blockedOn === unblocked && (queuedTarget.blockedOn = null);
         }
-        for (; 0 < queuedExplicitHydrationTargets.length && (i = queuedExplicitHydrationTargets[0], null === i.blockedOn); )
-          attemptExplicitHydrationTarget(i), null === i.blockedOn && queuedExplicitHydrationTargets.shift();
-        i = (unblocked.ownerDocument || unblocked).$$reactFormReplay;
-        if (null != i)
+        for (; 0 < queuedExplicitHydrationTargets.length && (i = queuedExplicitHydrationTargets[0], i.blockedOn === null); )
+          attemptExplicitHydrationTarget(i), i.blockedOn === null && queuedExplicitHydrationTargets.shift();
+        if (i = (unblocked.ownerDocument || unblocked).$$reactFormReplay, i != null)
           for (queuedTarget = 0; queuedTarget < i.length; queuedTarget += 3) {
             var form = i[queuedTarget], submitterOrAction = i[queuedTarget + 1], formProps = form[internalPropsKey] || null;
-            if ("function" === typeof submitterOrAction)
+            if (typeof submitterOrAction == "function")
               formProps || scheduleReplayQueueIfNeeded(i);
             else if (formProps) {
               var action = null;
-              if (submitterOrAction && submitterOrAction.hasAttribute("formAction"))
+              if (submitterOrAction && submitterOrAction.hasAttribute("formAction")) {
                 if (form = submitterOrAction, formProps = submitterOrAction[internalPropsKey] || null)
                   action = formProps.formAction;
-                else {
-                  if (null !== findInstanceBlockingTarget(form)) continue;
-                }
-              else action = formProps.action;
-              "function" === typeof action ? i[queuedTarget + 1] = action : (i.splice(queuedTarget, 3), queuedTarget -= 3);
-              scheduleReplayQueueIfNeeded(i);
+                else if (findInstanceBlockingTarget(form) !== null) continue;
+              } else action = formProps.action;
+              typeof action == "function" ? i[queuedTarget + 1] = action : (i.splice(queuedTarget, 3), queuedTarget -= 3), scheduleReplayQueueIfNeeded(i);
             }
           }
       }
       function defaultOnDefaultTransitionIndicator() {
         function handleNavigate(event) {
-          event.canIntercept && "react-transition" === event.info && event.intercept({
+          event.canIntercept && event.info === "react-transition" && event.intercept({
             handler: function() {
               return new Promise(function(resolve) {
                 return pendingResolve = resolve;
@@ -550,31 +466,22 @@
           });
         }
         function handleNavigateComplete() {
-          null !== pendingResolve && (pendingResolve(), pendingResolve = null);
-          isCancelled || setTimeout(startFakeNavigation, 20);
+          pendingResolve !== null && (pendingResolve(), pendingResolve = null), isCancelled || setTimeout(startFakeNavigation, 20);
         }
         function startFakeNavigation() {
           if (!isCancelled && !navigation.transition) {
             var currentEntry = navigation.currentEntry;
-            currentEntry && null != currentEntry.url && navigation.navigate(currentEntry.url, {
+            currentEntry && currentEntry.url != null && navigation.navigate(currentEntry.url, {
               state: currentEntry.getState(),
               info: "react-transition",
               history: "replace"
             });
           }
         }
-        if ("object" === typeof navigation) {
-          var isCancelled = false, pendingResolve = null;
-          navigation.addEventListener("navigate", handleNavigate);
-          navigation.addEventListener("navigatesuccess", handleNavigateComplete);
-          navigation.addEventListener("navigateerror", handleNavigateComplete);
-          setTimeout(startFakeNavigation, 100);
-          return function() {
-            isCancelled = true;
-            navigation.removeEventListener("navigate", handleNavigate);
-            navigation.removeEventListener("navigatesuccess", handleNavigateComplete);
-            navigation.removeEventListener("navigateerror", handleNavigateComplete);
-            null !== pendingResolve && (pendingResolve(), pendingResolve = null);
+        if (typeof navigation == "object") {
+          var isCancelled = !1, pendingResolve = null;
+          return navigation.addEventListener("navigate", handleNavigate), navigation.addEventListener("navigatesuccess", handleNavigateComplete), navigation.addEventListener("navigateerror", handleNavigateComplete), setTimeout(startFakeNavigation, 100), function() {
+            isCancelled = !0, navigation.removeEventListener("navigate", handleNavigate), navigation.removeEventListener("navigatesuccess", handleNavigateComplete), navigation.removeEventListener("navigateerror", handleNavigateComplete), pendingResolve !== null && (pendingResolve(), pendingResolve = null);
           };
         }
       }
@@ -583,18 +490,16 @@
       }
       ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render = function(children) {
         var root2 = this._internalRoot;
-        if (null === root2) throw Error(formatProdErrorMessage(409));
+        if (root2 === null) throw Error(formatProdErrorMessage(409));
         var current = root2.current, lane = requestUpdateLane();
         updateContainerImpl(current, lane, children, root2, null, null);
       };
       ReactDOMHydrationRoot.prototype.unmount = ReactDOMRoot.prototype.unmount = function() {
         var root2 = this._internalRoot;
-        if (null !== root2) {
+        if (root2 !== null) {
           this._internalRoot = null;
           var container = root2.containerInfo;
-          updateContainerImpl(root2.current, 2, null, root2, null, null);
-          flushSyncWork$1();
-          container[internalContainerInstanceKey] = null;
+          updateContainerImpl(root2.current, 2, null, root2, null, null), flushSyncWork$1(), container[internalContainerInstanceKey] = null;
         }
       };
       function ReactDOMHydrationRoot(internalRoot) {
@@ -604,13 +509,12 @@
         if (target) {
           var updatePriority = resolveUpdatePriority();
           target = { blockedOn: null, target, priority: updatePriority };
-          for (var i = 0; i < queuedExplicitHydrationTargets.length && 0 !== updatePriority && updatePriority < queuedExplicitHydrationTargets[i].priority; i++) ;
-          queuedExplicitHydrationTargets.splice(i, 0, target);
-          0 === i && attemptExplicitHydrationTarget(target);
+          for (var i = 0; i < queuedExplicitHydrationTargets.length && updatePriority !== 0 && updatePriority < queuedExplicitHydrationTargets[i].priority; i++) ;
+          queuedExplicitHydrationTargets.splice(i, 0, target), i === 0 && attemptExplicitHydrationTarget(target);
         }
       };
       var isomorphicReactPackageVersion$jscomp$inline_2043 = React36.version;
-      if ("19.3.0" !== isomorphicReactPackageVersion$jscomp$inline_2043)
+      if (isomorphicReactPackageVersion$jscomp$inline_2043 !== "19.3.0")
         throw Error(
           formatProdErrorMessage(
             527,
@@ -620,16 +524,9 @@
         );
       ReactDOMSharedInternals.findDOMNode = function(componentOrElement) {
         var fiber = componentOrElement._reactInternals;
-        if (void 0 === fiber) {
-          if ("function" === typeof componentOrElement.render)
-            throw Error(formatProdErrorMessage(188));
-          componentOrElement = Object.keys(componentOrElement).join(",");
-          throw Error(formatProdErrorMessage(268, componentOrElement));
-        }
-        componentOrElement = findCurrentFiberUsingSlowPath(fiber);
-        componentOrElement = null !== componentOrElement ? findCurrentHostFiberImpl(componentOrElement) : null;
-        componentOrElement = null === componentOrElement ? null : componentOrElement.stateNode;
-        return componentOrElement;
+        if (fiber === void 0)
+          throw typeof componentOrElement.render == "function" ? Error(formatProdErrorMessage(188)) : (componentOrElement = Object.keys(componentOrElement).join(","), Error(formatProdErrorMessage(268, componentOrElement)));
+        return componentOrElement = findCurrentFiberUsingSlowPath(fiber), componentOrElement = componentOrElement !== null ? findCurrentHostFiberImpl(componentOrElement) : null, componentOrElement = componentOrElement === null ? null : componentOrElement.stateNode, componentOrElement;
       };
       var internals$jscomp$inline_2586 = {
         bundleType: 0,
@@ -638,25 +535,21 @@
         currentDispatcherRef: ReactSharedInternals,
         reconcilerVersion: "19.3.0"
       };
-      if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-        hook$jscomp$inline_2587 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
-        if (!hook$jscomp$inline_2587.isDisabled && hook$jscomp$inline_2587.supportsFiber)
-          try {
-            rendererID = hook$jscomp$inline_2587.inject(
-              internals$jscomp$inline_2586
-            ), injectedHook = hook$jscomp$inline_2587;
-          } catch (err) {
-          }
-      }
+      if (typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ < "u" && (hook$jscomp$inline_2587 = __REACT_DEVTOOLS_GLOBAL_HOOK__, !hook$jscomp$inline_2587.isDisabled && hook$jscomp$inline_2587.supportsFiber))
+        try {
+          rendererID = hook$jscomp$inline_2587.inject(
+            internals$jscomp$inline_2586
+          ), injectedHook = hook$jscomp$inline_2587;
+        } catch {
+        }
       var hook$jscomp$inline_2587;
       exports.createRoot = function(container, options3) {
         if (!isValidContainer(container)) throw Error(formatProdErrorMessage(299));
-        var isStrictMode = false, identifierPrefix = "", onUncaughtError = defaultOnUncaughtError, onCaughtError = defaultOnCaughtError, onRecoverableError = defaultOnRecoverableError;
-        null !== options3 && void 0 !== options3 && (true === options3.unstable_strictMode && (isStrictMode = true), void 0 !== options3.identifierPrefix && (identifierPrefix = options3.identifierPrefix), void 0 !== options3.onUncaughtError && (onUncaughtError = options3.onUncaughtError), void 0 !== options3.onCaughtError && (onCaughtError = options3.onCaughtError), void 0 !== options3.onRecoverableError && (onRecoverableError = options3.onRecoverableError));
-        options3 = createFiberRoot(
+        var isStrictMode = !1, identifierPrefix = "", onUncaughtError = defaultOnUncaughtError, onCaughtError = defaultOnCaughtError, onRecoverableError = defaultOnRecoverableError;
+        return options3 != null && (options3.unstable_strictMode === !0 && (isStrictMode = !0), options3.identifierPrefix !== void 0 && (identifierPrefix = options3.identifierPrefix), options3.onUncaughtError !== void 0 && (onUncaughtError = options3.onUncaughtError), options3.onCaughtError !== void 0 && (onCaughtError = options3.onCaughtError), options3.onRecoverableError !== void 0 && (onRecoverableError = options3.onRecoverableError)), options3 = createFiberRoot(
           container,
           1,
-          false,
+          !1,
           null,
           null,
           isStrictMode,
@@ -666,21 +559,17 @@
           onCaughtError,
           onRecoverableError,
           defaultOnDefaultTransitionIndicator
-        );
-        container[internalContainerInstanceKey] = options3.current;
-        listenToAllSupportedEvents(container);
-        return new ReactDOMRoot(options3);
+        ), container[internalContainerInstanceKey] = options3.current, listenToAllSupportedEvents(container), new ReactDOMRoot(options3);
       };
       exports.hydrateRoot = function(container, initialChildren, options3) {
         if (!isValidContainer(container)) throw Error(formatProdErrorMessage(299));
-        var isStrictMode = false, identifierPrefix = "", onUncaughtError = defaultOnUncaughtError, onCaughtError = defaultOnCaughtError, onRecoverableError = defaultOnRecoverableError, formState = null;
-        null !== options3 && void 0 !== options3 && (true === options3.unstable_strictMode && (isStrictMode = true), void 0 !== options3.identifierPrefix && (identifierPrefix = options3.identifierPrefix), void 0 !== options3.onUncaughtError && (onUncaughtError = options3.onUncaughtError), void 0 !== options3.onCaughtError && (onCaughtError = options3.onCaughtError), void 0 !== options3.onRecoverableError && (onRecoverableError = options3.onRecoverableError), void 0 !== options3.formState && (formState = options3.formState));
-        initialChildren = createFiberRoot(
+        var isStrictMode = !1, identifierPrefix = "", onUncaughtError = defaultOnUncaughtError, onCaughtError = defaultOnCaughtError, onRecoverableError = defaultOnRecoverableError, formState = null;
+        return options3 != null && (options3.unstable_strictMode === !0 && (isStrictMode = !0), options3.identifierPrefix !== void 0 && (identifierPrefix = options3.identifierPrefix), options3.onUncaughtError !== void 0 && (onUncaughtError = options3.onUncaughtError), options3.onCaughtError !== void 0 && (onCaughtError = options3.onCaughtError), options3.onRecoverableError !== void 0 && (onRecoverableError = options3.onRecoverableError), options3.formState !== void 0 && (formState = options3.formState)), initialChildren = createFiberRoot(
           container,
           1,
-          true,
+          !0,
           initialChildren,
-          null != options3 ? options3 : null,
+          options3 ?? null,
           isStrictMode,
           identifierPrefix,
           formState,
@@ -688,20 +577,6 @@
           onCaughtError,
           onRecoverableError,
           defaultOnDefaultTransitionIndicator
-        );
-        initialChildren.context = getContextForSubtree(null);
-        options3 = initialChildren.current;
-        isStrictMode = requestUpdateLane();
-        isStrictMode = getBumpedLaneForHydrationByLane(isStrictMode);
-        identifierPrefix = createUpdate(isStrictMode);
-        identifierPrefix.callback = null;
-        enqueueUpdate(options3, identifierPrefix, isStrictMode);
-        options3 = isStrictMode;
-        initialChildren.current.lanes = options3;
-        markRootUpdated$1(initialChildren, options3);
-        ensureRootIsScheduled(initialChildren);
-        container[internalContainerInstanceKey] = initialChildren.current;
-        listenToAllSupportedEvents(container);
-        return new ReactDOMHydrationRoot(initialChildren);
+        ), initialChildren.context = getContextForSubtree(null), options3 = initialChildren.current, isStrictMode = requestUpdateLane(), isStrictMode = getBumpedLaneForHydrationByLane(isStrictMode), identifierPrefix = createUpdate(isStrictMode), identifierPrefix.callback = null, enqueueUpdate(options3, identifierPrefix, isStrictMode), options3 = isStrictMode, initialChildren.current.lanes = options3, markRootUpdated$1(initialChildren, options3), ensureRootIsScheduled(initialChildren), container[internalContainerInstanceKey] = initialChildren.current, listenToAllSupportedEvents(container), new ReactDOMHydrationRoot(initialChildren);
       };
       exports.version = "19.3.0";
