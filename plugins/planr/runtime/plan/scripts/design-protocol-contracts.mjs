@@ -4410,7 +4410,22 @@ var freeze = (value) => {
   }
   return value;
 };
-var DESIGN_DOCUMENT_SCHEMA = freeze({
+var FRAME_SCHEMA = {
+  type: "array",
+  minItems: 1,
+  items: {
+    type: "object",
+    additionalProperties: false,
+    required: ["id", "label", "width", "height"],
+    properties: {
+      id: { $ref: "#/$defs/id" },
+      label: { $ref: "#/$defs/text" },
+      width: { type: "integer", minimum: 1, maximum: 16384 },
+      height: { type: "integer", minimum: 1, maximum: 16384 }
+    }
+  }
+};
+var DESIGN_DOCUMENT_V1_SCHEMA = freeze({
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: "https://openplanr.dev/schemas/v1.9.0/design-document.schema.json",
   "x-openplanr-contract": { id: "design-document", version: "1.9.0" },
@@ -4461,21 +4476,7 @@ var DESIGN_DOCUMENT_SCHEMA = freeze({
       }
     },
     assets: { $ref: "#/$defs/paths" },
-    frames: {
-      type: "array",
-      minItems: 1,
-      items: {
-        type: "object",
-        additionalProperties: false,
-        required: ["id", "label", "width", "height"],
-        properties: {
-          id: { $ref: "#/$defs/id" },
-          label: { $ref: "#/$defs/text" },
-          width: { type: "integer", minimum: 1, maximum: 16384 },
-          height: { type: "integer", minimum: 1, maximum: 16384 }
-        }
-      }
-    },
+    frames: FRAME_SCHEMA,
     screens: {
       type: "array",
       minItems: 1,
@@ -4549,6 +4550,65 @@ var DESIGN_DOCUMENT_SCHEMA = freeze({
         scripts: { $ref: "#/$defs/paths" }
       }
     }
+  }
+});
+var DESIGN_DOCUMENT_SCHEMA = freeze({
+  ...DESIGN_DOCUMENT_V1_SCHEMA,
+  $id: "https://openplanr.dev/schemas/v1.20.0/design-document.schema.json",
+  "x-openplanr-contract": { id: "design-document", version: "1.20.0" },
+  properties: {
+    .../** @type {Record<string, unknown>} */
+    DESIGN_DOCUMENT_V1_SCHEMA.properties,
+    frames: {
+      ...FRAME_SCHEMA,
+      items: {
+        ...FRAME_SCHEMA.items,
+        properties: {
+          ...FRAME_SCHEMA.items.properties,
+          height: { anyOf: [{ type: "integer", minimum: 1, maximum: 16384 }, { const: "auto" }] }
+        }
+      }
+    },
+    layout: {
+      type: "object",
+      additionalProperties: false,
+      properties: {
+        boards: {
+          type: "object",
+          description: "Keys are screenId, screenId/frameId or screenId/frameId/variantId; each ID must exist in the document.",
+          additionalProperties: {
+            type: "object",
+            additionalProperties: false,
+            required: ["x", "y"],
+            properties: {
+              x: { $ref: "#/$defs/coordinate" },
+              y: { $ref: "#/$defs/coordinate" },
+              title: { $ref: "#/$defs/text" }
+            }
+          }
+        },
+        sections: {
+          type: "array",
+          items: {
+            type: "object",
+            additionalProperties: false,
+            required: ["id", "x", "y", "text"],
+            properties: {
+              id: { $ref: "#/$defs/id" },
+              x: { $ref: "#/$defs/coordinate" },
+              y: { $ref: "#/$defs/coordinate" },
+              text: { $ref: "#/$defs/text" },
+              maxW: { type: "integer", minimum: 1, maximum: 16384 }
+            }
+          }
+        }
+      }
+    }
+  },
+  $defs: {
+    .../** @type {Record<string, unknown>} */
+    DESIGN_DOCUMENT_V1_SCHEMA.$defs,
+    coordinate: { type: "number", minimum: -1e7, maximum: 1e7 }
   }
 });
 
@@ -4635,7 +4695,7 @@ var DESIGN_WORKSPACE_SCHEMA = schema4("design-review-workspace", {
 });
 var designProperties = (
   /** @type {Record<string, { items: { properties: Record<string, unknown>; required: string[] } }>} */
-  structuredClone(DESIGN_DOCUMENT_SCHEMA.properties)
+  structuredClone(DESIGN_DOCUMENT_V1_SCHEMA.properties)
 );
 for (const key of ["kind", "schemaVersion", "brief", "assets", "designSystem"])
   delete designProperties[key];
@@ -4707,7 +4767,7 @@ var DESIGN_REVIEW_BUNDLE_SCHEMA = {
     },
     ["kind", "schemaVersion", "design", "envelope", "entries", "revision"]
   ),
-  $defs: structuredClone(DESIGN_DOCUMENT_SCHEMA.$defs)
+  $defs: structuredClone(DESIGN_DOCUMENT_V1_SCHEMA.$defs)
 };
 var DESIGN_WORKSPACE_SCHEMAS = Object.freeze({
   "design-review-workspace": DESIGN_WORKSPACE_SCHEMA,
@@ -4821,6 +4881,86 @@ var DIAGRAM_REVIEW_SCHEMAS = Object.freeze({
   "diagram-workspace-event": DIAGRAM_WORKSPACE_EVENT_SCHEMA
 });
 
+// packages/protocol/src/shape-library-contracts.mjs
+var closed5 = (properties) => ({
+  type: "object",
+  additionalProperties: false,
+  required: Object.keys(properties),
+  properties
+});
+var unit = { type: "number", minimum: 0, maximum: 1 };
+var extent = { type: "number", exclusiveMinimum: 0, maximum: 1 };
+var point2 = closed5({ x: unit, y: unit });
+var identifier = { type: "string", pattern: "^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$", maxLength: 128 };
+var version = { type: "string", pattern: "^[0-9]+\\.[0-9]+\\.[0-9]+$", maxLength: 32 };
+var digest6 = { type: "string", pattern: "^sha256:[a-f0-9]{64}$" };
+var rect = {
+  type: { const: "rect" },
+  x: unit,
+  y: unit,
+  width: extent,
+  height: extent,
+  radius: unit
+};
+var ellipse = { type: { const: "ellipse" }, cx: unit, cy: unit, rx: extent, ry: extent };
+var polygon = {
+  type: { const: "polygon" },
+  points: { type: "array", minItems: 3, maxItems: 32, items: point2 }
+};
+var paint = { fill: { enum: ["fill", "none"] }, stroke: { enum: ["stroke", "none"] } };
+var pixels = { type: "number", minimum: 1, maximum: 1e4 };
+var SHAPE_REFERENCE_SCHEMA = closed5({
+  packId: identifier,
+  packVersion: version,
+  shapeId: identifier,
+  definitionDigest: digest6
+});
+var SHAPE_DEFINITION_SCHEMA = {
+  $schema: "https://json-schema.org/draft/2020-12/schema",
+  $id: "https://openplanr.dev/schemas/v1.21.0/diagram-shape-definition.schema.json",
+  "x-openplanr-contract": { id: "diagram-shape-definition", version: "1.21.0" },
+  ...closed5({
+    ...SHAPE_REFERENCE_SCHEMA.properties,
+    name: { type: "string", minLength: 1, maxLength: 128 },
+    description: { type: "string", maxLength: 1024 },
+    tags: {
+      type: "array",
+      maxItems: 16,
+      uniqueItems: true,
+      items: { type: "string", minLength: 1, maxLength: 64 }
+    },
+    primitives: {
+      type: "array",
+      minItems: 1,
+      maxItems: 32,
+      items: {
+        oneOf: [
+          closed5({ ...rect, ...paint }),
+          closed5({ ...ellipse, ...paint }),
+          closed5({ ...polygon, ...paint }),
+          closed5({
+            type: { const: "line" },
+            x1: unit,
+            y1: unit,
+            x2: unit,
+            y2: unit,
+            stroke: paint.stroke
+          })
+        ]
+      }
+    },
+    attachment: { oneOf: [closed5(rect), closed5(ellipse), closed5(polygon)] },
+    textRegion: closed5({ x: unit, y: unit, width: extent, height: extent }),
+    sizing: closed5({ width: pixels, height: pixels, minWidth: pixels, minHeight: pixels })
+  })
+};
+var SHAPE_LIBRARY_SCHEMA = {
+  type: "array",
+  maxItems: 512,
+  items: SHAPE_DEFINITION_SCHEMA
+};
+var GEOMETRY_ROUNDOFF = Number.EPSILON * 32;
+
 // packages/protocol/src/studio-presentation-contracts.mjs
 var DIAGRAM_PRESENTATION_SCHEMA = {
   $schema: "https://json-schema.org/draft/2020-12/schema",
@@ -4885,14 +5025,75 @@ DIAGRAM_REVIEW_BUNDLE_V11_SCHEMA.properties.authored = {
     DIAGRAM_AUTHORING_BUNDLE_V11_SCHEMA
   ]
 };
+function withShapeReferences(schema6) {
+  const copy = structuredClone(schema6);
+  function visit(value) {
+    if (!value || typeof value !== "object") return;
+    if (value.properties?.shape && value.properties?.strokeWidth && value.properties?.fontSize)
+      value.properties.shapeRef = SHAPE_REFERENCE_SCHEMA;
+    for (const child of Object.values(value)) visit(child);
+  }
+  visit(copy);
+  return copy;
+}
+function versionSchema(schema6, name) {
+  return {
+    ...schema6,
+    $id: `https://openplanr.dev/schemas/v1.21.0/${name}.schema.json`,
+    "x-openplanr-contract": { id: name, version: "1.21.0" }
+  };
+}
+var DIAGRAM_AUTHORING_BUNDLE_V12_SCHEMA = versionSchema(
+  withShapeReferences(DIAGRAM_AUTHORING_BUNDLE_V11_SCHEMA),
+  "diagram-authoring-bundle"
+);
+Object.assign(DIAGRAM_AUTHORING_BUNDLE_V12_SCHEMA.properties, {
+  schemaVersion: { const: "1.2.0" },
+  protocolVersion: { const: "1.21.0" },
+  shapeLibrary: SHAPE_LIBRARY_SCHEMA
+});
+DIAGRAM_AUTHORING_BUNDLE_V12_SCHEMA.required = DIAGRAM_AUTHORING_BUNDLE_V12_SCHEMA.required.filter((key) => key !== "studioPresentation").concat("shapeLibrary");
+var DIAGRAM_EDIT_TRANSACTION_V12_SCHEMA = versionSchema(
+  withShapeReferences(DIAGRAM_EDIT_TRANSACTION_V11_SCHEMA),
+  "diagram-edit-transaction"
+);
+Object.assign(DIAGRAM_EDIT_TRANSACTION_V12_SCHEMA.properties, {
+  schemaVersion: { const: "1.2.0" },
+  protocolVersion: { const: "1.21.0" }
+});
+DIAGRAM_EDIT_TRANSACTION_V12_SCHEMA.properties.operations.items.oneOf.push({
+  type: "object",
+  additionalProperties: false,
+  required: ["type", "before", "after"],
+  properties: {
+    type: { const: "set-shape-library" },
+    before: { anyOf: [SHAPE_LIBRARY_SCHEMA, { type: "null" }] },
+    after: { anyOf: [SHAPE_LIBRARY_SCHEMA, { type: "null" }] }
+  }
+});
+var DIAGRAM_REVIEW_BUNDLE_V12_SCHEMA = versionSchema(
+  structuredClone(DIAGRAM_REVIEW_BUNDLE_SCHEMA),
+  "diagram-review-bundle"
+);
+Object.assign(DIAGRAM_REVIEW_BUNDLE_V12_SCHEMA.properties, {
+  schemaVersion: { const: "1.2.0" },
+  presentation: DIAGRAM_PRESENTATION_SCHEMA,
+  authored: {
+    oneOf: [
+      DIAGRAM_AUTHORING_SCHEMAS["diagram-authoring-bundle"],
+      DIAGRAM_AUTHORING_BUNDLE_V11_SCHEMA,
+      DIAGRAM_AUTHORING_BUNDLE_V12_SCHEMA
+    ]
+  }
+});
 
 // packages/protocol/src/large-object-contracts.mjs
 var LARGE_OBJECT_VERSION = "2.0.0";
 var id6 = { type: "string", pattern: "^[A-Za-z0-9_-]{22,64}$" };
-var digest6 = { type: "string", pattern: "^[a-f0-9]{64}$" };
+var digest7 = { type: "string", pattern: "^[a-f0-9]{64}$" };
 var signature3 = { type: "string", pattern: "^[A-Za-z0-9_-]{86}$" };
 var integer2 = (max, min = 0) => ({ type: "integer", minimum: min, maximum: max });
-var closed5 = (properties, required = Object.keys(properties)) => ({
+var closed6 = (properties, required = Object.keys(properties)) => ({
   type: "object",
   additionalProperties: false,
   properties,
@@ -4900,23 +5101,23 @@ var closed5 = (properties, required = Object.keys(properties)) => ({
 });
 var iso2 = { type: "string", format: "date-time", maxLength: 40 };
 var codec = { enum: ["identity", "deflate-raw"] };
-var publicKey2 = closed5({
+var publicKey2 = closed6({
   kty: { const: "EC" },
   crv: { const: "P-256" },
   x: { type: "string", pattern: "^[A-Za-z0-9_-]{43}$" },
   y: { type: "string", pattern: "^[A-Za-z0-9_-]{43}$" }
 });
-var keyring = closed5({
+var keyring = closed6({
   iv: { type: "string", pattern: "^[A-Za-z0-9_-]{16}$" },
   ciphertext: { type: "string", pattern: "^[A-Za-z0-9_-]+$", maxLength: 65536 }
 });
-var chunk = closed5({
+var chunk = closed6({
   index: integer2(128),
   byteLength: integer2(LARGE_OBJECT_LIMITS.chunkBytes, 17),
   iv: { type: "string", pattern: "^[A-Za-z0-9_-]{16}$" },
-  sha256: digest6
+  sha256: digest7
 });
-var catalogSpan = closed5({
+var catalogSpan = closed6({
   offset: integer2(LARGE_OBJECT_LIMITS.decodedBytes),
   encodedBytes: integer2(LARGE_OBJECT_LIMITS.catalogBytes, 1),
   decodedBytes: integer2(LARGE_OBJECT_LIMITS.catalogBytes, 1),
@@ -4926,7 +5127,7 @@ var schema5 = (name, properties, required) => ({
   $schema: "https://json-schema.org/draft/2020-12/schema",
   $id: `https://openplanr.dev/schemas/v1.17.0/${name}.schema.json`,
   "x-openplanr-contract": { id: name, version: "1.17.0" },
-  ...closed5(properties, required)
+  ...closed6(properties, required)
 });
 var ENCRYPTED_RESOURCE_MANIFEST_SCHEMA = schema5("encrypted-resource-manifest", {
   schemaVersion: { const: LARGE_OBJECT_VERSION },
@@ -4948,8 +5149,8 @@ var ENCRYPTED_UPLOAD_PREPARE_SCHEMA = schema5("encrypted-upload-prepare", {
   expectedVersion: integer2(Number.MAX_SAFE_INTEGER),
   epoch: integer2(Number.MAX_SAFE_INTEGER, 1),
   ownerPublicKey: publicKey2,
-  ownerAuthHash: digest6,
-  reviewerAuthHash: digest6,
+  ownerAuthHash: digest7,
+  reviewerAuthHash: digest7,
   keyring,
   manifest: ENCRYPTED_RESOURCE_MANIFEST_SCHEMA,
   signature: signature3
@@ -4958,7 +5159,7 @@ var ENCRYPTED_UPLOAD_COMMIT_SCHEMA = schema5("encrypted-upload-commit", {
   schemaVersion: { const: LARGE_OBJECT_VERSION },
   workspaceId: id6,
   operationId: id6,
-  manifestSha256: digest6,
+  manifestSha256: digest7,
   signature: signature3
 });
 var ENCRYPTED_UPLOAD_RECEIPT_SCHEMA = schema5("encrypted-upload-receipt", {
@@ -4966,7 +5167,7 @@ var ENCRYPTED_UPLOAD_RECEIPT_SCHEMA = schema5("encrypted-upload-receipt", {
   workspaceId: id6,
   operationId: id6,
   revisionId: id6,
-  manifestSha256: digest6,
+  manifestSha256: digest7,
   status: { const: "committed" },
   version: integer2(Number.MAX_SAFE_INTEGER, 1),
   committedAt: iso2
@@ -4978,14 +5179,14 @@ var ENCRYPTED_UPLOAD_STATUS_SCHEMA = schema5(
     workspaceId: id6,
     operationId: id6,
     revisionId: id6,
-    manifestSha256: digest6,
+    manifestSha256: digest7,
     status: { enum: ["prepared", "committed"] },
     receivedChunks: {
       type: "array",
       maxItems: LARGE_OBJECT_LIMITS.chunks,
-      items: closed5({
+      items: closed6({
         index: integer2(128),
-        sha256: digest6,
+        sha256: digest7,
         byteLength: integer2(LARGE_OBJECT_LIMITS.chunkBytes, 17)
       })
     },
@@ -5025,14 +5226,14 @@ var ENCRYPTED_WORKSPACE_EVENT_V2_SCHEMA = schema5("encrypted-workspace-event-v2"
   authorPublicKey: publicKey2,
   signature: signature3
 });
-var resource = closed5({
+var resource = closed6({
   id: { type: "string", pattern: "^r[0-9]{1,4}$" },
   type: { enum: ["html-segments", "shared-block", "asset"] },
   offset: integer2(LARGE_OBJECT_LIMITS.decodedBytes),
   encodedBytes: integer2(LARGE_OBJECT_LIMITS.decodedBytes, 1),
   decodedBytes: integer2(LARGE_OBJECT_LIMITS.decodedBytes, 1),
   codec,
-  sha256: digest6
+  sha256: digest7
 });
 var RESOURCE_CATALOG_SCHEMA = schema5("resource-catalog", {
   schemaVersion: { const: "1.0.0" },
@@ -5050,11 +5251,11 @@ var RESOURCE_CATALOG_SCHEMA = schema5("resource-catalog", {
     type: "array",
     minItems: 1,
     maxItems: LARGE_OBJECT_LIMITS.sources,
-    items: closed5({
+    items: closed6({
       id: { type: "string", minLength: 1, maxLength: 128 },
       resourceId: resource.properties.id,
       htmlBytes: integer2(LARGE_OBJECT_LIMITS.uniqueHtmlBytes, 1),
-      sha256: digest6
+      sha256: digest7
     })
   },
   viewSources: {
@@ -5063,7 +5264,7 @@ var RESOURCE_CATALOG_SCHEMA = schema5("resource-catalog", {
     additionalProperties: { type: "string", minLength: 1, maxLength: 128 }
   }
 });
-RESOURCE_CATALOG_SCHEMA.properties.reviewOf = digest6;
+RESOURCE_CATALOG_SCHEMA.properties.reviewOf = digest7;
 var companyId = { type: "string", pattern: "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$" };
 var companyScope = { organizationId: companyId, projectId: companyId, artifactId: companyId };
 var COMPANY_RESOURCE_MANIFEST_SCHEMA = schema5("company-resource-manifest", {
@@ -5080,10 +5281,10 @@ var COMPANY_RESOURCE_MANIFEST_SCHEMA = schema5("company-resource-manifest", {
     type: "array",
     minItems: 1,
     maxItems: 128,
-    items: closed5({
+    items: closed6({
       index: integer2(127),
       byteLength: integer2(LARGE_OBJECT_LIMITS.chunkBytes, 1),
-      sha256: digest6
+      sha256: digest7
     })
   }
 });
@@ -5098,7 +5299,7 @@ var COMPANY_RESOURCE_UPLOAD_RECEIPT_SCHEMA = schema5("company-resource-upload-re
   ...companyScope,
   operationId: id6,
   revisionId: id6,
-  manifestSha256: digest6,
+  manifestSha256: digest7,
   contentDigest: { type: "string", pattern: "^sha256:[a-f0-9]{64}$" },
   status: { const: "committed" },
   committedAt: iso2
@@ -5112,9 +5313,9 @@ var COMPANY_RESOURCE_UPLOAD_STATUS_SCHEMA = schema5(
     receivedChunks: {
       type: "array",
       maxItems: 128,
-      items: closed5({
+      items: closed6({
         index: integer2(127),
-        sha256: digest6,
+        sha256: digest7,
         byteLength: integer2(LARGE_OBJECT_LIMITS.chunkBytes, 1)
       })
     },
@@ -5138,7 +5339,7 @@ Object.assign(ENTERPRISE_ARTIFACT_REVISION_V11_SCHEMA.properties, {
   protocolVersion: { const: "1.17.0" },
   contentDigest: { type: "string", pattern: "^sha256:[a-f0-9]{64}$" },
   byteLength: integer2(LARGE_OBJECT_LIMITS.decodedBytes, 1),
-  contentReference: closed5({ transport: { const: "resources-v2" }, manifestSha256: digest6 })
+  contentReference: closed6({ transport: { const: "resources-v2" }, manifestSha256: digest7 })
 });
 ENTERPRISE_ARTIFACT_REVISION_V11_SCHEMA.required.push("contentReference", "protocolVersion");
 var WORKSPACE_MANAGEMENT_V2_SCHEMA = schema5("workspace-management-v2", {
@@ -5152,7 +5353,7 @@ var WORKSPACE_ROTATION_V2_SCHEMA = schema5("workspace-rotation-v2", {
   operationId: id6,
   expectedVersion: integer2(Number.MAX_SAFE_INTEGER, 1),
   epoch: integer2(Number.MAX_SAFE_INTEGER, 2),
-  reviewerAuthHash: digest6,
+  reviewerAuthHash: digest7,
   keyring,
   signature: signature3
 });
@@ -5184,6 +5385,7 @@ export {
   canonicalizeJson,
   assertPlainData,
   validateJson,
+  DESIGN_DOCUMENT_SCHEMA,
   DESIGN_REVIEW_BUNDLE_SCHEMA,
   LARGE_OBJECT_LIMITS
 };

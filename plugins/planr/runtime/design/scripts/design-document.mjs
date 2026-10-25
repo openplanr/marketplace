@@ -12,8 +12,10 @@ import {
   ARTIFACT_WORKER_GUARD_SOURCE
 } from "./design-sandbox-guards.mjs";
 import {
+  atomicBytes,
   atomicJson,
   bundleLocalDocument,
+  currentDesign,
   designSpecPath,
   hash,
   json,
@@ -40,21 +42,82 @@ import {
   resolveArtifactHtml
 } from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
 import {
-  assertDesignDocument
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
+  DESIGN_DOCUMENT_SCHEMA,
+  assertDesignDocument,
+  initialFrameHeight
+} from "./design-shared-protocol-contracts-b5f28f94.mjs";
+
+// packages/design/lib/design/frame-size.mjs
+function designFrameLabel(frame) {
+  const dimensions = `${frame.width} \xD7 ${frame.height}`;
+  return frame.label.includes(dimensions) ? frame.label : `${frame.label} \xB7 ${dimensions}`;
+}
+function designFrameViewport(document2, frame) {
+  return {
+    width: frame.width,
+    height: frame.height === "auto" ? initialFrameHeight(document2) : frame.height
+  };
+}
+function matchesDesignFrame(frame, viewport) {
+  return Boolean(
+    frame && viewport?.width === frame.width && (frame.height === "auto" ? Number.isInteger(viewport.height) && viewport.height > 0 && viewport.height <= 16384 : viewport.height === frame.height)
+  );
+}
+function observeDesignFrameSize() {
+  let pending = false;
+  const measure = async () => {
+    if (pending) return;
+    pending = true;
+    try {
+      await document.fonts.ready;
+      await new Promise((resolve3) => requestAnimationFrame(() => requestAnimationFrame(resolve3)));
+      parent.postMessage(
+        {
+          type: "openplanr:design-size",
+          screenId: document.body.getAttribute("data-planr-screen"),
+          width: innerWidth,
+          height: Math.min(16384, Math.max(1, document.documentElement.scrollHeight))
+        },
+        "*"
+      );
+    } finally {
+      pending = false;
+    }
+  };
+  const schedule = () => {
+    void measure().catch((error) => {
+      parent.postMessage({ type: "openplanr:design-size-error", message: error.message }, "*");
+    });
+  };
+  addEventListener("message", (event) => {
+    if (event.source === parent && event.data?.type === "openplanr:design-measure") schedule();
+  });
+  addEventListener(
+    "load",
+    () => {
+      new ResizeObserver(schedule).observe(document.body);
+      schedule();
+    },
+    { once: true }
+  );
+}
+
+// packages/design/lib/design/layout-save.mjs
+import { readFileSync as readFileSync6, statSync } from "node:fs";
+import { join as join3 } from "node:path";
 
 // packages/design/lib/design/document.mjs
 import { randomUUID } from "node:crypto";
 import {
   existsSync as existsSync2,
   mkdirSync,
-  readFileSync as readFileSync4,
+  readFileSync as readFileSync5,
   realpathSync,
   renameSync,
   rmSync,
   writeFileSync
 } from "node:fs";
-import { dirname, join, resolve as resolve2 } from "node:path";
+import { dirname, join as join2, resolve as resolve2 } from "node:path";
 
 // packages/artifact/lib/artifact/bridge.mjs
 import { randomBytes as randomBytes2 } from "node:crypto";
@@ -149,7 +212,9 @@ function createArtifactViewportGestures(window2, emit) {
     mode: getter(window2.WheelEvent.prototype, "deltaMode")
   };
   let enabled = false, disposed = false, timer = 0, pending = null, pendingType = "";
+  let gestureScale = 1;
   const clear = () => {
+    gestureScale = 1;
     if (timer) cancel(timer);
     timer = 0;
     pending = null;
@@ -162,6 +227,29 @@ function createArtifactViewportGestures(window2, emit) {
     pending = null;
     pendingType = "";
     if (enabled && !disposed && value) emit(type, value);
+  };
+  const queue = (type, value) => {
+    const deltaX = value.deltaX ?? 0;
+    const deltaY = value.deltaY ?? 0;
+    if (pendingType && pendingType !== type) flush();
+    pendingType = type;
+    pending = type === "viewport.zoom" ? {
+      ...value,
+      deltaY: Math.max(
+        -ARTIFACT_VIEWPORT_ZOOM_MAX_DELTA,
+        Math.min(ARTIFACT_VIEWPORT_ZOOM_MAX_DELTA, (pending?.deltaY || 0) + deltaY)
+      )
+    } : {
+      deltaX: Math.max(
+        -ARTIFACT_VIEWPORT_PAN_MAX_DELTA,
+        Math.min(ARTIFACT_VIEWPORT_PAN_MAX_DELTA, (pending?.deltaX || 0) + deltaX)
+      ),
+      deltaY: Math.max(
+        -ARTIFACT_VIEWPORT_PAN_MAX_DELTA,
+        Math.min(ARTIFACT_VIEWPORT_PAN_MAX_DELTA, (pending?.deltaY || 0) + deltaY)
+      )
+    };
+    if (!timer) timer = schedule(flush, 16);
   };
   const wheel = (event) => {
     if (!enabled || disposed || !event.isTrusted || !event.cancelable) return;
@@ -213,34 +301,49 @@ function createArtifactViewportGestures(window2, emit) {
     if (!value) return;
     prevent.call(event);
     stop.call(event);
-    if (pendingType && pendingType !== type) flush();
-    pendingType = type;
-    pending = type === "viewport.zoom" ? {
-      ...value,
-      deltaY: Math.max(
-        -ARTIFACT_VIEWPORT_ZOOM_MAX_DELTA,
-        Math.min(ARTIFACT_VIEWPORT_ZOOM_MAX_DELTA, (pending?.deltaY || 0) + deltaY)
-      )
-    } : {
-      deltaX: Math.max(
-        -ARTIFACT_VIEWPORT_PAN_MAX_DELTA,
-        Math.min(ARTIFACT_VIEWPORT_PAN_MAX_DELTA, (pending?.deltaX || 0) + deltaX)
-      ),
-      deltaY: Math.max(
-        -ARTIFACT_VIEWPORT_PAN_MAX_DELTA,
-        Math.min(ARTIFACT_VIEWPORT_PAN_MAX_DELTA, (pending?.deltaY || 0) + deltaY)
-      )
-    };
-    if (!timer) timer = schedule(flush, 16);
+    queue(type, value);
+  };
+  const consumeGesture = (event) => {
+    if (!enabled || disposed || !event.isTrusted || !event.cancelable) return false;
+    prevent.call(event);
+    stop.call(event);
+    return true;
+  };
+  const gestureStart = (event) => {
+    if (consumeGesture(event)) gestureScale = 1;
+  };
+  const gestureChange = (raw) => {
+    if (!consumeGesture(raw)) return;
+    const event = raw;
+    if (!Number.isFinite(event.scale) || event.scale <= 0) return;
+    const deltaY = Math.max(
+      -ARTIFACT_VIEWPORT_ZOOM_MAX_DELTA,
+      Math.min(ARTIFACT_VIEWPORT_ZOOM_MAX_DELTA, -Math.log(event.scale / gestureScale) / 0.01)
+    );
+    gestureScale = event.scale;
+    const value = normalizeArtifactViewportZoom(
+      { x: event.clientX, y: event.clientY, deltaY },
+      { width: window2.innerWidth, height: window2.innerHeight }
+    );
+    if (value) queue("viewport.zoom", value);
+  };
+  const gestureEnd = (event) => {
+    if (consumeGesture(event)) gestureScale = 1;
   };
   const destroy = () => {
     disposed = true;
     enabled = false;
     clear();
     remove("wheel", wheel, true);
+    remove("gesturestart", gestureStart, true);
+    remove("gesturechange", gestureChange, true);
+    remove("gestureend", gestureEnd, true);
     remove("pagehide", destroy);
   };
   add("wheel", wheel, { capture: true, passive: false });
+  add("gesturestart", gestureStart, { capture: true, passive: false });
+  add("gesturechange", gestureChange, { capture: true, passive: false });
+  add("gestureend", gestureEnd, { capture: true, passive: false });
   add("pagehide", destroy, { once: true });
   return Object.freeze({
     setEnabled(value) {
@@ -288,8 +391,8 @@ function normalizeArtifactInspection(value, viewport) {
     const descriptor = plain(entry) ? Object.getOwnPropertyDescriptor(entry, key) : null;
     return descriptor && Object.hasOwn(descriptor, "value") ? descriptor.value : void 0;
   };
-  const exact = (entry, keys) => plain(entry) && Object.keys(entry).length === keys.length && Object.keys(entry).every((key) => keys.includes(key));
-  if (!exact(value, ["tagName", "anchor", "rect", "viewport", "styles", "accessibility"]))
+  const exact2 = (entry, keys) => plain(entry) && Object.keys(entry).length === keys.length && Object.keys(entry).every((key) => keys.includes(key));
+  if (!exact2(value, ["tagName", "anchor", "rect", "viewport", "styles", "accessibility"]))
     return null;
   const tagName = own(value, "tagName");
   const anchor = own(value, "anchor");
@@ -298,7 +401,7 @@ function normalizeArtifactInspection(value, viewport) {
   const styles = own(value, "styles");
   const accessibility = own(value, "accessibility");
   if (typeof tagName !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(tagName)) return null;
-  if (!exact(size, ["width", "height"]) || !exact(rect, ["x", "y", "width", "height"])) return null;
+  if (!exact2(size, ["width", "height"]) || !exact2(rect, ["x", "y", "width", "height"])) return null;
   if (!["width", "height"].every(
     (key) => Number.isInteger(own(size, key)) && own(size, key) >= 1 && own(size, key) <= 16384 && own(size, key) === viewport?.[key]
   ))
@@ -308,14 +411,14 @@ function normalizeArtifactInspection(value, viewport) {
   ))
     return null;
   if (rect.x + rect.width > size.width || rect.y + rect.height > size.height) return null;
-  if (anchor !== null && (!exact(anchor, own(anchor, "screen") === void 0 ? ["planrId"] : ["planrId", "screen"]) || typeof own(anchor, "planrId") !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,511}$/.test(anchor.planrId) || own(anchor, "screen") !== void 0 && (typeof anchor.screen !== "string" || !/^[^\u0000-\u001f\u007f]{1,128}$/.test(anchor.screen))))
+  if (anchor !== null && (!exact2(anchor, own(anchor, "screen") === void 0 ? ["planrId"] : ["planrId", "screen"]) || typeof own(anchor, "planrId") !== "string" || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,511}$/.test(anchor.planrId) || own(anchor, "screen") !== void 0 && (typeof anchor.screen !== "string" || !/^[^\u0000-\u001f\u007f]{1,128}$/.test(anchor.screen))))
     return null;
-  if (!exact(styles, ARTIFACT_INSPECTION_PROPERTIES) || !ARTIFACT_INSPECTION_PROPERTIES.every((key) => {
+  if (!exact2(styles, ARTIFACT_INSPECTION_PROPERTIES) || !ARTIFACT_INSPECTION_PROPERTIES.every((key) => {
     const text = own(styles, key);
     return typeof text === "string" && text.length <= 256 && !/[\u0000-\u001f\u007f]/.test(text) && !/(?:url\s*\(|https?:|file:)/i.test(text);
   }))
     return null;
-  if (!exact(accessibility, ["role", "ariaLabel", "alt", "tabIndex", "disabled"]) || !["role", "ariaLabel", "alt"].every(
+  if (!exact2(accessibility, ["role", "ariaLabel", "alt", "tabIndex", "disabled"]) || !["role", "ariaLabel", "alt"].every(
     (key) => typeof own(accessibility, key) === "string" && own(accessibility, key).length <= 256 && !/[\u0000-\u001f\u007f]/.test(own(accessibility, key))
   ) || !Number.isInteger(own(accessibility, "tabIndex")) || accessibility.tabIndex < -1 || accessibility.tabIndex > 32767 || typeof own(accessibility, "disabled") !== "boolean")
     return null;
@@ -340,20 +443,20 @@ function normalizeArtifactThumbnail(value) {
 }
 function normalizeArtifactBridgeToolResult(requestType, message, viewport) {
   const base = ["channel", "schemaVersion", "type", "nonce", "artifactId", "requestId"];
-  const exact = (keys) => message && typeof message === "object" && !Array.isArray(message) && Object.keys(message).length === keys.length && Object.keys(message).every((key) => keys.includes(key)) && Object.values(Object.getOwnPropertyDescriptors(message)).every(
+  const exact2 = (keys) => message && typeof message === "object" && !Array.isArray(message) && Object.keys(message).length === keys.length && Object.keys(message).every((key) => keys.includes(key)) && Object.values(Object.getOwnPropertyDescriptors(message)).every(
     (descriptor) => Object.hasOwn(descriptor, "value")
   );
   if (requestType === "inspect.point" || requestType === "inspect.anchor") {
-    if (exact(base) && message.type === "inspect.miss") return { valid: true, value: null };
-    if (!exact([...base, "inspection"]) || message.type !== "inspect.result")
+    if (exact2(base) && message.type === "inspect.miss") return { valid: true, value: null };
+    if (!exact2([...base, "inspection"]) || message.type !== "inspect.result")
       return { valid: false };
     const value = normalizeArtifactInspection(message.inspection, viewport);
     return value ? { valid: true, value } : { valid: false };
   }
   if (requestType === "thumbnail.request") {
-    if (exact([...base, "reason"]) && message.type === "thumbnail.error" && typeof message.reason === "string" && message.reason.length <= 256)
+    if (exact2([...base, "reason"]) && message.type === "thumbnail.error" && typeof message.reason === "string" && message.reason.length <= 256)
       return { valid: true, value: null };
-    if (!exact([...base, "dataUrl", "width", "height", "label"]) || message.type !== "thumbnail.result")
+    if (!exact2([...base, "dataUrl", "width", "height", "label"]) || message.type !== "thumbnail.result")
       return { valid: false };
     const value = normalizeArtifactThumbnail({
       dataUrl: message.dataUrl,
@@ -1594,7 +1697,9 @@ function lintCanvasData(data, { frames } = {}) {
   const errors = [];
   for (const section of data?.sections || []) {
     for (const a of section.artboards || []) {
-      const accepted = frames?.length ? frames.some((frame) => frame.width === a.width && frame.height === a.height) : isCanonicalFrame({ w: a.width, h: a.height });
+      const accepted = frames?.length ? frames.some(
+        (frame) => frame.width === a.width && (frame.height === "auto" ? a.height === "auto" || Number.isInteger(a.height) && a.height > 0 && a.height <= 16384 : frame.height === a.height)
+      ) : isCanonicalFrame({ w: a.width, h: a.height });
       if (!accepted) {
         errors.push({
           rule: "frame-not-canonical",
@@ -1758,7 +1863,7 @@ function isRecord(value) {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 var digest = (bytes) => createHash("sha256").update(bytes).digest("hex");
-function boundedRead(url, label, { limit, exact, links = false }) {
+function boundedRead(url, label, { limit, exact: exact2, links = false }) {
   if (!links) {
     const stat = lstatSync(url, { throwIfNoEntry: false });
     if (!stat?.isFile()) throw new Error(`${label} must be a regular file, not a link.`);
@@ -1770,15 +1875,15 @@ function boundedRead(url, label, { limit, exact, links = false }) {
   try {
     const stat = fstatSync(descriptor);
     if (!stat.isFile()) throw new Error(`${label} must be a regular file, not a link.`);
-    if (exact !== void 0 ? stat.size !== exact : stat.size > limit)
-      throw new Error(`${label} is ${stat.size} bytes; expected ${exact ?? `at most ${limit}`}.`);
-    const capacity = (exact ?? Math.min(stat.size, limit)) + 1;
+    if (exact2 !== void 0 ? stat.size !== exact2 : stat.size > limit)
+      throw new Error(`${label} is ${stat.size} bytes; expected ${exact2 ?? `at most ${limit}`}.`);
+    const capacity = (exact2 ?? Math.min(stat.size, limit)) + 1;
     const buffer = Buffer.alloc(capacity);
     let length = 0;
     for (let read = -1; read !== 0 && length < capacity; length += read)
       read = readSync(descriptor, buffer, length, capacity - length, null);
     if (length === capacity) throw new Error(`${label} changed size while it was read.`);
-    if (exact !== void 0 && length !== exact)
+    if (exact2 !== void 0 && length !== exact2)
       throw new Error(`${label} changed size while it was read.`);
     return buffer.subarray(0, length);
   } finally {
@@ -1994,7 +2099,7 @@ function designNotes(document2) {
   ).join("")}</div></details>`;
 }
 function stageDetails(document2) {
-  return `<div class="design-stage-context"><div><strong data-design-screen-title>${escapeHtml(document2.screens.find(({ id }) => id === document2.screenOrder[0]).title)}</strong><span data-design-stage-description>Every screen, one connected design</span></div><div class="design-stage-actions">${designNotes(document2)}<label class="design-frame-picker">Frame<select aria-label="Responsive frame" data-design-frame>${document2.frames.map((frame) => `<option value="${escapeHtml(frame.id)}">${escapeHtml(frame.label)} \xB7 ${frame.width} \xD7 ${frame.height}</option>`).join("")}</select></label></div></div>
+  return `<div class="design-stage-context"><div><strong data-design-screen-title>${escapeHtml(document2.screens.find(({ id }) => id === document2.screenOrder[0]).title)}</strong><span data-design-stage-description>Every screen, one connected design</span></div><div class="design-stage-actions">${designNotes(document2)}<label class="design-frame-picker">Frame<select aria-label="Responsive frame" data-design-frame>${document2.frames.map((frame) => `<option value="${escapeHtml(frame.id)}">${escapeHtml(designFrameLabel(frame))}</option>`).join("")}</select></label></div></div>
 	  <div class="design-canvas-tools" role="group" aria-label="Canvas controls"><div class="planr-segment design-interaction-picker" role="group" aria-label="Review mode">${iconButton("Interact", "pointer", 'data-planr-mode="interact" aria-pressed="true" aria-keyshortcuts="I"')}${iconButton("Annotate", "comment", 'data-planr-mode="comment" aria-pressed="false" aria-keyshortcuts="C"')}</div><span></span>${button("\u2212", 'data-design-zoom="out" aria-label="Zoom out"')}${button("100%", 'data-design-zoom="reset" aria-label="Reset zoom"')}${button("+", 'data-design-zoom="in" aria-label="Zoom in"')}<span></span>${button("100%", 'data-design-actual-size aria-label="Inspect screen at actual size" aria-pressed="false"')}${button("Focus", 'data-design-focus aria-label="Focus on the preview"')}${button("Fit", 'data-design-fit aria-label="Fit all visible artboards"')}${button("Pan", 'data-design-pan aria-pressed="false" aria-label="Pan canvas" aria-keyshortcuts="H Space" title="Pan canvas (H). Hold Space to pan temporarily; Escape returns to Interact."')}</div>
   <div class="design-walkthrough-caption" hidden><div><span data-design-step></span><h2 data-design-narrative-title></h2><p data-design-narrative></p></div><div>${button("Previous", 'data-design-step-change="-1"')}${button("Next", 'data-design-step-change="1"')}</div></div>
   <div class="design-notice" role="status" aria-live="polite" hidden><span data-design-notice-message></span><button type="button" data-design-dismiss-notice aria-label="Dismiss notification" title="Dismiss notification"><span aria-hidden="true">\xD7</span></button></div>`;
@@ -2016,7 +2121,8 @@ function renderDesignStudioMarkup({
   stalePins = [],
   reviewContext = null,
   contextDigest = null,
-  fingerprints = []
+  fingerprints = [],
+  contentIdentity = null
 } = {}, {
   stageRuntimeUrl = "./artifact-review-stage.js",
   renderShell,
@@ -2047,6 +2153,7 @@ function renderDesignStudioMarkup({
     reviewContext,
     contextDigest,
     fingerprints,
+    contentIdentity,
     artifactKinds: Object.fromEntries(
       envelope.artifacts.map((artifact) => [artifact.id, artifact.kind])
     ),
@@ -2138,7 +2245,8 @@ function createDesignStudioEntries(document2, envelope) {
           artifactId,
           variantId: variant.id,
           screenId,
-          frameId: frame.id
+          frameId: frame.id,
+          ...frame.height === "auto" ? { height: "auto" } : {}
         });
       }
     }
@@ -2163,6 +2271,101 @@ function renderDesignStudio(input = {}, options = {}) {
   );
 }
 
+// packages/design/lib/design/view-context.mjs
+import { readFileSync as readFileSync4 } from "node:fs";
+import { join } from "node:path";
+var anchorPattern = new RegExp(DESIGN_DOCUMENT_SCHEMA.$defs.id.pattern, "u");
+var exact = (value, keys) => value !== null && typeof value === "object" && !Array.isArray(value) && Object.keys(value).length === keys.length && keys.every((key) => Object.hasOwn(value, key));
+var boardFields = ["screenId", "frameId", "variantId"];
+function validateDesignViewContext(input, current) {
+  if (!exact(input, ["revision", "view", "visibleScreens", "selected", "dirty"]))
+    throw new Error(
+      "View context requires exactly revision, view, visibleScreens, selected and dirty."
+    );
+  if (input.revision !== current.revision)
+    throw Object.assign(
+      new Error(
+        `View context revision ${input.revision} is stale; current revision is ${current.revision}.`
+      ),
+      { statusCode: 409 }
+    );
+  if (!["canvas", "prototype", "walkthrough"].includes(input.view))
+    throw new Error(`Unknown view context view ${input.view}.`);
+  if (typeof input.dirty !== "boolean")
+    throw new Error(`View context dirty must be boolean; received ${input.dirty}.`);
+  const board = (value, selected = false) => {
+    if (!exact(value, selected ? [...boardFields, "planrId"] : boardFields))
+      throw new Error(
+        `View context ${selected ? "selected" : "visibleScreens entry"} has invalid fields.`
+      );
+    if (!current.entries.some((entry) => boardFields.every((key) => entry[key] === value[key])))
+      throw new Error(`Unknown view context board ${JSON.stringify(value)}.`);
+    return boardFields.map((key) => value[key]).join("/");
+  };
+  if (!Array.isArray(input.visibleScreens) || input.visibleScreens.length > current.entries.length)
+    throw new Error(
+      `View context visibleScreens must contain at most ${current.entries.length} boards.`
+    );
+  const keys = input.visibleScreens.map((value) => board(value));
+  if (new Set(keys).size !== keys.length)
+    throw new Error("View context visibleScreens contains duplicate boards.");
+  board(input.selected, true);
+  const { planrId } = input.selected;
+  if (planrId !== null && (typeof planrId !== "string" || planrId.length > 128 || !anchorPattern.test(planrId)))
+    throw new Error(
+      `View context planrId ${JSON.stringify(planrId)} must be null or a document anchor ID of at most 128 characters.`
+    );
+  return structuredClone(input);
+}
+function saveDesignViewContext(file, input, clock) {
+  const current = currentDesign(file);
+  const context = validateDesignViewContext(input, current);
+  const value = {
+    kind: "openplanr-design-view-context",
+    schemaVersion: "1.0.0",
+    ...context,
+    updatedAt: clock().toISOString()
+  };
+  atomicJson(join(current.root, ".design/view-context.json"), value);
+  return { ok: true };
+}
+function readDesignViewContext(file, { requestTime } = {}) {
+  try {
+    const current = currentDesign(file);
+    const path = join(current.root, ".design/view-context.json");
+    const bytes = readFileSync4(path);
+    if (bytes.length > 128 * 1024) throw new Error(`${path} exceeds 128 KB.`);
+    const value = JSON.parse(bytes.toString("utf8"));
+    if (!exact(value, [
+      "kind",
+      "schemaVersion",
+      "revision",
+      "updatedAt",
+      "view",
+      "visibleScreens",
+      "selected",
+      "dirty"
+    ]) || value.kind !== "openplanr-design-view-context" || value.schemaVersion !== "1.0.0")
+      throw new Error(`${path} is not a supported design view context.`);
+    if (typeof value.updatedAt !== "string" || !Number.isFinite(Date.parse(value.updatedAt)))
+      throw new Error(`${path} has an invalid updatedAt timestamp.`);
+    const { kind, schemaVersion, updatedAt, ...input } = value;
+    validateDesignViewContext(input, current);
+    if (requestTime !== void 0) {
+      const requestedAt = Date.parse(requestTime);
+      if (!Number.isFinite(requestedAt))
+        throw new Error(`Invalid view context request time ${requestTime}.`);
+      if (Date.parse(updatedAt) < requestedAt)
+        throw new Error(
+          `View context updatedAt ${updatedAt} is older than request ${requestTime}.`
+        );
+    }
+    return value;
+  } catch (error) {
+    return { viewContext: null, reason: error.message };
+  }
+}
+
 // packages/design/lib/design/document.mjs
 var DESIGN_VIEWS = Object.freeze(["canvas", "prototype", "walkthrough"]);
 var DESIGN_RENDERER_VERSION = "1.3.0";
@@ -2184,7 +2387,7 @@ function inspectDesignDocument(file, { readSource } = {}) {
       `This board needs ${sourceCount} screen sources and ${viewCount} viewport references. Split it into linked boards: one board supports 256 sources and 4096 views.`
     );
   const sources = new Set(document2.assets ?? []);
-  if (existsSync2(join(root, "review-context.json"))) sources.add("review-context.json");
+  if (existsSync2(join2(root, "review-context.json"))) sources.add("review-context.json");
   if (document2.designSystem?.tokens) sources.add(document2.designSystem.tokens);
   for (const screen of document2.screens)
     for (const source of [
@@ -2212,7 +2415,7 @@ function inspectDesignDocument(file, { readSource } = {}) {
     missing,
     specPath: designSpecPath(root),
     // Guarded source preparation is independent of local render cache state.
-    current: readSource ? null : readJson(join(root, ".design/current.json"), null)
+    current: readSource ? null : readJson(join2(root, ".design/current.json"), null)
   };
 }
 function prepareDesignDocument(file, { readSource, passive = false, maxBytes } = {}) {
@@ -2227,7 +2430,7 @@ function prepareDesignDocument(file, { readSource, passive = false, maxBytes } =
   const sourceContents = new Map(
     inspected.sources.map((source) => [
       source,
-      readSource ? readSource(source, root).value : readFileSync4(resolveLocalDocumentFile(root, source))
+      readSource ? readSource(source, root).value : readFileSync5(resolveLocalDocumentFile(root, source))
     ])
   );
   for (const variant of document2.variants.filter((item) => item.status === "ready")) {
@@ -2242,6 +2445,11 @@ function prepareDesignDocument(file, { readSource, passive = false, maxBytes } =
         passive,
         ...maxBytes === void 0 ? {} : { maxBytes }
       });
+      if (document2.frames.some(({ height }) => height === "auto"))
+        bundled.html = bundled.html.replace(
+          "</body>",
+          `<script>(${observeDesignFrameSize.toString()})()</script></body>`
+        );
       const navigate = `<script>document.addEventListener('click',function(event){var link=event.target.closest('[data-design-target],[data-planr-navigate],[data-design-navigate]');if(!link)return;event.preventDefault();parent.postMessage({type:'openplanr:design-navigate',screenId:link.getAttribute('data-design-target')||link.getAttribute('data-planr-navigate')||link.getAttribute('data-design-navigate')},'*')});document.addEventListener('submit',function(event){event.preventDefault()});</script>`;
       if (!passive) bundled.html = bundled.html.replace("</body>", `${navigate}</body>`);
       for (const name of bundled.files) {
@@ -2249,7 +2457,7 @@ function prepareDesignDocument(file, { readSource, passive = false, maxBytes } =
         if (!sourceContents.has(name))
           sourceContents.set(
             name,
-            readSource ? readSource(name, root).value : readFileSync4(resolveLocalDocumentFile(root, name))
+            readSource ? readSource(name, root).value : readFileSync5(resolveLocalDocumentFile(root, name))
           );
         if (hash(sourceContents.get(name)) !== bundled.sourceDigests[name])
           throw new Error(
@@ -2287,14 +2495,15 @@ function prepareDesignDocument(file, { readSource, passive = false, maxBytes } =
           kind: "html",
           title: `${screen.title} \xB7 ${variant.label} \xB7 ${frame.label}`,
           sourceId,
-          viewport: { width: frame.width, height: frame.height },
+          viewport: designFrameViewport(document2, frame),
           colorScheme: "light"
         });
         entries.push({
           artifactId,
           screenId,
           variantId: variant.id,
-          frameId: frame.id
+          frameId: frame.id,
+          ...frame.height === "auto" ? { height: "auto" } : {}
         });
       }
     }
@@ -2347,7 +2556,7 @@ function designRendererRevision() {
         (name) => name === "studio.js" || existsSync2(new URL(`../../templates/studio/${name}`, new URL("./runtime/packages/design/lib/design/document.mjs", import.meta.url).href))
       ).map(
         (name) => hash(
-          name === "studio.js" ? readDesignStudioRuntime() : readFileSync4(new URL(`../../templates/studio/${name}`, new URL("./runtime/packages/design/lib/design/document.mjs", import.meta.url).href))
+          name === "studio.js" ? readDesignStudioRuntime() : readFileSync5(new URL(`../../templates/studio/${name}`, new URL("./runtime/packages/design/lib/design/document.mjs", import.meta.url).href))
         )
       )
     })
@@ -2418,22 +2627,34 @@ ${runtime}` : runtime;
     { stageRuntimeUrl: runtimeUrl }
   );
 }
-async function renderDesignDocument(file, {
+async function renderDesignDocument(file, options = {}) {
+  return withDesignRenderLock(file, (render) => render(options));
+}
+async function withDesignRenderLock(file, action) {
+  const { root } = loadDesignDocument(file);
+  const work = join2(root, ".design");
+  mkdirSync(work, { recursive: true });
+  const release = await acquireStartLock(join2(work, "render.lock"), {
+    timeout: 1e3,
+    stale: 3e4
+  });
+  try {
+    recoverDesignPublication(root, { ownsRenderLock: true });
+    return await action((options) => renderDesignDocumentUnlocked(file, options));
+  } finally {
+    release();
+  }
+}
+async function renderDesignDocumentUnlocked(file, {
   beforeCommit,
   writePointer = atomicJson,
   rendererRevision = designRendererRevision(),
   now = () => (/* @__PURE__ */ new Date()).toISOString()
 } = {}) {
   const { root } = loadDesignDocument(file);
-  const work = join(root, ".design");
-  mkdirSync(work, { recursive: true });
-  const release = await acquireStartLock(join(work, "render.lock"), {
-    timeout: 1e3,
-    stale: 3e4
-  });
+  const work = join2(root, ".design");
   let temporary;
   try {
-    recoverDesignPublication(root, { ownsRenderLock: true });
     const prepared = prepareDesignDocument(file);
     const errors = prepared.lint.flatMap(
       (item) => item.errors.map((error) => `${item.screenId}: ${error.message}`)
@@ -2441,15 +2662,15 @@ async function renderDesignDocument(file, {
     if (errors.length) throw new Error(`Design lint failed:
 ${errors.join("\n")}`);
     const specPath = designSpecPath(root);
-    const spec = readFileSync4(specPath, "utf8");
+    const spec = readFileSync5(specPath, "utf8");
     for (let section = 1; section <= 10; section++)
       if (!new RegExp(`^## ${section}\\. `, "m").test(spec))
         throw new Error(`design-spec.md is missing section ${section}.`);
     prepared.revision = hash(json({ source: prepared.revision, spec, rendererRevision }));
-    const directory = join(work, "revisions", prepared.revision);
-    const previous = readJson(join(work, "current.json"), null);
+    const directory = join2(work, "revisions", prepared.revision);
+    const previous = readJson(join2(work, "current.json"), null);
     const generatedAt = now();
-    const manifest = existsSync2(directory) ? readJson(join(directory, "render.json")).manifest : buildManifest({
+    const manifest = existsSync2(directory) ? readJson(join2(directory, "render.json")).manifest : buildManifest({
       framework: "vanilla",
       designFormat: prepared.document.defaultView,
       source: prepared.document.brief.source,
@@ -2474,39 +2695,39 @@ ${errors.join("\n")}`);
       manifest
     };
     if (!existsSync2(directory)) {
-      temporary = join(work, `pending-${randomUUID()}`);
-      mkdirSync(join(temporary, "sources"), { recursive: true });
-      writeFileSync(join(temporary, "render.json"), json(record));
-      writeFileSync(join(temporary, "design-document.json"), json(prepared.document));
-      writeFileSync(join(temporary, "design-spec.md"), spec);
+      temporary = join2(work, `pending-${randomUUID()}`);
+      mkdirSync(join2(temporary, "sources"), { recursive: true });
+      writeFileSync(join2(temporary, "render.json"), json(record));
+      writeFileSync(join2(temporary, "design-document.json"), json(prepared.document));
+      writeFileSync(join2(temporary, "design-spec.md"), spec);
       for (const source of prepared.sourceFiles) {
-        const destination = join(temporary, "sources", source);
+        const destination = join2(temporary, "sources", source);
         mkdirSync(dirname(destination), { recursive: true });
         writeFileSync(destination, prepared.sourceContents.get(source));
       }
       for (const view of DESIGN_VIEWS)
-        writeFileSync(join(temporary, `${view}.html`), standaloneDesignHtml(record, view));
+        writeFileSync(join2(temporary, `${view}.html`), standaloneDesignHtml(record, view));
       beforeCommit?.(record);
       mkdirSync(dirname(directory), { recursive: true });
       renameSync(temporary, directory);
       temporary = null;
     }
-    const manifestPath = join(root, "finalized.json");
-    atomicJson(join(work, "publication.json"), {
+    const manifestPath = join2(root, "finalized.json");
+    atomicJson(join2(work, "publication.json"), {
       revision: prepared.revision,
       previousRevision: previous?.revision ?? null,
       manifest,
-      previousManifest: existsSync2(manifestPath) ? readFileSync4(manifestPath).toString("base64") : null
+      previousManifest: existsSync2(manifestPath) ? readFileSync5(manifestPath).toString("base64") : null
     });
     try {
       atomicJson(manifestPath, manifest);
-      writePointer(join(work, "current.json"), {
+      writePointer(join2(work, "current.json"), {
         revision: prepared.revision,
         previousRevision: previous?.revision === prepared.revision ? previous.previousRevision : previous?.revision ?? null,
         iterations: manifest.iterations,
         generatedAt: manifest.generated_at
       });
-      rmSync(join(work, "publication.json"), { force: true });
+      rmSync(join2(work, "publication.json"), { force: true });
     } catch (error) {
       recoverDesignPublication(root, { ownsRenderLock: true });
       throw error;
@@ -2515,18 +2736,98 @@ ${errors.join("\n")}`);
       ok: true,
       revision: prepared.revision,
       document: resolve2(file),
-      artifact: join(directory, `${prepared.document.defaultView}.html`),
+      artifact: join2(directory, `${prepared.document.defaultView}.html`),
       views: Object.fromEntries(
-        DESIGN_VIEWS.map((view) => [view, join(directory, `${view}.html`)])
+        DESIGN_VIEWS.map((view) => [view, join2(directory, `${view}.html`)])
       ),
-      manifest: join(root, "finalized.json"),
+      manifest: join2(root, "finalized.json"),
       spec: specPath,
       verification: "unverified"
     };
   } finally {
     if (temporary) rmSync(temporary, { recursive: true, force: true });
-    release();
   }
+}
+
+// packages/design/lib/design/layout-save.mjs
+async function saveDesignLayout(file, input) {
+  if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((key) => !["revision", "boards", "restoreRevision"].includes(key)) || typeof input.revision !== "string" || Object.hasOwn(input, "boards") === Object.hasOwn(input, "restoreRevision"))
+    throw new Error("Design layout requires a revision and either boards or restoreRevision.");
+  return withDesignRenderLock(file, async (render) => {
+    const current = currentDesign(file);
+    if (input.revision !== current.revision)
+      throw Object.assign(new Error("The design changed. Reload before saving its layout."), {
+        statusCode: 409
+      });
+    const authored = prepareDesignDocument(file);
+    const authoredContent = { ...authored.document };
+    const committedContent = { ...current.document };
+    delete authoredContent.layout;
+    delete committedContent.layout;
+    if (digestArtifactEnvelope(authored.envelope) !== digestArtifactEnvelope(current.envelope) || JSON.stringify(authored.fingerprints) !== JSON.stringify(current.fingerprints) || JSON.stringify(authoredContent) !== JSON.stringify(committedContent) || readFileSync6(designSpecPath(current.root), "utf8") !== readFileSync6(join3(current.directory, "design-spec.md"), "utf8"))
+      throw Object.assign(
+        new Error(
+          "Design sources or content changed. Render the design and reload before saving its layout."
+        ),
+        { statusCode: 409 }
+      );
+    const previous = readFileSync6(file, "utf8");
+    const mode = statSync(file).mode & 4095;
+    const document2 = JSON.parse(previous);
+    if (Object.hasOwn(input, "restoreRevision")) {
+      if (typeof input.restoreRevision !== "string" || !/^[a-f0-9]{64}$/u.test(input.restoreRevision))
+        throw new Error(`Invalid layout restore revision ${input.restoreRevision}.`);
+      const restored = readJson(
+        join3(current.root, ".design/revisions", input.restoreRevision, "design-document.json")
+      );
+      if (restored.layout === void 0) delete document2.layout;
+      else document2.layout = structuredClone(restored.layout);
+    } else {
+      if (!input.boards || typeof input.boards !== "object" || Array.isArray(input.boards))
+        throw new Error("Design layout boards must be an object of exact board keys.");
+      const boards = { ...document2.layout?.boards };
+      for (const [key, point] of Object.entries(input.boards)) {
+        if (!current.entries.some(
+          (entry) => `${entry.screenId}/${entry.frameId}/${entry.variantId}` === key
+        ))
+          throw new Error(`Unknown exact design board key ${key}.`);
+        if (point === null) delete boards[key];
+        else {
+          if (!point || typeof point !== "object" || Array.isArray(point) || Object.keys(point).some((field) => !["x", "y"].includes(field)) || !Number.isFinite(point.x) || !Number.isFinite(point.y) || Math.abs(point.x) > 1e7 || Math.abs(point.y) > 1e7)
+            throw new Error(
+              `Design board ${key} requires finite x and y coordinates within \xB110000000.`
+            );
+          boards[key] = { ...boards[key], x: point.x, y: point.y };
+        }
+      }
+      document2.layout = { ...document2.layout, boards };
+      if (!Object.keys(boards).length) delete document2.layout.boards;
+      if (!Object.keys(document2.layout).length) delete document2.layout;
+    }
+    assertDesignDocument(document2);
+    const indent = previous.match(/^([\t ]+)\S/mu)?.[1] ?? "";
+    const formatted = indent ? JSON.stringify(document2, null, "	").replace(
+      /^\t+/gmu,
+      (tabs) => indent.repeat(tabs.length)
+    ) : JSON.stringify(document2);
+    const written = `${formatted}${previous.endsWith("\n") ? "\n" : ""}`;
+    atomicBytes(file, written, mode);
+    try {
+      const result = await render();
+      return { revision: result.revision };
+    } catch (error) {
+      if (hash(readFileSync6(file)) !== hash(written))
+        throw Object.assign(
+          new Error(
+            `The authored document ${file} changed during the save. Its newer contents were preserved; reload before saving its layout.`,
+            { cause: error }
+          ),
+          { statusCode: 409 }
+        );
+      atomicBytes(file, previous, mode);
+      throw error;
+    }
+  });
 }
 
 export {
@@ -2536,11 +2837,16 @@ export {
   prepareArtifactDocument,
   createArtifactBridgeNonce,
   renderArtifactParentRuntime,
+  matchesDesignFrame,
   readRuntimeAsset,
   renderDesignStudio,
+  saveDesignLayout,
+  saveDesignViewContext,
+  readDesignViewContext,
   inspectDesignDocument,
   prepareDesignDocument,
   designRendererRevision,
   standaloneDesignHtml,
-  renderDesignDocument
+  renderDesignDocument,
+  withDesignRenderLock
 };

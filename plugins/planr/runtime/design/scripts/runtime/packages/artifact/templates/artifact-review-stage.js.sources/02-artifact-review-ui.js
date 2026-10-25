@@ -46,35 +46,35 @@
   function normalized(value) {
     return Math.round(clamp(value) * 1e6) / 1e6;
   }
-  function assertRect(rect) {
-    if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top) || !Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width <= 0 || rect.height <= 0) {
+  function assertRect(rect2) {
+    if (!rect2 || !Number.isFinite(rect2.left) || !Number.isFinite(rect2.top) || !Number.isFinite(rect2.width) || !Number.isFinite(rect2.height) || rect2.width <= 0 || rect2.height <= 0) {
       throw new RangeError("Artifact bounds must have positive finite dimensions.");
     }
   }
-  function clientSelectionToNormalized(rect, start, end = start, { dragThreshold = ARTIFACT_ANNOTATION_LIMITS.dragThreshold } = {}) {
-    assertRect(rect);
+  function clientSelectionToNormalized(rect2, start, end = start, { dragThreshold = ARTIFACT_ANNOTATION_LIMITS.dragThreshold } = {}) {
+    assertRect(rect2);
     const startX = clamp(
-      finite(start?.x ?? start?.clientX, rect.left),
-      rect.left,
-      rect.left + rect.width
+      finite(start?.x ?? start?.clientX, rect2.left),
+      rect2.left,
+      rect2.left + rect2.width
     );
     const startY = clamp(
-      finite(start?.y ?? start?.clientY, rect.top),
-      rect.top,
-      rect.top + rect.height
+      finite(start?.y ?? start?.clientY, rect2.top),
+      rect2.top,
+      rect2.top + rect2.height
     );
-    const endX = clamp(finite(end?.x ?? end?.clientX, startX), rect.left, rect.left + rect.width);
-    const endY = clamp(finite(end?.y ?? end?.clientY, startY), rect.top, rect.top + rect.height);
+    const endX = clamp(finite(end?.x ?? end?.clientX, startX), rect2.left, rect2.left + rect2.width);
+    const endY = clamp(finite(end?.y ?? end?.clientY, startY), rect2.top, rect2.top + rect2.height);
     const dragged = Math.hypot(endX - startX, endY - startY) >= Math.max(0, finite(dragThreshold, 4));
     const left = dragged ? Math.min(startX, endX) : startX;
     const top = dragged ? Math.min(startY, endY) : startY;
     const right = dragged ? Math.max(startX, endX) : startX;
     const bottom = dragged ? Math.max(startY, endY) : startY;
     return Object.freeze({
-      x: normalized((left - rect.left) / rect.width),
-      y: normalized((top - rect.top) / rect.height),
-      w: normalized((right - left) / rect.width),
-      h: normalized((bottom - top) / rect.height)
+      x: normalized((left - rect2.left) / rect2.width),
+      y: normalized((top - rect2.top) / rect2.height),
+      w: normalized((right - left) / rect2.width),
+      h: normalized((bottom - top) / rect2.height)
     });
   }
   function artifactAnchorPoint(region, viewport) {
@@ -271,8 +271,8 @@
       ]);
     }
     function setPinPosition(record2, region) {
-      const point2 = { x: region.x + region.w / 2, y: region.y + region.h / 2, w: 0, h: 0 };
-      setRegionStyle(record2.button, point2);
+      const point3 = { x: region.x + region.w / 2, y: region.y + region.h / 2, w: 0, h: 0 };
+      setRegionStyle(record2.button, point3);
       if (record2.region) setRegionStyle(record2.region, region);
       if (record2.button.hidden) record2.button.hidden = false;
       if (record2.region?.hidden) record2.region.hidden = false;
@@ -448,10 +448,10 @@
     }
     async function resolveAnchor(token3, candidate) {
       const frame = frameFor(candidate.artifactId);
-      const point2 = artifactAnchorPoint(candidate.region, candidate.viewport);
+      const point3 = artifactAnchorPoint(candidate.region, candidate.viewport);
       let result = null;
       try {
-        const anchor2 = frame?.__openPlanrBridge?.hitTest?.(point2.x, point2.y);
+        const anchor2 = frame?.__openPlanrBridge?.hitTest?.(point3.x, point3.y);
         if (anchor2) {
           result = await Promise.race([
             anchor2,
@@ -486,15 +486,15 @@
       composer.style.width = `${Math.min(360, availableWidth)}px`;
       composer.style.maxHeight = `${Math.min(620, availableHeight)}px`;
       const bounds2 = layer.getBoundingClientRect();
-      const point2 = {
+      const point3 = {
         x: bounds2.left + clamp(draft.displayRegion.x + draft.displayRegion.w / 2) * bounds2.width,
         y: bounds2.top + clamp(draft.displayRegion.y + draft.displayRegion.h / 2) * bounds2.height
       };
       const size = composer.getBoundingClientRect();
       const width = Math.min(size.width || 360, availableWidth), height = Math.min(size.height || 360, availableHeight);
-      const left = point2.x + 16 + width <= viewport.x + viewport.width - margin ? point2.x + 16 : point2.x - width - 16;
+      const left = point3.x + 16 + width <= viewport.x + viewport.width - margin ? point3.x + 16 : point3.x - width - 16;
       composer.style.left = `${clamp(left, viewport.x + margin, viewport.x + viewport.width - width - margin)}px`;
-      composer.style.top = `${clamp(point2.y + 16, viewport.y + margin, viewport.y + viewport.height - height - margin)}px`;
+      composer.style.top = `${clamp(point3.y + 16, viewport.y + margin, viewport.y + viewport.height - height - margin)}px`;
     }
     function openComposer(detail, { restoredDraft = null } = {}) {
       const opener = document2.activeElement;

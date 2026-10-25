@@ -9,7 +9,7 @@ import {
 import {
   LARGE_OBJECT_LIMITS,
   assertLargeObjectContract
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
+} from "./design-shared-protocol-contracts-b5f28f94.mjs";
 import {
   canonicalizeJson,
   sha256Hex

@@ -15,7 +15,9 @@ import {
 } from "./design-handoff.mjs";
 import {
   inspectDesignDocument,
+  matchesDesignFrame,
   prepareDesignDocument,
+  readDesignViewContext,
   renderDesignDocument,
   standaloneDesignHtml
 } from "./design-document.mjs";
@@ -64,7 +66,7 @@ import {
   PipelineError,
   digestArtifactEnvelope
 } from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
-import "./design-shared-protocol-contracts-31a760fc.mjs";
+import "./design-shared-protocol-contracts-b5f28f94.mjs";
 import "./design-shared-protocol-contracts-75a938cc.mjs";
 
 // packages/design/lib/design/utility.mjs
@@ -147,7 +149,7 @@ function validatePin(pin, bundle) {
   const entry = bundle.entries.find((value) => value.artifactId === pin.artifactId);
   const frame = bundle.document.frames.find((value) => value.id === entry?.frameId);
   const screen = bundle.document.screens.find((value) => value.id === entry?.screenId);
-  if (!entry || pin.viewport.width !== frame?.width || pin.viewport.height !== frame?.height)
+  if (!entry || !matchesDesignFrame(frame, pin.viewport))
     invalid("Feedback pin does not match its original screen and captured frame.");
   if (pin.variant !== void 0 && pin.variant !== entry.variantId)
     invalid("Feedback pin targets another design direction.");
@@ -422,7 +424,7 @@ async function manageDesignStudio(file, { action = "status", instanceId, env = p
 }
 
 // packages/design/lib/design/browser-audit.mjs
-function auditRenderedScreen() {
+function auditRenderedScreen({ height, frameBoundsSeverity = "warning" } = {}) {
   const issues = [];
   const add = (rule, severity, message) => issues.push({ rule, severity, message });
   const label = (node) => node.getAttribute("data-planr-id") || node.id || `${node.tagName.toLowerCase()} \u201C${(node.textContent || node.getAttribute("aria-label") || "").trim().replace(/\s+/gu, " ").slice(0, 60)}\u201D`;
@@ -432,6 +434,19 @@ function auditRenderedScreen() {
     add("screen-not-loaded", "error", "The frame has no authored design screen identity.");
   if (document.readyState !== "complete")
     add("screen-loading", "error", `The frame is still ${document.readyState}.`);
+  const documentHeight = document.documentElement.scrollHeight;
+  if (document.body && getComputedStyle(document.body).boxSizing !== "border-box")
+    add(
+      "board-root-box-sizing",
+      frameBoundsSeverity,
+      "The screen root body must use box-sizing: border-box."
+    );
+  if (height !== "auto" && documentHeight > viewport.height + 1)
+    add(
+      "vertical-overflow",
+      frameBoundsSeverity,
+      `The screen is ${documentHeight}px tall in a ${viewport.height}px frame.`
+    );
   const nodes = [...document.querySelectorAll("body *")];
   if (nodes.length > 5e3)
     add(
@@ -476,9 +491,31 @@ function auditRenderedScreen() {
   let checkedElements = 0, checkedContrast = 0, skippedContrast = 0, checkedFocus = 0;
   const focusTargets = [];
   for (const node of nodes.slice(0, 5e3)) {
+    const style = getComputedStyle(node);
+    const rect = node.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.visibility !== "collapse" && Number(style.opacity) > 0 && ["absolute", "fixed"].includes(style.position)) {
+      let { left, right, top, bottom } = rect;
+      for (let ancestor = node.parentElement; ancestor && ancestor !== document.body; ancestor = ancestor.parentElement) {
+        const clip = getComputedStyle(ancestor);
+        const bounds = ancestor.getBoundingClientRect();
+        if (["auto", "scroll", "hidden", "clip"].includes(clip.overflowX)) {
+          left = Math.max(left, bounds.left + ancestor.clientLeft);
+          right = Math.min(right, bounds.left + ancestor.clientLeft + ancestor.clientWidth);
+        }
+        if (["auto", "scroll", "hidden", "clip"].includes(clip.overflowY)) {
+          top = Math.max(top, bounds.top + ancestor.clientTop);
+          bottom = Math.min(bottom, bounds.top + ancestor.clientTop + ancestor.clientHeight);
+        }
+      }
+      if (right > left && bottom > top && (left < -1 || right > viewport.width + 1 || top < -1 || bottom > (height === "auto" ? documentHeight : viewport.height) + 1))
+        add(
+          "outside-frame",
+          frameBoundsSeverity,
+          `${label(node)} is positioned outside the frame box.`
+        );
+    }
     if (!visible(node)) continue;
     checkedElements += 1;
-    const style = getComputedStyle(node);
     const directText = [...node.childNodes].some(
       (child) => child.nodeType === 3 && child.textContent.trim()
     );
@@ -595,8 +632,62 @@ function auditRenderedScreen() {
     issues
   };
 }
-async function auditDesignPage(page, { revision, entries = [], screenshotPaths = [], scenarios = [] } = {}) {
+async function attachedArtifactFrame(page, artifactId, warn) {
+  const deadline = Date.now() + 5e3;
+  const escaped = artifactId.replace(
+    /[^a-z0-9_-]/giu,
+    (char) => `\\${char.codePointAt(0).toString(16)} `
+  );
+  const handle = await page.waitForSelector(
+    `iframe[data-planr-artifact-frame="${escaped}"], iframe[data-planr-artifact-id="${escaped}"]`,
+    { state: "attached", timeout: 5e3 }
+  );
+  try {
+    return await new Promise((resolve3, reject) => {
+      let settled = false;
+      const finish = (error, frame) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        page.off("frameattached", inspect);
+        page.off("framenavigated", inspect);
+        if (error) reject(error);
+        else resolve3(frame);
+      };
+      const inspect = async (frame) => {
+        if (settled || frame === page.mainFrame?.()) return;
+        try {
+          const candidate = await frame.frameElement();
+          let matches;
+          try {
+            matches = await handle.evaluate((element, other) => element === other, candidate);
+          } finally {
+            await candidate.dispose?.();
+          }
+          if (matches) finish(null, frame);
+        } catch (error) {
+          if (!settled) warn(error);
+        }
+      };
+      const timer = setTimeout(
+        () => finish(new Error(`No frame attached for artifact ${artifactId} within 5000ms.`)),
+        Math.max(1, deadline - Date.now())
+      );
+      page.on("frameattached", inspect);
+      page.on("framenavigated", inspect);
+      handle.contentFrame().then((frame) => {
+        if (frame) finish(null, frame);
+      }, finish);
+    });
+  } finally {
+    await handle.dispose?.();
+  }
+}
+async function auditDesignPage(page, { revision, document: document2, entries = [], screenshotPaths = [], scenarios = [] } = {}) {
+  if (!document2 || typeof document2 !== "object" || Array.isArray(document2))
+    throw new TypeError("Audit requires a design document input.");
   const issues = [], checkedArtifacts = [], screens = [];
+  const frameBoundsSeverity = document2.frames?.some((frame) => frame.height === "auto") ? "error" : "warning";
   const expected = new Map(entries.map((entry) => [entry.artifactId, entry]));
   const add = (artifactId, rule, severity, message) => issues.push({ artifactId, rule, severity, message });
   if (!entries.length || expected.size !== entries.length)
@@ -626,62 +717,125 @@ async function auditDesignPage(page, { revision, entries = [], screenshotPaths =
     };
   }
   const loaded = /* @__PURE__ */ new Set();
-  for (const frame of page.frames()) {
-    let handle, artifactId, panelState;
+  for (const entry of expected.values()) {
+    let frameHold;
     try {
-      if (frame === page.mainFrame?.()) continue;
-      handle = await frame.frameElement();
-      artifactId = await handle.getAttribute("data-planr-artifact-frame") ?? await handle.getAttribute("data-planr-artifact-id");
-      if (!expected.has(artifactId)) continue;
-      if (loaded.has(artifactId)) {
+      try {
+        frameHold = await page.evaluateHandle?.((id) => {
+          const stage = window.__openPlanrArtifactStage;
+          return stage?.frameBudget ? stage.holdFrames([id]) : null;
+        }, entry.artifactId);
+        await page.evaluate?.(async (id) => {
+          const stage = window.__openPlanrArtifactStage;
+          if (stage?.frameBudget) await stage.ensureFrames([id]);
+        }, entry.artifactId);
+      } catch (error) {
         add(
-          artifactId,
-          "duplicate-frame",
-          "error",
-          "Multiple frames claim the same artifact identity."
-        );
-        continue;
-      }
-      loaded.add(artifactId);
-      await frame.waitForLoadState?.("load", { timeout: 5e3 });
-      panelState = await handle.evaluate((element) => {
-        const panel = element.closest("[data-artifact-id]");
-        if (!panel) return null;
-        const hidden = panel.hidden;
-        panel.hidden = false;
-        return { hidden };
-      });
-      await page.keyboard?.press("Tab");
-      const result = await frame.evaluate(auditRenderedScreen);
-      if (result.screenId !== expected.get(artifactId).screenId) {
-        add(
-          artifactId,
-          "screen-identity-mismatch",
-          "error",
-          `Expected screen ${expected.get(artifactId).screenId}; loaded ${result.screenId ?? "none"}.`
-        );
-        continue;
-      }
-      checkedArtifacts.push(artifactId);
-      screens.push({ artifactId, ...result });
-      for (const issue of result.issues) add(artifactId, issue.rule, issue.severity, issue.message);
-    } catch (error) {
-      if (artifactId && expected.has(artifactId))
-        add(
-          artifactId,
+          entry.artifactId,
           "frame-load-error",
           "error",
-          `The rendered frame could not be inspected: ${error.message}`
+          `The rendered frame could not be mounted: ${error.message}`
         );
-    } finally {
-      if (panelState && handle) {
-        await handle.evaluate((element, state) => {
-          const panel = element.closest("[data-artifact-id]");
-          if (panel) panel.hidden = state.hidden;
-        }, panelState).catch(() => {
-        });
+        continue;
       }
-      await handle?.dispose?.();
+      let frames;
+      if (["waitForSelector", "on", "off"].every((method) => typeof page[method] === "function")) {
+        try {
+          const frame = await attachedArtifactFrame(
+            page,
+            entry.artifactId,
+            (error) => add(
+              entry.artifactId,
+              "frame-attachment-inspection-error",
+              "warning",
+              `A frame attachment could not be matched to artifact ${entry.artifactId}: ${error.message}`
+            )
+          );
+          frames = [frame, ...page.frames().filter((candidate) => candidate !== frame)];
+        } catch (error) {
+          add(
+            entry.artifactId,
+            "frame-load-error",
+            "error",
+            `Artifact ${entry.artifactId} has no frame attached for inspection: ${error.message}`
+          );
+          continue;
+        }
+      } else frames = page.frames();
+      for (const frame of frames) {
+        let handle, artifactId, panelState;
+        try {
+          if (frame === page.mainFrame?.()) continue;
+          handle = await frame.frameElement();
+          artifactId = await handle.getAttribute("data-planr-artifact-frame") ?? await handle.getAttribute("data-planr-artifact-id");
+          if (artifactId !== entry.artifactId) continue;
+          if (loaded.has(artifactId)) {
+            add(
+              artifactId,
+              "duplicate-frame",
+              "error",
+              "Multiple frames claim the same artifact identity."
+            );
+            continue;
+          }
+          loaded.add(artifactId);
+          await frame.waitForLoadState?.("load", { timeout: 5e3 });
+          panelState = await handle.evaluate((element) => {
+            const panel = element.closest("[data-artifact-id]");
+            if (!panel) return null;
+            const hidden = panel.hidden;
+            panel.hidden = false;
+            return { hidden };
+          });
+          await page.keyboard?.press("Tab");
+          const result = await frame.evaluate(auditRenderedScreen, {
+            height: entry.height,
+            frameBoundsSeverity
+          });
+          if (result.screenId !== entry.screenId) {
+            add(
+              artifactId,
+              "screen-identity-mismatch",
+              "error",
+              `Expected screen ${entry.screenId}; loaded ${result.screenId ?? "none"}.`
+            );
+            continue;
+          }
+          checkedArtifacts.push(artifactId);
+          screens.push({ artifactId, ...result });
+          for (const issue of result.issues)
+            add(artifactId, issue.rule, issue.severity, issue.message);
+        } catch (error) {
+          if (artifactId && expected.has(artifactId))
+            add(
+              artifactId,
+              "frame-load-error",
+              "error",
+              `The rendered frame could not be inspected: ${error.message}`
+            );
+        } finally {
+          if (panelState && handle) {
+            await handle.evaluate((element, state) => {
+              const panel = element.closest("[data-artifact-id]");
+              if (panel) panel.hidden = state.hidden;
+            }, panelState).catch(
+              (error) => add(
+                artifactId,
+                "panel-visibility-restore-error",
+                "warning",
+                `Artifact ${artifactId} panel visibility could not be restored: ${error.message}`
+              )
+            );
+          }
+          await handle?.dispose?.();
+        }
+      }
+    } finally {
+      try {
+        await frameHold?.evaluate((release) => release?.());
+      } finally {
+        await frameHold?.dispose();
+      }
     }
   }
   for (const artifactId of expected.keys()) {
@@ -737,7 +891,7 @@ function verifyDesignDocument(file, report) {
   const coverage = current.entries.every((entry) => {
     const frame = current.document.frames.find((item) => item.id === entry.frameId);
     const matches = screenEvidence.filter((item) => item?.artifactId === entry.artifactId);
-    return checkedArtifacts.includes(entry.artifactId) && matches.length === 1 && matches[0].screenId === entry.screenId && matches[0].viewport?.width === frame.width && matches[0].viewport?.height === frame.height && Number.isInteger(matches[0].checkedElements) && matches[0].checkedElements > 0;
+    return checkedArtifacts.includes(entry.artifactId) && matches.length === 1 && matches[0].screenId === entry.screenId && matchesDesignFrame(frame, matches[0].viewport) && Number.isInteger(matches[0].checkedElements) && matches[0].checkedElements > 0;
   });
   const images = (Array.isArray(report.screenshots) ? report.screenshots : []).filter((item) => {
     const path = typeof item === "string" ? item : item?.path;
@@ -778,7 +932,7 @@ async function designUtility(argv, {
 } = {}) {
   if (argv.length === 0 || argv[0] === "--help" || argv[0] === "help") {
     const help = {
-      usage: "design.mjs inspect|validate|render|open|studio|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json>",
+      usage: "design.mjs inspect|validate|render|open|studio|view-context|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json>",
       flags: [
         "--json",
         "--no-open",
@@ -791,6 +945,7 @@ async function designUtility(argv, {
         "--action inspect|export|import|select|resolve|rotate|pause|resume|revoke|delete|recovery|restore|status|stop",
         "--input <private recovery or feedback JSON file>",
         "--revision <current-render-revision>",
+        "--request-time <ISO-timestamp>",
         "--allow-stale",
         "--variant <id>",
         "--pins <id,id>",
@@ -808,6 +963,7 @@ async function designUtility(argv, {
     "render",
     "open",
     "studio",
+    "view-context",
     "export",
     "feedback",
     "verify",
@@ -818,7 +974,7 @@ async function designUtility(argv, {
     "handoff"
   ].includes(command) || !input)
     throw new Error(
-      "Usage: design.mjs inspect|validate|render|open|studio|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json> [--json] [--no-open] [--view canvas|prototype|walkthrough]"
+      "Usage: design.mjs inspect|validate|render|open|studio|view-context|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json> [--json] [--no-open] [--view canvas|prototype|walkthrough]"
     );
   const flags = {};
   for (let i = 0; i < args.length; i++) {
@@ -840,6 +996,7 @@ async function designUtility(argv, {
       "input",
       "scope",
       "revision",
+      "request-time",
       "allow-stale"
     ].includes(key))
       throw new Error(`Unknown option: ${args[i]}`);
@@ -849,6 +1006,8 @@ async function designUtility(argv, {
     throw new Error("View must be canvas, prototype, or walkthrough.");
   const file = resolve2(input);
   let result;
+  if (command === "view-context")
+    result = readDesignViewContext(file, { requestTime: flags["request-time"] });
   if (command === "studio")
     result = await manageDesignStudio(file, {
       action: flags.action,
@@ -1023,5 +1182,6 @@ export {
   auditRenderedScreen,
   designUtility,
   main,
+  readDesignViewContext,
   verifyDesignDocument
 };
