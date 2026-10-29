@@ -20,7 +20,7 @@
         throw new TypeError("A review operation needs a stable identity.");
       return JSON.stringify([scopeKey, id7]);
     };
-    let closed6 = false, draining = null;
+    let closed7 = false, draining = null;
     const listeners = /* @__PURE__ */ new Set();
     const heartbeats = /* @__PURE__ */ new Set();
     const channel = typeof globalThis.BroadcastChannel === "function" ? new globalThis.BroadcastChannel(databaseName) : null;
@@ -56,14 +56,14 @@
       request.onsuccess = () => {
         const db = request.result;
         db.onversionchange = () => db.close();
-        if (closed6) db.close();
+        if (closed7) db.close();
         resolve(db);
       };
     });
     void database.catch(() => {
     });
     async function transaction(mode, work) {
-      if (closed6) throw new Error("Review custody has closed.");
+      if (closed7) throw new Error("Review custody has closed.");
       const db = await database;
       return new Promise((resolve, reject) => {
         const tx = db.transaction("operations", mode), store = tx.objectStore("operations");
@@ -278,7 +278,7 @@
         if (draining) return draining;
         const owner = globalThis.crypto.randomUUID();
         draining = (async () => {
-          while (!closed6) {
+          while (!closed7) {
             const entry = await claim(owner);
             if (!entry) return;
             const heartbeat = globalThis.setInterval(
@@ -334,7 +334,7 @@
         return () => listeners.delete(listener);
       },
       close() {
-        closed6 = true;
+        closed7 = true;
         for (const heartbeat of heartbeats) globalThis.clearInterval(heartbeat);
         heartbeats.clear();
         channel?.close();
@@ -605,14 +605,14 @@
     if (x >= 0 && y >= 0 && w >= 0 && h >= 0 && x + w <= 1 && y + h <= 1) {
       return { x, y, w, h };
     }
-    const unit = (value) => Math.round(Math.min(1, Math.max(0, value)) * 1e6) / 1e6;
-    const boundedX = unit(x);
-    const boundedY = unit(y);
+    const unit2 = (value) => Math.round(Math.min(1, Math.max(0, value)) * 1e6) / 1e6;
+    const boundedX = unit2(x);
+    const boundedY = unit2(y);
     return {
       x: boundedX,
       y: boundedY,
-      w: Math.round(Math.min(unit(w), 1 - boundedX) * 1e6) / 1e6,
-      h: Math.round(Math.min(unit(h), 1 - boundedY) * 1e6) / 1e6
+      w: Math.round(Math.min(unit2(w), 1 - boundedX) * 1e6) / 1e6,
+      h: Math.round(Math.min(unit2(h), 1 - boundedY) * 1e6) / 1e6
     };
   }
   function normalizeViewport(viewport) {
@@ -1700,8 +1700,8 @@
       snapshotDrafts,
       getReviewOf: () => controller.getReview()?.reviewOf ?? reviewOf,
       restoreDrafts(snapshot2) {
-        const digest7 = controller.getReview()?.reviewOf ?? reviewOf;
-        if (!snapshot2 || snapshot2.reviewOf !== digest7) return false;
+        const digest8 = controller.getReview()?.reviewOf ?? reviewOf;
+        if (!snapshot2 || snapshot2.reviewOf !== digest8) return false;
         if (typeof snapshot2.identity === "string") {
           const name = snapshot2.identity.slice(0, ARTIFACT_REVIEW_LIMITS.authorName);
           controller.setIdentity(name.trim() ? { ...controller.getIdentity(), name } : null);

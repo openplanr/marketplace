@@ -25,7 +25,7 @@ import {
 } from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
 import {
   validateJson
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
+} from "./design-shared-protocol-contracts-b5f28f94.mjs";
 import {
   assertPlainData,
   canonicalizeJson,
@@ -654,7 +654,7 @@ function compileDesignHandoffReadiness(input) {
   if (input === null || input === void 0) return designHandoffReadinessAbsence();
   const source = plainClone(input);
   const document = source.document;
-  if (!document || document.kind !== "openplanr-design-document" || document.schemaVersion !== "1.0.0" || typeof document.id !== "string" || !document.id)
+  if (!document || document.kind !== "openplanr-design-document" || !["1.0.0", "1.1.0"].includes(document.schemaVersion) || typeof document.id !== "string" || !document.id)
     throw new TypeError("Readiness requires one supported design document.");
   const revision = source.sourceRevision === null || source.sourceRevision === void 0 ? null : normalizeDigest(source.sourceRevision, "design revision");
   const direction = selectedDirection(document, source.studioState);

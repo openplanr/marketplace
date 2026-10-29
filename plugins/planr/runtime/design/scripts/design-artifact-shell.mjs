@@ -3,7 +3,7 @@ import {
 } from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
 import {
   validateJson
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
+} from "./design-shared-protocol-contracts-b5f28f94.mjs";
 
 // packages/artifact/lib/artifact/ui/shell.mjs
 import { readFileSync as readFileSync2 } from "node:fs";

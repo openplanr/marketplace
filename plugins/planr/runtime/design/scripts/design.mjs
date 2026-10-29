@@ -15,7 +15,9 @@ import {
 } from "./design-handoff.mjs";
 import {
   inspectDesignDocument,
+  matchesDesignFrame,
   prepareDesignDocument,
+  readDesignViewContext,
   renderDesignDocument,
   standaloneDesignHtml
 } from "./design-document.mjs";
@@ -64,13 +66,13 @@ import {
   PipelineError,
   digestArtifactEnvelope
 } from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
-import "./design-shared-protocol-contracts-31a760fc.mjs";
+import "./design-shared-protocol-contracts-b5f28f94.mjs";
 import "./design-shared-protocol-contracts-75a938cc.mjs";
 
 // packages/design/lib/design/utility.mjs
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
-import { dirname, join as join3, resolve as resolve2 } from "node:path";
+import { existsSync as existsSync2, mkdirSync as mkdirSync2, readFileSync, realpathSync, writeFileSync as writeFileSync2 } from "node:fs";
+import { dirname as dirname2, join as join4, resolve as resolve3 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // packages/design/lib/design/feedback-import.mjs
@@ -147,7 +149,7 @@ function validatePin(pin, bundle) {
   const entry = bundle.entries.find((value) => value.artifactId === pin.artifactId);
   const frame = bundle.document.frames.find((value) => value.id === entry?.frameId);
   const screen = bundle.document.screens.find((value) => value.id === entry?.screenId);
-  if (!entry || pin.viewport.width !== frame?.width || pin.viewport.height !== frame?.height)
+  if (!entry || !matchesDesignFrame(frame, pin.viewport))
     invalid("Feedback pin does not match its original screen and captured frame.");
   if (pin.variant !== void 0 && pin.variant !== entry.variantId)
     invalid("Feedback pin targets another design direction.");
@@ -337,8 +339,234 @@ async function importDesignFeedback(file, { input, revision, allowStale = false,
   }
 }
 
+// packages/design/lib/design/font-fetch.mjs
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  renameSync,
+  rmdirSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from "node:fs";
+import { dirname, join as join2, resolve as resolve2 } from "node:path";
+var MAX_FAMILIES = 2;
+var MAX_WEIGHTS = 3;
+var TIMEOUT_MS = 2e4;
+var MAX_FILE_BYTES = 15e5;
+var MAX_TOTAL_BYTES = 5e6;
+var CSS_ENDPOINT = "https://fonts.googleapis.com/css2";
+var FONT_ORIGIN = "https://fonts.gstatic.com/";
+var CATALOG_ROOT = "https://raw.githubusercontent.com/google/fonts/main";
+var USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36";
+var LICENSES = Object.freeze([
+  {
+    directory: "ofl",
+    metadata: "OFL",
+    file: "OFL.txt",
+    id: "OFL-1.1",
+    text: /SIL Open Font License,?\s+Version 1\.1/iu
+  },
+  {
+    directory: "apache",
+    metadata: "APACHE2",
+    file: "LICENSE.txt",
+    id: "Apache-2.0",
+    text: /Apache License\s+Version 2\.0/iu
+  }
+]);
+var FAMILY_SPEC = /^([A-Za-z0-9](?:[A-Za-z0-9 ]*[A-Za-z0-9])?):(\d{3}(?:,\d{3})*)$/u;
+function parseFontFamily(spec) {
+  const match = typeof spec === "string" ? FAMILY_SPEC.exec(spec.trim()) : null;
+  if (!match)
+    throw new Error(
+      `--family ${JSON.stringify(spec ?? "")} must look like "Inter:400,600" (a name, a colon, comma-separated weights).`
+    );
+  const weights = [...new Set(match[2].split(",").map(Number))].sort((a, b) => a - b);
+  const invalid2 = weights.find((weight) => weight < 100 || weight > 900 || weight % 100 !== 0);
+  if (invalid2 !== void 0)
+    throw new Error(`--family "${spec}" has weight ${invalid2}; use 100 to 900 in steps of 100.`);
+  if (weights.length > MAX_WEIGHTS)
+    throw new Error(
+      `--family "${spec}" has ${weights.length} weights; at most ${MAX_WEIGHTS} per family.`
+    );
+  return { family: match[1], weights };
+}
+function latinFontFaces(css, family) {
+  const faces = [];
+  for (const [, subset, body] of css.matchAll(
+    /\/\*\s*([\w-]+)\s*\*\/\s*@font-face\s*\{([^}]*)\}/gu
+  )) {
+    const value = (name) => new RegExp(`(?:^|;)\\s*${name}\\s*:\\s*([^;]+)`, "iu").exec(body)?.[1].trim();
+    if (subset !== "latin" || !/^U\+0000-00FF\b/iu.test(value("unicode-range") ?? "")) continue;
+    const source = /^url\(([^)\s]+)\)\s*format\(['"]woff2['"]\)$/u.exec(value("src") ?? "");
+    if (!source?.[1].startsWith(FONT_ORIGIN))
+      throw new Error(
+        `"${family}" Latin face is not a woff2 file on ${FONT_ORIGIN}: ${value("src")}`
+      );
+    faces.push({ weight: Number(value("font-weight")), url: source[1] });
+  }
+  return faces;
+}
+async function request(fetchImpl, url, { headers, allowMissing = false, redirect } = {}) {
+  let response;
+  try {
+    response = await fetchImpl(url, {
+      headers,
+      redirect,
+      signal: AbortSignal.timeout(TIMEOUT_MS)
+    });
+  } catch (error) {
+    const reason = error?.name === "TimeoutError" ? `no response within ${TIMEOUT_MS / 1e3} s` : error?.message;
+    throw new Error(`Font fetch failed: ${url}: ${reason}`);
+  }
+  if (allowMissing && response.status === 404) return null;
+  if (!response.ok) throw new Error(`Font fetch failed: ${url}: HTTP ${response.status}`);
+  return response;
+}
+async function verifiedLicense(fetchImpl, family) {
+  const slug = family.toLowerCase().replace(/[^a-z0-9]/gu, "");
+  const tried = [];
+  for (const license of LICENSES) {
+    const base = `${CATALOG_ROOT}/${license.directory}/${slug}`;
+    tried.push(`${base}/METADATA.pb`);
+    const metadata = await request(fetchImpl, `${base}/METADATA.pb`, { allowMissing: true });
+    if (!metadata) continue;
+    const text = await metadata.text();
+    const name = /^name:\s*"([^"]*)"/mu.exec(text)?.[1];
+    const declared = /^license:\s*"([^"]*)"/mu.exec(text)?.[1];
+    if (name !== family && name?.toLowerCase() === family.toLowerCase())
+      throw new Error(`"${family}" is listed as "${name}"; use the catalog name "${name}".`);
+    if (name !== family || declared !== license.metadata)
+      throw new Error(
+        `"${family}" is not verified as ${license.id}: ${base}/METADATA.pb names ${JSON.stringify(name)} with license ${JSON.stringify(declared)}. Use the system stack.`
+      );
+    const body = Buffer.from(
+      await (await request(fetchImpl, `${base}/${license.file}`, { redirect: "error" })).arrayBuffer()
+    );
+    if (!license.text.test(body.toString("utf8")))
+      throw new Error(
+        `"${family}" is not verified as ${license.id}: ${base}/${license.file} does not contain the license text. Use the system stack.`
+      );
+    return { slug, license, body };
+  }
+  throw new Error(
+    `"${family}" is not an OFL or Apache licensed Google Fonts family (checked ${tried.join(", ")}). Use the system stack.`
+  );
+}
+async function download(fetchImpl, url) {
+  const bytes = Buffer.from(
+    await (await request(fetchImpl, url, { redirect: "error" })).arrayBuffer()
+  );
+  if (bytes.length > MAX_FILE_BYTES)
+    throw new Error(`Font file is ${bytes.length} bytes, over the ${MAX_FILE_BYTES} limit: ${url}`);
+  if (bytes.toString("latin1", 0, 4) !== "wOF2") throw new Error(`Font file is not woff2: ${url}`);
+  return bytes;
+}
+function assertWritableDestination(dest) {
+  if (!existsSync(dest)) return;
+  if (!statSync(dest).isDirectory() || readdirSync(dest).length > 0)
+    throw new Error(
+      `Font destination already exists and is not empty: ${dest}. Choose a new --dest or remove it.`
+    );
+}
+function faceRule(family, weights, file) {
+  const weight = weights.length > 1 ? `${weights[0]} ${weights.at(-1)}` : `${weights[0]}`;
+  return `@font-face {
+  font-family: "${family}";
+  font-style: normal;
+  font-weight: ${weight};
+  font-display: swap;
+  src: url("${file}") format("woff2");
+}
+`;
+}
+async function fetchDesignFonts({ families, dest, fetchImpl = fetch }) {
+  if (!dest) throw new Error("fonts fetch requires --dest <design>/source/assets/fonts.");
+  const specs = (families ?? []).map(parseFontFamily);
+  if (specs.length === 0)
+    throw new Error('fonts fetch requires at least one --family "<Name>:<weights>".');
+  if (specs.length > MAX_FAMILIES)
+    throw new Error(
+      `${specs.length} families requested (${specs.map(({ family }) => family).join(", ")}); at most ${MAX_FAMILIES}.`
+    );
+  const names = specs.map(({ family }) => family.toLowerCase());
+  if (new Set(names).size !== names.length)
+    throw new Error(
+      `--family names a family twice: ${specs.map(({ family }) => family).join(", ")}.`
+    );
+  const target = resolve2(dest);
+  assertWritableDestination(target);
+  const files = /* @__PURE__ */ new Map();
+  const rules = [];
+  const summaries = [];
+  let totalBytes = 0;
+  const add = (path, bytes) => {
+    totalBytes += bytes.length;
+    if (totalBytes > MAX_TOTAL_BYTES)
+      throw new Error(`Font snapshot exceeds ${MAX_TOTAL_BYTES} bytes at ${path}.`);
+    files.set(path, bytes);
+  };
+  for (const { family, weights } of specs) {
+    const { slug, license, body } = await verifiedLicense(fetchImpl, family);
+    const source = `${CSS_ENDPOINT}?family=${encodeURIComponent(family).replaceAll("%20", "+")}:wght@${weights.join(";")}&display=swap`;
+    const css = await (await request(fetchImpl, source, { headers: { "user-agent": USER_AGENT } })).text();
+    const faces = latinFontFaces(css, family);
+    const byUrl = /* @__PURE__ */ new Map();
+    for (const weight of weights) {
+      const face = faces.find((item) => item.weight === weight);
+      if (!face)
+        throw new Error(`"${family}" has no Latin woff2 face for weight ${weight} in ${source}`);
+      byUrl.set(face.url, [...byUrl.get(face.url) ?? [], weight]);
+    }
+    rules.push(`/* ${family} (${license.id}, ${slug}/${license.file}): ${source} */
+`);
+    for (const [url, covered] of byUrl) {
+      const range = covered.length > 1 ? `${covered[0]}-${covered.at(-1)}` : `${covered[0]}`;
+      const file = `${slug}/${slug}-${range}-latin.woff2`;
+      add(file, await download(fetchImpl, url));
+      rules.push(faceRule(family, covered, file));
+    }
+    add(`${slug}/${license.file}`, body);
+    summaries.push({
+      family,
+      license: license.id,
+      weights,
+      source,
+      licenseFile: `${slug}/${license.file}`
+    });
+  }
+  add("fonts.css", Buffer.from(rules.join("")));
+  mkdirSync(dirname(target), { recursive: true });
+  const staging = mkdtempSync(join2(dirname(target), ".fonts-fetch-"));
+  try {
+    for (const [path, bytes] of files) {
+      mkdirSync(dirname(join2(staging, path)), { recursive: true });
+      writeFileSync(join2(staging, path), bytes, { flag: "wx" });
+    }
+    assertWritableDestination(target);
+    if (existsSync(target)) rmdirSync(target);
+    chmodSync(staging, 493);
+    renameSync(staging, target);
+  } catch (error) {
+    rmSync(staging, { recursive: true, force: true });
+    throw error;
+  }
+  return {
+    ok: true,
+    dest: target,
+    css: join2(target, "fonts.css"),
+    families: summaries,
+    files: [...files].map(([path, bytes]) => ({ path, bytes: bytes.length })),
+    totalBytes
+  };
+}
+
 // packages/design/lib/design/studio-lifecycle.mjs
-import { join as join2 } from "node:path";
+import { join as join3 } from "node:path";
 function localUrl(value, service, path) {
   if (typeof value !== "string") return null;
   try {
@@ -357,7 +585,7 @@ async function manageDesignStudio(file, { action = "status", instanceId, env = p
   const services = (await listArtifactReviewServers({ env, fetchImpl })).filter(
     (service2) => service2.kind === "design" && service2.projectRoot === current.root
   );
-  const launcher = readJson(join2(current.root, ".design/server.json"), null);
+  const launcher = readJson(join3(current.root, ".design/server.json"), null);
   let service = services.find((value) => value.instanceId === (instanceId ?? launcher?.instanceId));
   if (instanceId !== void 0 && !service)
     throw new Error(
@@ -422,7 +650,7 @@ async function manageDesignStudio(file, { action = "status", instanceId, env = p
 }
 
 // packages/design/lib/design/browser-audit.mjs
-function auditRenderedScreen() {
+function auditRenderedScreen({ height, frameBoundsSeverity = "warning" } = {}) {
   const issues = [];
   const add = (rule, severity, message) => issues.push({ rule, severity, message });
   const label = (node) => node.getAttribute("data-planr-id") || node.id || `${node.tagName.toLowerCase()} \u201C${(node.textContent || node.getAttribute("aria-label") || "").trim().replace(/\s+/gu, " ").slice(0, 60)}\u201D`;
@@ -432,6 +660,19 @@ function auditRenderedScreen() {
     add("screen-not-loaded", "error", "The frame has no authored design screen identity.");
   if (document.readyState !== "complete")
     add("screen-loading", "error", `The frame is still ${document.readyState}.`);
+  const documentHeight = document.documentElement.scrollHeight;
+  if (document.body && getComputedStyle(document.body).boxSizing !== "border-box")
+    add(
+      "board-root-box-sizing",
+      frameBoundsSeverity,
+      "The screen root body must use box-sizing: border-box."
+    );
+  if (height !== "auto" && documentHeight > viewport.height + 1)
+    add(
+      "vertical-overflow",
+      frameBoundsSeverity,
+      `The screen is ${documentHeight}px tall in a ${viewport.height}px frame.`
+    );
   const nodes = [...document.querySelectorAll("body *")];
   if (nodes.length > 5e3)
     add(
@@ -476,9 +717,31 @@ function auditRenderedScreen() {
   let checkedElements = 0, checkedContrast = 0, skippedContrast = 0, checkedFocus = 0;
   const focusTargets = [];
   for (const node of nodes.slice(0, 5e3)) {
+    const style = getComputedStyle(node);
+    const rect = node.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.visibility !== "collapse" && Number(style.opacity) > 0 && ["absolute", "fixed"].includes(style.position)) {
+      let { left, right, top, bottom } = rect;
+      for (let ancestor = node.parentElement; ancestor && ancestor !== document.body; ancestor = ancestor.parentElement) {
+        const clip = getComputedStyle(ancestor);
+        const bounds = ancestor.getBoundingClientRect();
+        if (["auto", "scroll", "hidden", "clip"].includes(clip.overflowX)) {
+          left = Math.max(left, bounds.left + ancestor.clientLeft);
+          right = Math.min(right, bounds.left + ancestor.clientLeft + ancestor.clientWidth);
+        }
+        if (["auto", "scroll", "hidden", "clip"].includes(clip.overflowY)) {
+          top = Math.max(top, bounds.top + ancestor.clientTop);
+          bottom = Math.min(bottom, bounds.top + ancestor.clientTop + ancestor.clientHeight);
+        }
+      }
+      if (right > left && bottom > top && (left < -1 || right > viewport.width + 1 || top < -1 || bottom > (height === "auto" ? documentHeight : viewport.height) + 1))
+        add(
+          "outside-frame",
+          frameBoundsSeverity,
+          `${label(node)} is positioned outside the frame box.`
+        );
+    }
     if (!visible(node)) continue;
     checkedElements += 1;
-    const style = getComputedStyle(node);
     const directText = [...node.childNodes].some(
       (child) => child.nodeType === 3 && child.textContent.trim()
     );
@@ -595,8 +858,62 @@ function auditRenderedScreen() {
     issues
   };
 }
-async function auditDesignPage(page, { revision, entries = [], screenshotPaths = [], scenarios = [] } = {}) {
+async function attachedArtifactFrame(page, artifactId, warn) {
+  const deadline = Date.now() + 5e3;
+  const escaped = artifactId.replace(
+    /[^a-z0-9_-]/giu,
+    (char) => `\\${char.codePointAt(0).toString(16)} `
+  );
+  const handle = await page.waitForSelector(
+    `iframe[data-planr-artifact-frame="${escaped}"], iframe[data-planr-artifact-id="${escaped}"]`,
+    { state: "attached", timeout: 5e3 }
+  );
+  try {
+    return await new Promise((resolve4, reject) => {
+      let settled = false;
+      const finish = (error, frame) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        page.off("frameattached", inspect);
+        page.off("framenavigated", inspect);
+        if (error) reject(error);
+        else resolve4(frame);
+      };
+      const inspect = async (frame) => {
+        if (settled || frame === page.mainFrame?.()) return;
+        try {
+          const candidate = await frame.frameElement();
+          let matches;
+          try {
+            matches = await handle.evaluate((element, other) => element === other, candidate);
+          } finally {
+            await candidate.dispose?.();
+          }
+          if (matches) finish(null, frame);
+        } catch (error) {
+          if (!settled) warn(error);
+        }
+      };
+      const timer = setTimeout(
+        () => finish(new Error(`No frame attached for artifact ${artifactId} within 5000ms.`)),
+        Math.max(1, deadline - Date.now())
+      );
+      page.on("frameattached", inspect);
+      page.on("framenavigated", inspect);
+      handle.contentFrame().then((frame) => {
+        if (frame) finish(null, frame);
+      }, finish);
+    });
+  } finally {
+    await handle.dispose?.();
+  }
+}
+async function auditDesignPage(page, { revision, document: document2, entries = [], screenshotPaths = [], scenarios = [] } = {}) {
+  if (!document2 || typeof document2 !== "object" || Array.isArray(document2))
+    throw new TypeError("Audit requires a design document input.");
   const issues = [], checkedArtifacts = [], screens = [];
+  const frameBoundsSeverity = document2.frames?.some((frame) => frame.height === "auto") ? "error" : "warning";
   const expected = new Map(entries.map((entry) => [entry.artifactId, entry]));
   const add = (artifactId, rule, severity, message) => issues.push({ artifactId, rule, severity, message });
   if (!entries.length || expected.size !== entries.length)
@@ -626,62 +943,125 @@ async function auditDesignPage(page, { revision, entries = [], screenshotPaths =
     };
   }
   const loaded = /* @__PURE__ */ new Set();
-  for (const frame of page.frames()) {
-    let handle, artifactId, panelState;
+  for (const entry of expected.values()) {
+    let frameHold;
     try {
-      if (frame === page.mainFrame?.()) continue;
-      handle = await frame.frameElement();
-      artifactId = await handle.getAttribute("data-planr-artifact-frame") ?? await handle.getAttribute("data-planr-artifact-id");
-      if (!expected.has(artifactId)) continue;
-      if (loaded.has(artifactId)) {
+      try {
+        frameHold = await page.evaluateHandle?.((id) => {
+          const stage = window.__openPlanrArtifactStage;
+          return stage?.frameBudget ? stage.holdFrames([id]) : null;
+        }, entry.artifactId);
+        await page.evaluate?.(async (id) => {
+          const stage = window.__openPlanrArtifactStage;
+          if (stage?.frameBudget) await stage.ensureFrames([id]);
+        }, entry.artifactId);
+      } catch (error) {
         add(
-          artifactId,
-          "duplicate-frame",
-          "error",
-          "Multiple frames claim the same artifact identity."
-        );
-        continue;
-      }
-      loaded.add(artifactId);
-      await frame.waitForLoadState?.("load", { timeout: 5e3 });
-      panelState = await handle.evaluate((element) => {
-        const panel = element.closest("[data-artifact-id]");
-        if (!panel) return null;
-        const hidden = panel.hidden;
-        panel.hidden = false;
-        return { hidden };
-      });
-      await page.keyboard?.press("Tab");
-      const result = await frame.evaluate(auditRenderedScreen);
-      if (result.screenId !== expected.get(artifactId).screenId) {
-        add(
-          artifactId,
-          "screen-identity-mismatch",
-          "error",
-          `Expected screen ${expected.get(artifactId).screenId}; loaded ${result.screenId ?? "none"}.`
-        );
-        continue;
-      }
-      checkedArtifacts.push(artifactId);
-      screens.push({ artifactId, ...result });
-      for (const issue of result.issues) add(artifactId, issue.rule, issue.severity, issue.message);
-    } catch (error) {
-      if (artifactId && expected.has(artifactId))
-        add(
-          artifactId,
+          entry.artifactId,
           "frame-load-error",
           "error",
-          `The rendered frame could not be inspected: ${error.message}`
+          `The rendered frame could not be mounted: ${error.message}`
         );
-    } finally {
-      if (panelState && handle) {
-        await handle.evaluate((element, state) => {
-          const panel = element.closest("[data-artifact-id]");
-          if (panel) panel.hidden = state.hidden;
-        }, panelState).catch(() => {
-        });
+        continue;
       }
-      await handle?.dispose?.();
+      let frames;
+      if (["waitForSelector", "on", "off"].every((method) => typeof page[method] === "function")) {
+        try {
+          const frame = await attachedArtifactFrame(
+            page,
+            entry.artifactId,
+            (error) => add(
+              entry.artifactId,
+              "frame-attachment-inspection-error",
+              "warning",
+              `A frame attachment could not be matched to artifact ${entry.artifactId}: ${error.message}`
+            )
+          );
+          frames = [frame, ...page.frames().filter((candidate) => candidate !== frame)];
+        } catch (error) {
+          add(
+            entry.artifactId,
+            "frame-load-error",
+            "error",
+            `Artifact ${entry.artifactId} has no frame attached for inspection: ${error.message}`
+          );
+          continue;
+        }
+      } else frames = page.frames();
+      for (const frame of frames) {
+        let handle, artifactId, panelState;
+        try {
+          if (frame === page.mainFrame?.()) continue;
+          handle = await frame.frameElement();
+          artifactId = await handle.getAttribute("data-planr-artifact-frame") ?? await handle.getAttribute("data-planr-artifact-id");
+          if (artifactId !== entry.artifactId) continue;
+          if (loaded.has(artifactId)) {
+            add(
+              artifactId,
+              "duplicate-frame",
+              "error",
+              "Multiple frames claim the same artifact identity."
+            );
+            continue;
+          }
+          loaded.add(artifactId);
+          await frame.waitForLoadState?.("load", { timeout: 5e3 });
+          panelState = await handle.evaluate((element) => {
+            const panel = element.closest("[data-artifact-id]");
+            if (!panel) return null;
+            const hidden = panel.hidden;
+            panel.hidden = false;
+            return { hidden };
+          });
+          await page.keyboard?.press("Tab");
+          const result = await frame.evaluate(auditRenderedScreen, {
+            height: entry.height,
+            frameBoundsSeverity
+          });
+          if (result.screenId !== entry.screenId) {
+            add(
+              artifactId,
+              "screen-identity-mismatch",
+              "error",
+              `Expected screen ${entry.screenId}; loaded ${result.screenId ?? "none"}.`
+            );
+            continue;
+          }
+          checkedArtifacts.push(artifactId);
+          screens.push({ artifactId, ...result });
+          for (const issue of result.issues)
+            add(artifactId, issue.rule, issue.severity, issue.message);
+        } catch (error) {
+          if (artifactId && expected.has(artifactId))
+            add(
+              artifactId,
+              "frame-load-error",
+              "error",
+              `The rendered frame could not be inspected: ${error.message}`
+            );
+        } finally {
+          if (panelState && handle) {
+            await handle.evaluate((element, state) => {
+              const panel = element.closest("[data-artifact-id]");
+              if (panel) panel.hidden = state.hidden;
+            }, panelState).catch(
+              (error) => add(
+                artifactId,
+                "panel-visibility-restore-error",
+                "warning",
+                `Artifact ${artifactId} panel visibility could not be restored: ${error.message}`
+              )
+            );
+          }
+          await handle?.dispose?.();
+        }
+      }
+    } finally {
+      try {
+        await frameHold?.evaluate((release) => release?.());
+      } finally {
+        await frameHold?.dispose();
+      }
     }
   }
   for (const artifactId of expected.keys()) {
@@ -737,12 +1117,12 @@ function verifyDesignDocument(file, report) {
   const coverage = current.entries.every((entry) => {
     const frame = current.document.frames.find((item) => item.id === entry.frameId);
     const matches = screenEvidence.filter((item) => item?.artifactId === entry.artifactId);
-    return checkedArtifacts.includes(entry.artifactId) && matches.length === 1 && matches[0].screenId === entry.screenId && matches[0].viewport?.width === frame.width && matches[0].viewport?.height === frame.height && Number.isInteger(matches[0].checkedElements) && matches[0].checkedElements > 0;
+    return checkedArtifacts.includes(entry.artifactId) && matches.length === 1 && matches[0].screenId === entry.screenId && matchesDesignFrame(frame, matches[0].viewport) && Number.isInteger(matches[0].checkedElements) && matches[0].checkedElements > 0;
   });
   const images = (Array.isArray(report.screenshots) ? report.screenshots : []).filter((item) => {
     const path = typeof item === "string" ? item : item?.path;
     try {
-      return typeof path === "string" && isPng(readFileSync(resolve2(path)));
+      return typeof path === "string" && isPng(readFileSync(resolve3(path)));
     } catch {
       return false;
     }
@@ -766,7 +1146,7 @@ function verifyDesignDocument(file, report) {
     screenshotCount: images.length,
     primaryJourneysChecked: Boolean(journeys)
   };
-  atomicJson(join3(current.root, ".design/verification", `${current.revision}.json`), saved);
+  atomicJson(join4(current.root, ".design/verification", `${current.revision}.json`), saved);
   return saved;
 }
 async function designUtility(argv, {
@@ -778,7 +1158,7 @@ async function designUtility(argv, {
 } = {}) {
   if (argv.length === 0 || argv[0] === "--help" || argv[0] === "help") {
     const help = {
-      usage: "design.mjs inspect|validate|render|open|studio|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json>",
+      usage: 'design.mjs inspect|validate|render|open|studio|view-context|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json> | design.mjs fonts fetch --family "<Name>:<weights>" [--family ...] --dest <dir>',
       flags: [
         "--json",
         "--no-open",
@@ -791,12 +1171,15 @@ async function designUtility(argv, {
         "--action inspect|export|import|select|resolve|rotate|pause|resume|revoke|delete|recovery|restore|status|stop",
         "--input <private recovery or feedback JSON file>",
         "--revision <current-render-revision>",
+        "--request-time <ISO-timestamp>",
         "--allow-stale",
         "--variant <id>",
         "--pins <id,id>",
-        "--summary <text>"
+        "--summary <text>",
+        "--family <Name>:<weight,weight> (fonts fetch; at most 2 families, 3 weights each)",
+        "--dest <design>/source/assets/fonts (fonts fetch)"
       ],
-      note: "The host authors design sources. This utility only validates, renders, reviews and exports them."
+      note: "The host authors design sources. This utility only validates, renders, reviews and exports them; fonts fetch downloads open-license fonts only when run."
     };
     stdout(help);
     return help;
@@ -808,6 +1191,7 @@ async function designUtility(argv, {
     "render",
     "open",
     "studio",
+    "view-context",
     "export",
     "feedback",
     "verify",
@@ -815,10 +1199,11 @@ async function designUtility(argv, {
     "publish",
     "sync",
     "manage",
-    "handoff"
+    "handoff",
+    "fonts"
   ].includes(command) || !input)
     throw new Error(
-      "Usage: design.mjs inspect|validate|render|open|studio|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json> [--json] [--no-open] [--view canvas|prototype|walkthrough]"
+      'Usage: design.mjs inspect|validate|render|open|studio|view-context|export|feedback|verify|share|publish|sync|manage|handoff <design-document.json> [--json] [--no-open] [--view canvas|prototype|walkthrough] | design.mjs fonts fetch --family "<Name>:<weights>" [--family ...] --dest <dir>'
     );
   const flags = {};
   for (let i = 0; i < args.length; i++) {
@@ -840,15 +1225,32 @@ async function designUtility(argv, {
       "input",
       "scope",
       "revision",
-      "allow-stale"
+      "request-time",
+      "allow-stale",
+      "family",
+      "dest"
     ].includes(key))
       throw new Error(`Unknown option: ${args[i]}`);
-    flags[key] = ["json", "no-open", "allow-stale"].includes(key) ? true : args[++i];
+    if (["family", "dest"].includes(key) && command !== "fonts")
+      throw new Error(`Unknown option for ${command}: ${args[i]}`);
+    if (key === "family") flags.family = [...flags.family ?? [], args[++i]];
+    else flags[key] = ["json", "no-open", "allow-stale"].includes(key) ? true : args[++i];
   }
   if (flags.view && !["canvas", "prototype", "walkthrough"].includes(flags.view))
     throw new Error("View must be canvas, prototype, or walkthrough.");
-  const file = resolve2(input);
+  if (command === "fonts") {
+    if (input !== "fetch")
+      throw new Error(
+        'Usage: design.mjs fonts fetch --family "<Name>:<weights>" [--family ...] --dest <dir>'
+      );
+    const result2 = await fetchDesignFonts({ families: flags.family, dest: flags.dest, fetchImpl });
+    stdout(result2);
+    return result2;
+  }
+  const file = resolve3(input);
   let result;
+  if (command === "view-context")
+    result = readDesignViewContext(file, { requestTime: flags["request-time"] });
   if (command === "studio")
     result = await manageDesignStudio(file, {
       action: flags.action,
@@ -861,7 +1263,7 @@ async function designUtility(argv, {
     if (action === "inspect") result = readDesignHandoff(file);
     else {
       const snapshot = readDesignHandoff(file);
-      const input2 = flags.input ? readJson(resolve2(flags.input)) : {};
+      const input2 = flags.input ? readJson(resolve3(flags.input)) : {};
       result = await updateDesignHandoff(file, {
         ...input2,
         action,
@@ -915,21 +1317,21 @@ async function designUtility(argv, {
   }
   if (command === "export") {
     const current = currentDesign(file), view = flags.view ?? current.document.defaultView;
-    const state = readJson(join3(current.root, ".design/studio-state.json"), { state: {} }).state;
+    const state = readJson(join4(current.root, ".design/studio-state.json"), { state: {} }).state;
     if (flags.format && flags.format !== "html")
       throw new Error(
         "Portable export supports HTML. Use the studio PNG action for browser-rendered captures."
       );
-    const output = resolve2(flags.output ?? join3(current.root, `${view}-export.html`));
-    if (existsSync(output))
+    const output = resolve3(flags.output ?? join4(current.root, `${view}-export.html`));
+    if (existsSync2(output))
       throw new Error(`Export already exists: ${output}. Choose a new --output path.`);
-    mkdirSync(dirname(output), { recursive: true });
-    writeFileSync(output, standaloneDesignHtml({ ...current, state }, view), { flag: "wx" });
+    mkdirSync2(dirname2(output), { recursive: true });
+    writeFileSync2(output, standaloneDesignHtml({ ...current, state }, view), { flag: "wx" });
     result = { ok: true, output, view, revision: current.revision };
   }
   if (command === "verify") {
     if (!flags.report) throw new Error("verify requires --report <browser-report.json>.");
-    result = verifyDesignDocument(file, readJson(resolve2(flags.report)));
+    result = verifyDesignDocument(file, readJson(resolve3(flags.report)));
   }
   if (command === "feedback") {
     const action = flags.action ?? "inspect";
@@ -949,12 +1351,12 @@ async function designUtility(argv, {
       if (!["current", "all"].includes(scope))
         throw new Error("Feedback export scope must be current or all.");
       if (!flags.output) throw new Error("Feedback export requires --output <path>.");
-      const output = resolve2(flags.output);
-      if (existsSync(output))
+      const output = resolve3(flags.output);
+      if (existsSync2(output))
         throw new Error("Feedback export already exists. Choose a new --output path.");
       const snapshot = exportDesignReview(file, { scope, env });
-      mkdirSync(dirname(output), { recursive: true });
-      writeFileSync(output, serializeDesignReviewExport(snapshot, format), {
+      mkdirSync2(dirname2(output), { recursive: true });
+      writeFileSync2(output, serializeDesignReviewExport(snapshot, format), {
         flag: "wx",
         mode: 384
       });
@@ -973,7 +1375,7 @@ async function designUtility(argv, {
         env
       });
     else if (action === "select") {
-      const current = currentDesign(file), saved = readJson(join3(current.root, ".design/studio-state.json"), {
+      const current = currentDesign(file), saved = readJson(join4(current.root, ".design/studio-state.json"), {
         state: {},
         stateVersion: 0
       });
@@ -1023,5 +1425,6 @@ export {
   auditRenderedScreen,
   designUtility,
   main,
+  readDesignViewContext,
   verifyDesignDocument
 };
