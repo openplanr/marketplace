@@ -1648,23 +1648,23 @@
     }
     return Object.freeze([state.activeArtifactId]);
   }
-  function assertRect2(rect) {
-    if (!rect || !Number.isFinite(rect.left) || !Number.isFinite(rect.top) || !Number.isFinite(rect.width) || !Number.isFinite(rect.height) || rect.width <= 0 || rect.height <= 0) {
+  function assertRect2(rect2) {
+    if (!rect2 || !Number.isFinite(rect2.left) || !Number.isFinite(rect2.top) || !Number.isFinite(rect2.width) || !Number.isFinite(rect2.height) || rect2.width <= 0 || rect2.height <= 0) {
       throw new RangeError("Artifact bounds must have positive finite dimensions.");
     }
   }
-  function clientPointToNormalized(rect, point2) {
-    assertRect2(rect);
+  function clientPointToNormalized(rect2, point3) {
+    assertRect2(rect2);
     return Object.freeze({
-      x: normalized2((finite2(point2?.x ?? point2?.clientX) - rect.left) / rect.width),
-      y: normalized2((finite2(point2?.y ?? point2?.clientY) - rect.top) / rect.height)
+      x: normalized2((finite2(point3?.x ?? point3?.clientX) - rect2.left) / rect2.width),
+      y: normalized2((finite2(point3?.y ?? point3?.clientY) - rect2.top) / rect2.height)
     });
   }
-  function normalizedPointToClient(rect, point2) {
-    assertRect2(rect);
+  function normalizedPointToClient(rect2, point3) {
+    assertRect2(rect2);
     return Object.freeze({
-      x: rect.left + normalized2(point2?.x) * rect.width,
-      y: rect.top + normalized2(point2?.y) * rect.height
+      x: rect2.left + normalized2(point3?.x) * rect2.width,
+      y: rect2.top + normalized2(point3?.y) * rect2.height
     });
   }
   function parseDataScript(document2, id7) {
@@ -1786,6 +1786,8 @@
     }
     const frameDiagnostics = /* @__PURE__ */ new Map();
     const frameLoads = /* @__PURE__ */ new Map();
+    const frameHolds = /* @__PURE__ */ new Map();
+    const frameHoldWaiters = /* @__PURE__ */ new Set();
     const frameSlots = /* @__PURE__ */ new Map();
     if (frameBudget !== null) {
       for (const [id7, frame] of frames) {
@@ -2184,12 +2186,14 @@
     function disposeStage() {
       if (disposed) return true;
       disposed = true;
+      wakeFrameDemand();
       for (const id7 of [...frameLoads.keys()]) releaseFrame(id7);
       for (const remove of cleanup.splice(0)) remove();
       return true;
     }
     const controller = Object.freeze({
       frameBudget,
+      holdFrames,
       ensureFrames,
       retryFrames,
       getFrameDiagnostics: () => [...frameDiagnostics.values()],
@@ -2311,6 +2315,7 @@
       const record2 = frameLoads.get(artifactId);
       if (!record2) return;
       frameLoads.delete(artifactId);
+      wakeFrameDemand();
       record2.cancelled = true;
       record2.abort.abort();
       record2.unlisten?.();
@@ -2482,6 +2487,29 @@
       })().catch(fail);
       return record2.promise;
     }
+    function wakeFrameDemand() {
+      for (const resolve of frameHoldWaiters) resolve();
+      frameHoldWaiters.clear();
+    }
+    function holdFrames(artifactIds) {
+      if (disposed) throw cancelledFrame();
+      if (!Array.isArray(artifactIds) || artifactIds.some((id7) => !frames.has(id7))) {
+        throw new TypeError("Requested artifact frames must be known artifact IDs.");
+      }
+      const ids2 = [...new Set(artifactIds)];
+      for (const id7 of ids2) frameHolds.set(id7, (frameHolds.get(id7) ?? 0) + 1);
+      let released = false;
+      return () => {
+        if (released) return;
+        released = true;
+        for (const id7 of ids2) {
+          const count2 = frameHolds.get(id7) ?? 0;
+          if (count2 > 1) frameHolds.set(id7, count2 - 1);
+          else frameHolds.delete(id7);
+        }
+        wakeFrameDemand();
+      };
+    }
     function ensureFrames(artifactIds, isCurrent = () => true) {
       if (disposed || !isCurrent()) return Promise.reject(cancelledFrame());
       if (!Array.isArray(artifactIds) || artifactIds.some((id7) => typeof id7 !== "string" || !frames.has(id7))) {
@@ -2493,7 +2521,7 @@
           new RangeError(`At most ${frameBudget} artifact frames may be requested together.`)
         );
       }
-      if (frameBudget === null)
+      if (frameBudget === null || requested.every((id7) => frameLoads.has(id7)))
         return Promise.all(requested.map((id7) => assignArtifactSource(stageArtifactById(state, id7))));
       const run = async () => {
         if (disposed || !isCurrent()) throw cancelledFrame();
@@ -2501,8 +2529,13 @@
           if (disposed || !isCurrent()) throw cancelledFrame();
           if (!frameLoads.has(id7)) {
             while (frameLoads.size >= frameBudget) {
-              const candidates = [...frameLoads].filter(([loadedId]) => !requested.includes(loadedId)).sort((a, b) => a[1].used - b[1].used);
-              if (!candidates.length) throw new Error("The artifact frame budget is exhausted.");
+              const candidates = [...frameLoads].filter(([loadedId]) => !requested.includes(loadedId) && !frameHolds.has(loadedId)).sort((a, b) => a[1].used - b[1].used);
+              if (!candidates.length) {
+                if (!frameHolds.size) throw new Error("The artifact frame budget is exhausted.");
+                await new Promise((resolve) => frameHoldWaiters.add(resolve));
+                if (disposed || !isCurrent()) throw cancelledFrame();
+                continue;
+              }
               releaseFrame(candidates[0][0]);
             }
           }
@@ -2527,7 +2560,7 @@
     }
     function cancelInactiveLoads(ids2) {
       for (const [id7, record2] of frameLoads) {
-        if (record2.status === "loading" && !ids2.includes(id7)) releaseFrame(id7);
+        if (record2.status === "loading" && !ids2.includes(id7) && !frameHolds.has(id7)) releaseFrame(id7);
       }
     }
     async function activateVisibleFrames() {

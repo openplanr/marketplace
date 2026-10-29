@@ -2,8 +2,8 @@
   "kind": "openplanr-runtime-asset-sources",
   "schemaVersion": "1.0.0",
   "asset": "studio.js",
-  "bytes": 1249882,
-  "sha256": "48fcbdfa9f85b4bba49ab4237e8bf0427d0f07e129b1be2c6b8cb4d0f54ebdfa",
+  "bytes": 1323319,
+  "sha256": "10dcbf9b4ee2a039f4b6502d741bb9064d668f7ff776f311330e83f2086eccec",
   "scopes": [
     {
       "id": "bundle",
@@ -24,8 +24,8 @@
       "scope": "bundle",
       "responsibility": "module-runtime",
       "inputs": [],
-      "bytes": 1566,
-      "sha256": "5effe6d3118d9ea5ae57790a01c98fd7a48411b36e9baf97cffa3f962f6a4393"
+      "bytes": 1518,
+      "sha256": "d7257e815dfb8b4b1f3c8955fa2962e0c4f4ad5ebbde1df57509611b0d521760"
     },
     {
       "path": "studio.js.sources/02-react.js",
@@ -41,8 +41,8 @@
         "node_modules/scheduler/cjs/scheduler.production.js",
         "node_modules/scheduler/index.js"
       ],
-      "bytes": 42312,
-      "sha256": "3d07031b0e1ebfe8d00491d70eb876cdd9ec829801ec3df4fc5aa72205b5ea7f"
+      "bytes": 40773,
+      "sha256": "a71e51391e9b730dd958c618d78eca7f08afdba44c6deaec659cc74407f60a62"
     },
     {
       "path": "studio.js.sources/03-react-dom-client-fiber-foundations.js",
@@ -51,8 +51,8 @@
       "inputs": [
         "node_modules/react-dom/cjs/react-dom-client.production.js"
       ],
-      "bytes": 125924,
-      "sha256": "793a627a349d139397ff51c837c7cc911b08b34a49e5629af0c7967e5cb89715"
+      "bytes": 120492,
+      "sha256": "37386eb028430c9375d3777fad5c4745501ee5342b02363b5cf2597a5c33b960"
     },
     {
       "path": "studio.js.sources/04-react-dom-client-reconciliation-hooks.js",
@@ -61,8 +61,8 @@
       "inputs": [
         "node_modules/react-dom/cjs/react-dom-client.production.js"
       ],
-      "bytes": 89353,
-      "sha256": "3839e5bdcca072a612ec48fffb6e340083f4692c516a2aeb9c8c8896ab4ea6a4"
+      "bytes": 85394,
+      "sha256": "aa01a79a3b2a2c333d9e716fe75df8595dbde0c9e09d4e8ea3c04ed1d913761e"
     },
     {
       "path": "studio.js.sources/05-react-dom-client-render-phases.js",
@@ -71,8 +71,8 @@
       "inputs": [
         "node_modules/react-dom/cjs/react-dom-client.production.js"
       ],
-      "bytes": 103002,
-      "sha256": "f057d07ab68567daebe124fe103d88157ee4ce68177e21d1a2166debf424309f"
+      "bytes": 97493,
+      "sha256": "e441c6ae846e34791261a3c76d4ec0f1acf3e70a320e5db06cc006b0f2a31072"
     },
     {
       "path": "studio.js.sources/06-react-dom-client-commit-effects.js",
@@ -81,8 +81,8 @@
       "inputs": [
         "node_modules/react-dom/cjs/react-dom-client.production.js"
       ],
-      "bytes": 106377,
-      "sha256": "67291903232cb09062344ef0770638c9882a76178adba57c9a67f72bbdb80cbb"
+      "bytes": 101415,
+      "sha256": "66462120b41a9813afb78432be05252e65d079544a4400b8791a913cd841ab04"
     },
     {
       "path": "studio.js.sources/07-react-dom-client-work-loop-scheduling.js",
@@ -91,8 +91,8 @@
       "inputs": [
         "node_modules/react-dom/cjs/react-dom-client.production.js"
       ],
-      "bytes": 60129,
-      "sha256": "ed6b1c356c341efa060072cffa2a61fcbb425655bd00c8b58dc5b50a13d5a3ad"
+      "bytes": 57333,
+      "sha256": "fa779175487a6a6b30d30e973b00b20929d563e034e3e5bc6c0f7988d256ba44"
     },
     {
       "path": "studio.js.sources/08-react-dom-client-dom-events-properties-hydration.js",
@@ -101,8 +101,8 @@
       "inputs": [
         "node_modules/react-dom/cjs/react-dom-client.production.js"
       ],
-      "bytes": 142294,
-      "sha256": "fae78a4ea2c320638ca51a504b26dba90440d72882afdf1edf7ac49fe24853b6"
+      "bytes": 136883,
+      "sha256": "f1fdfb286aa0f769cec3fe1b5e11e140cf9590283ee55393efcb2921d273e449"
     },
     {
       "path": "studio.js.sources/09-react-dom-client-public-roots.js",
@@ -111,8 +111,8 @@
       "inputs": [
         "node_modules/react-dom/cjs/react-dom-client.production.js"
       ],
-      "bytes": 31832,
-      "sha256": "adca04c0e9079e354d467d17aaa6f49423611d290661f0cbbd7610545a98825e"
+      "bytes": 30441,
+      "sha256": "7e5c20997dc0ec69609fa5983db9daf426ab2e4da798969be45bc037cb6285d6"
     },
     {
       "path": "studio.js.sources/10-react.js",
@@ -121,8 +121,8 @@
       "inputs": [
         "node_modules/react-dom/client.js"
       ],
-      "bytes": 735,
-      "sha256": "29b9916aeb8efb3348ef57c9a8f6180eb06b1ba2f8b33fbed5962d0b27aa21f9"
+      "bytes": 560,
+      "sha256": "ded19a3a30319504f38583ecc90be2849d3e3cc49704004b310cb442e26beba8"
     },
     {
       "path": "studio.js.sources/11-artifact-review-ui.js",
@@ -131,35 +131,89 @@
       "inputs": [
         "packages/artifact/lib/artifact/ui/stage-mount.mjs"
       ],
-      "bytes": 433,
-      "sha256": "00d5fc627d9316df1e8a76a25383dca90b103ef00a91af7753491ab19e256c70"
+      "bytes": 416,
+      "sha256": "413ac16c2a6af1ebc8b8b37f7881ad33718e702f4d150b339b9283e5b891fcae"
     },
     {
-      "path": "studio.js.sources/12-design-review-experience.js",
+      "path": "studio.js.sources/12-protocol-contracts.js",
+      "scope": "bundle",
+      "responsibility": "protocol-contracts",
+      "inputs": [
+        "packages/protocol/src/design-contracts.mjs"
+      ],
+      "bytes": 9576,
+      "sha256": "b94ce32e28be39b4c0c524039f27302c38402ea16cbb37845d6fbda2e83350ce"
+    },
+    {
+      "path": "studio.js.sources/13-design-review-experience.js",
       "scope": "bundle",
       "responsibility": "design-review-experience",
       "inputs": [
+        "packages/design/lib/design/frame-size.mjs",
         "packages/design/lib/design/review-export.mjs",
         "packages/design/lib/design/ui/enhancements.mjs",
         "packages/design/lib/design/ui/handoff-center.mjs"
       ],
-      "bytes": 152776,
-      "sha256": "9e2ac3d6b99028c7335aacf548f9e04fdf709d15f889db3e35bbebc389631000"
+      "bytes": 144281,
+      "sha256": "84f4fe26fdd473a8858766a433986cc60e60639906da15a0f3244c4b5a5adc5f"
     },
     {
-      "path": "studio.js.sources/13-studio-shell.js",
+      "path": "studio.js.sources/14-studio-shell.js",
       "scope": "bundle",
       "responsibility": "studio-shell",
       "inputs": [
-        "packages/artifact/lib/artifact/ui/prototype-state.mjs",
+        "packages/artifact/lib/artifact/ui/prototype-state.mjs"
+      ],
+      "bytes": 8691,
+      "sha256": "2d4d83be20560d1a05d25210adb3b4f9d9e26665896c46396b1526bb90cefa68"
+    },
+    {
+      "path": "studio.js.sources/15-canvas-engine.js",
+      "scope": "bundle",
+      "responsibility": "canvas-engine",
+      "inputs": [
+        "packages/canvas/src/announcer.mjs",
+        "packages/canvas/src/camera.mjs",
+        "packages/canvas/src/controller.mjs",
+        "packages/canvas/src/culling.mjs",
+        "packages/canvas/src/edges.mjs",
+        "packages/canvas/src/focus.mjs",
+        "packages/canvas/src/frame-loader.mjs",
+        "packages/canvas/src/frames.mjs",
+        "packages/canvas/src/input.mjs",
+        "packages/canvas/src/keyboard.mjs",
+        "packages/canvas/src/lod.mjs",
+        "packages/canvas/src/outline.mjs",
+        "packages/canvas/src/overview.mjs",
+        "packages/canvas/src/safe-area.mjs",
+        "packages/canvas/src/spatial-grid.mjs"
+      ],
+      "bytes": 110664,
+      "sha256": "457b785e01410722ba42aa372ac2b1e82f73fdc134a6d1c4d068bd16cd83c230"
+    },
+    {
+      "path": "studio.js.sources/16-design-review-experience.js",
+      "scope": "bundle",
+      "responsibility": "design-review-experience",
+      "inputs": [
+        "packages/design/lib/design/ui/layout.mjs"
+      ],
+      "bytes": 1493,
+      "sha256": "7996ba2a260ceb903428bad54e9801f2ac43c92ba92c99e221558e77e6185327"
+    },
+    {
+      "path": "studio.js.sources/17-studio-shell.js",
+      "scope": "bundle",
+      "responsibility": "studio-shell",
+      "inputs": [
         "packages/artifact/lib/artifact/ui/studio-shell-components.mjs",
         "packages/artifact/lib/artifact/ui/studio-shell-mount-impl.mjs"
       ],
-      "bytes": 9667,
-      "sha256": "36da0a2d8142c60bc495d34c7693888d91aa7f77a271107c6dfdbfc79456d3c9"
+      "bytes": 402,
+      "sha256": "4a2fb2aa3f6db3822c6f441b4dcf5279fe350849d5318e54a1261219bd7996af"
     },
     {
-      "path": "studio.js.sources/14-interface-primitives.js",
+      "path": "studio.js.sources/18-interface-primitives.js",
       "scope": "bundle",
       "responsibility": "interface-primitives",
       "inputs": [
@@ -170,6 +224,7 @@
         "node_modules/@floating-ui/utils/dist/floating-ui.utils.mjs",
         "node_modules/@radix-ui/primitive/dist/index.mjs",
         "node_modules/@radix-ui/primitive/dist/internal/is-development.false.mjs",
+        "node_modules/@radix-ui/react-arrow/dist/index.mjs",
         "node_modules/@radix-ui/react-collection/dist/index.mjs",
         "node_modules/@radix-ui/react-compose-refs/dist/index.mjs",
         "node_modules/@radix-ui/react-context/dist/index.mjs",
@@ -184,10 +239,12 @@
         "node_modules/@radix-ui/react-portal/dist/index.mjs",
         "node_modules/@radix-ui/react-presence/dist/index.mjs",
         "node_modules/@radix-ui/react-primitive/dist/index.mjs",
+        "node_modules/@radix-ui/react-roving-focus/dist/index.mjs",
         "node_modules/@radix-ui/react-slot/dist/index.mjs",
         "node_modules/@radix-ui/react-use-callback-ref/dist/index.mjs",
         "node_modules/@radix-ui/react-use-controllable-state/dist/index.mjs",
         "node_modules/@radix-ui/react-use-effect-event/dist/index.mjs",
+        "node_modules/@radix-ui/react-use-is-hydrated/dist/index.mjs",
         "node_modules/@radix-ui/react-use-layout-effect/dist/index.mjs",
         "node_modules/@radix-ui/react-use-size/dist/index.mjs",
         "node_modules/aria-hidden/dist/es2015/index.js",
@@ -212,37 +269,34 @@
         "node_modules/use-sidecar/dist/es2015/exports.js",
         "node_modules/use-sidecar/dist/es2015/medium.js"
       ],
-      "bytes": 196384,
-      "sha256": "c8d5ab2e7df79e22329daaf59e074d74345d11147c500553edd7910aaf96ed3e"
+      "bytes": 191832,
+      "sha256": "6edc8c7b92f819c250016336ad048e284bffae12b435b120ed3d8447d90f7045"
     },
     {
-      "path": "studio.js.sources/15-interface-primitives.js",
+      "path": "studio.js.sources/19-interface-primitives.js",
       "scope": "bundle",
       "responsibility": "interface-primitives",
       "inputs": [
-        "node_modules/@radix-ui/react-arrow/dist/index.mjs",
         "node_modules/@radix-ui/react-dropdown-menu/dist/index.mjs",
         "node_modules/@radix-ui/react-menu/dist/index.mjs",
-        "node_modules/@radix-ui/react-popper/dist/index.mjs",
-        "node_modules/@radix-ui/react-roving-focus/dist/index.mjs",
-        "node_modules/@radix-ui/react-use-is-hydrated/dist/index.mjs"
+        "node_modules/@radix-ui/react-roving-focus/dist/index.mjs"
       ],
-      "bytes": 78937,
-      "sha256": "e26c838db40b55f6df77606ac87b36f0298d7316ac832fa8c770c9dbab896596"
+      "bytes": 56606,
+      "sha256": "144386b917405877b6935000a33bb437e0968b9a5d145308aa556636f3b530bb"
     },
     {
-      "path": "studio.js.sources/16-studio-shell.js",
+      "path": "studio.js.sources/20-studio-shell.js",
       "scope": "bundle",
       "responsibility": "studio-shell",
       "inputs": [
         "packages/artifact/lib/artifact/ui/studio-shell-components.mjs",
         "packages/artifact/lib/artifact/ui/studio-shell-mount-impl.mjs"
       ],
-      "bytes": 27277,
-      "sha256": "81af29a6a5a15fd4f0ef41fc48e1eca63c30b3745fd1d92830ba83f7cf2ba603"
+      "bytes": 26020,
+      "sha256": "2f411908d525f915fc892cdb0356182097672ce4ead69322d60d73164f9352c7"
     },
     {
-      "path": "studio.js.sources/17-design-studio.js",
+      "path": "studio.js.sources/21-design-studio.js",
       "scope": "bundle",
       "responsibility": "design-studio",
       "inputs": [
@@ -250,8 +304,8 @@
         "packages/design/lib/design/ui/studio-runtime.mjs",
         "packages/design/lib/design/ui/studio.mjs"
       ],
-      "bytes": 80568,
-      "sha256": "6f845d0f515a8ebd5fb8d8fd1228e004a768778e5b020ab8ed4daf49ba3ffa78"
+      "bytes": 100720,
+      "sha256": "672d0395a9d1016f511f3b8dd6b23c1015958a97e54a83e51af2f39b53222236"
     }
   ]
 }

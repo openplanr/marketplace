@@ -14,9 +14,12 @@ import {
   MAX_ARTIFACT_HTML_BYTES
 } from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
 import {
+  DESIGN_DOCUMENT_SCHEMA,
+  DESIGN_DOCUMENT_V120_SCHEMA,
   DESIGN_REVIEW_BUNDLE_SCHEMA,
+  validateDesignProps,
   validateJson
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
+} from "./design-shared-protocol-contracts-b5f28f94.mjs";
 import {
   canonicalizeJson,
   sha256Hex
@@ -25,6 +28,7 @@ import {
 // packages/design/lib/design/document-state.mjs
 import { createHash, randomUUID } from "node:crypto";
 import {
+  chmodSync,
   closeSync,
   lstatSync,
   mkdirSync,
@@ -47,14 +51,15 @@ function readJson(path, fallback = void 0) {
     throw error;
   }
 }
-function atomicJson(path, value) {
-  atomicBytes(path, json(value));
+function atomicJson(path, value, { mode } = {}) {
+  atomicBytes(path, json(value), mode);
 }
-function atomicBytes(path, bytes) {
+function atomicBytes(path, bytes, mode) {
   mkdirSync(dirname(path), { recursive: true });
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {
     writeFileSync(temporary, bytes, { mode: 384, flag: "wx" });
+    if (mode !== void 0) chmodSync(temporary, mode);
     renameSync(temporary, path);
   } finally {
     rmSync(temporary, { force: true });
@@ -320,6 +325,7 @@ var MIME = {
 };
 var children = (node) => [...node.childNodes ?? [], ...node.content?.childNodes ?? []];
 var attr = (node, name) => node.attrs?.find((item2) => item2.name === name);
+var isPropToken = (value) => typeof value === "string" && value.length <= 128 && /^[a-z][a-z0-9-]*(?![\s\S])/u.test(value);
 var text = (node) => children(node).map((item2) => item2.value ?? "").join("");
 function setText(node, value) {
   node.childNodes = [{ nodeName: "#text", value, parentNode: node }];
@@ -328,6 +334,23 @@ function element(name, value) {
   const node = parseFragment(`<${name}></${name}>`).childNodes[0];
   setText(node, value);
   return node;
+}
+function parseBodySource(html) {
+  const roots = [];
+  const parser = new Parser({ sourceCodeLocationInfo: true });
+  const onStartTag = parser.onStartTag.bind(parser);
+  parser.onStartTag = (token) => {
+    if (token.tagName === "body") roots.push(token);
+    onStartTag(token);
+  };
+  parser.tokenizer.write(html, true);
+  const body = parser.document.childNodes.find((node) => node.tagName === "html")?.childNodes.find((node) => node.tagName === "body");
+  const root = roots.length === 1 && body?.sourceCodeLocation?.startTag?.startOffset === roots[0].location?.startOffset ? roots[0] : null;
+  return { document: parser.document, roots, root };
+}
+function inspectLocalDocumentBody(html) {
+  const { root } = parseBodySource(html);
+  return root ? { attrs: root.attrs, location: root.location } : null;
 }
 function resolveLocalDocumentFile(root, path, from = root) {
   if (typeof path !== "string" || !path || /^(?:[a-z][a-z\d+.-]*:|\/|\\)/iu.test(path))
@@ -350,7 +373,8 @@ function bundleLocalDocument({
   screenId,
   maxBytes = MAX_ARTIFACT_HTML_BYTES,
   readSource,
-  passive = false
+  passive = false,
+  screenProps
 }) {
   const root = realpathSync2(inputRoot);
   const files = /* @__PURE__ */ new Map();
@@ -480,7 +504,16 @@ function bundleLocalDocument({
     return value.replace(/<\/script/giu, "<\\/script");
   }
   const input = read(source.html);
-  const document = parse(input.value.toString("utf8"));
+  const propEntries = Object.entries(screenProps ?? {});
+  let document;
+  if (propEntries.length) {
+    const parsed = parseBodySource(input.value.toString("utf8"));
+    if (!parsed.root)
+      throw new Error(
+        `Screen ${screenId} source ${source.html} requires a single authored <body> root for props; found ${parsed.roots.length}.`
+      );
+    document = parsed.document;
+  } else document = parse(input.value.toString("utf8"));
   let head, body;
   const deferredScripts = [];
   const queue = [...children(document)];
@@ -572,6 +605,22 @@ function bundleLocalDocument({
     body.childNodes.push(node);
   }
   body.attrs.push({ name: "data-planr-screen", value: screenId });
+  if (propEntries.length) {
+    const classes = (attr(body, "class")?.value ?? "").split(/\s+/u).filter(Boolean).filter((item2) => !propEntries.some(([name]) => item2.startsWith(`prop-${name}-`)));
+    for (const [name, value] of propEntries) {
+      if (!isPropToken(name) || !(typeof value === "boolean" || isPropToken(value)))
+        throw new TypeError(
+          `Screen ${screenId} source ${source.html} has invalid prop ${name}: ${JSON.stringify(value)}.`
+        );
+      const attribute = `data-prop-${name}`;
+      body.attrs = body.attrs.filter((item2) => item2.name !== attribute);
+      body.attrs.push({ name: attribute, value: String(value) });
+      const prefix = `prop-${name}-`;
+      classes.push(`${prefix}${value}`);
+    }
+    body.attrs = body.attrs.filter((item2) => item2.name !== "class");
+    body.attrs.push({ name: "class", value: classes.join(" ") });
+  }
   const html = serialize(document);
   if (Buffer.byteLength(html) > maxBytes)
     throw new Error("Bundled design exceeds the output budget.");
@@ -683,6 +732,61 @@ Object.assign(bundleV12.properties, {
   fingerprints: list(DESIGN_FINGERPRINT_SCHEMA, 4096)
 });
 var DESIGN_REVIEW_BUNDLE_V12_SCHEMA = bundleV12;
+var bundleCurrent = (
+  /** @type {MutableSchema} */
+  structuredClone(bundleV12)
+);
+bundleCurrent.$id = "https://openplanr.dev/schemas/v1.20.0/design-review-bundle.schema.json";
+bundleCurrent["x-openplanr-contract"] = { id: "design-review-bundle", version: "1.20.0" };
+bundleCurrent.properties.schemaVersion = { enum: ["1.1.0", "1.2.0"] };
+bundleCurrent.properties.envelope = bundleV11.properties.envelope;
+bundleCurrent.allOf = [
+  {
+    if: { properties: { schemaVersion: { const: "1.2.0" } } },
+    then: { properties: { envelope: bundleV12.properties.envelope } }
+  }
+];
+var currentDesign2 = (
+  /** @type {MutableSchema} */
+  bundleCurrent.properties.design
+);
+for (const key of ["frames", "layout"])
+  currentDesign2.properties[key] = /** @type {Record<string, unknown>} */
+  DESIGN_DOCUMENT_V120_SCHEMA.properties[key];
+bundleCurrent.$defs = structuredClone(DESIGN_DOCUMENT_V120_SCHEMA.$defs);
+var currentEntries = (
+  /** @type {{ items: { properties: Record<string, unknown> } }} */
+  bundleCurrent.properties.entries
+);
+currentEntries.items.properties.height = { const: "auto" };
+var bundleProps = (
+  /** @type {MutableSchema} */
+  structuredClone(bundleCurrent)
+);
+bundleProps.$id = "https://openplanr.dev/schemas/v1.22.0/design-review-bundle.schema.json";
+bundleProps["x-openplanr-contract"] = { id: "design-review-bundle", version: "1.22.0" };
+var propsDesign = (
+  /** @type {MutableSchema} */
+  bundleProps.properties.design
+);
+var authoredProperties = (
+  /** @type {Record<string, unknown>} */
+  DESIGN_DOCUMENT_SCHEMA.properties
+);
+propsDesign.properties.schemaVersion = authoredProperties.schemaVersion;
+for (const key of ["screens", "variants"]) {
+  const projected = (
+    /** @type {{ items: { properties: Record<string, unknown> } }} */
+    propsDesign.properties[key]
+  );
+  const authored = (
+    /** @type {{ items: { properties: Record<string, unknown> } }} */
+    authoredProperties[key]
+  );
+  projected.items.properties.props = authored.items.properties.props;
+}
+propsDesign.allOf = structuredClone(DESIGN_DOCUMENT_SCHEMA.allOf);
+var DESIGN_REVIEW_BUNDLE_CURRENT_SCHEMA = bundleProps;
 var item = closed(
   {
     pinId: id,
@@ -799,10 +903,19 @@ function assertDesignReviewMetadata(value) {
   );
 }
 function assertDesignReviewBundle(value) {
+  if (value?.design?.schemaVersion !== "1.1.0" && ["screens", "variants"].some(
+    (field) => Array.isArray(value?.design?.[field]) && value.design[field].some((item2) => item2 && Object.hasOwn(item2, "props"))
+  ))
+    throw new TypeError('Invalid design props: props require design.schemaVersion "1.1.0"');
   assertReviewExperience(
     value,
-    value?.schemaVersion === "1.2.0" ? DESIGN_REVIEW_BUNDLE_V12_SCHEMA : value?.schemaVersion === "1.1.0" ? DESIGN_REVIEW_BUNDLE_V11_SCHEMA : DESIGN_REVIEW_BUNDLE_SCHEMA
+    value?.design?.schemaVersion !== void 0 || ["screens", "variants"].some(
+      (field) => Array.isArray(value?.design?.[field]) && value.design[field].some((item2) => item2 && Object.hasOwn(item2, "props"))
+    ) || value?.design?.layout !== void 0 || Array.isArray(value?.design?.frames) && value.design.frames.some(({ height }) => height === "auto") ? DESIGN_REVIEW_BUNDLE_CURRENT_SCHEMA : value?.schemaVersion === "1.2.0" ? DESIGN_REVIEW_BUNDLE_V12_SCHEMA : value?.schemaVersion === "1.1.0" ? DESIGN_REVIEW_BUNDLE_V11_SCHEMA : DESIGN_REVIEW_BUNDLE_SCHEMA
   );
+  const propErrors = validateDesignProps(value.design);
+  if (propErrors.length) throw new TypeError(`Invalid design props:
+${propErrors.join("\n")}`);
   if (["1.1.0", "1.2.0"].includes(value.schemaVersion)) {
     if (value.reviewContext.designId !== value.design.id || value.contextDigest !== sha256Hex(canonicalizeJson(value.reviewContext)))
       throw new TypeError("Review context identity or digest does not match its published design.");
@@ -871,6 +984,7 @@ function reviewFingerprints({ document, context, screen, variant, frame, sourceD
   const components = context.implementation.components.filter(
     (component) => !component.screenIds?.length || component.screenIds.includes(screen.id)
   );
+  const values = Object.hasOwn(variant.props ?? {}, screen.id) ? variant.props[screen.id] : {};
   return {
     screenId: screen.id,
     variantId: variant.id,
@@ -878,7 +992,15 @@ function reviewFingerprints({ document, context, screen, variant, frame, sourceD
     contentDigest: reviewDigest({
       files: Object.entries(sourceDigests).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0),
       width: frame.width,
-      height: frame.height
+      height: frame.height,
+      ...screen.props === void 0 ? {} : {
+        props: Object.fromEntries(
+          Object.entries(screen.props).map(([name, declaration]) => [
+            name,
+            Object.hasOwn(values, name) ? values[name] : declaration.default
+          ])
+        )
+      }
     }),
     guidanceDigest: reviewDigest({
       title: screen.title,
@@ -903,6 +1025,7 @@ function bundleDesignRevision(current, state = {}) {
     kind: "openplanr-design-review-bundle",
     schemaVersion: current.envelope.schemaVersion === "1.1.0" ? "1.2.0" : "1.1.0",
     design: {
+      ...document.screens.some((screen) => screen.props !== void 0) || document.variants.some((variant) => variant.props !== void 0) ? { schemaVersion: document.schemaVersion } : {},
       ...pick(document, [
         "id",
         "title",
@@ -910,19 +1033,20 @@ function bundleDesignRevision(current, state = {}) {
         "selectedVariant",
         "screenOrder",
         "frames",
-        "flows"
+        "flows",
+        "layout"
       ]),
       screens: document.screens.map(
-        (screen) => pick(screen, ["id", "title", "description", "anchors"])
+        (screen) => pick(screen, ["id", "title", "description", "anchors", "props"])
       ),
       selectedVariant: document.variants.some(
         (variant) => variant.id === state.selectedVariant && variant.status === "ready"
       ) ? state.selectedVariant : document.selectedVariant,
-      variants: document.variants.filter((variant) => variant.status === "ready").map((variant) => pick(variant, ["id", "label", "status"]))
+      variants: document.variants.filter((variant) => variant.status === "ready").map((variant) => pick(variant, ["id", "label", "status", "props"]))
     },
     envelope: structuredClone(current.envelope),
     entries: structuredClone(current.entries),
-    state: pick(state, ["positions"]),
+    state: {},
     revision: current.revision,
     verification: pick(current.verification ?? {}, ["status"]),
     reviewContext: context,
@@ -963,6 +1087,7 @@ export {
   serialize,
   parse,
   parseFragment,
+  inspectLocalDocumentBody,
   resolveLocalDocumentFile,
   bundleLocalDocument,
   DESIGN_HANDOFF_CONTENT_SCHEMA,
@@ -981,6 +1106,7 @@ export {
   json,
   readJson,
   atomicJson,
+  atomicBytes,
   recoverDesignPublication,
   designSpecPath,
   currentDesign

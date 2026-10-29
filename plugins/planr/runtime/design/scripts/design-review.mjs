@@ -19,6 +19,8 @@ import {
   readRuntimeAsset,
   renderArtifactParentRuntime,
   renderDesignStudio,
+  saveDesignLayout,
+  saveDesignViewContext,
   standaloneDesignHtml,
   timingSafeTokenEqual
 } from "./design-document.mjs";
@@ -282,7 +284,7 @@ function reviewExportTools() {
           frame: {
             id: refs.frame,
             label: field(frame?.label),
-            ...dimensions(frame) ?? { width: null, height: null }
+            ...frame?.height === "auto" && Number.isInteger(frame.width) && frame.width > 0 && frame.width <= 16384 ? { width: frame.width, height: "auto" } : dimensions(frame) ?? { width: null, height: null }
           },
           threads: []
         });
@@ -327,7 +329,7 @@ function reviewExportTools() {
       overallNotes
     };
   }
-  const inline = (value) => String(value ?? "Unavailable").replaceAll("\\", "\\\\").replace(/[\r\n]/gu, " ").replace(/[\[\]<>`*#|]/gu, (char) => "\\" + char);
+  const inline = (value) => String(value ?? "Unavailable").replaceAll("\\", "\\\\").replace(/[\r\n]/gu, " ").replace(/[[\]<>`*#|]/gu, (char) => "\\" + char);
   const quoted = (value) => {
     const runs = value.match(/`+/gu) ?? [];
     const fence = "`".repeat(Math.max(3, ...runs.map((run) => run.length + 1)));
@@ -2470,6 +2472,23 @@ function studioRuntimeIdentity(current) {
     )
   };
 }
+function studioContentIdentity(current) {
+  const document = { ...current.document };
+  delete document.layout;
+  return hash(
+    JSON.stringify({
+      document,
+      layoutGuidance: {
+        titles: Object.entries(current.document.layout?.boards ?? {}).filter(([, board]) => board.title !== void 0).map(([key, board]) => [key, board.title]).sort(([left], [right]) => left.localeCompare(right)),
+        sections: current.document.layout?.sections ?? []
+      },
+      artifactDigest: digestArtifactEnvelope(current.envelope),
+      fingerprints: current.fingerprints,
+      contextDigest: current.contextDigest,
+      specification: readFileSync4(join5(current.directory, "design-spec.md"), "utf8")
+    })
+  );
+}
 function exportDesignReview(file, { scope = "all", env = process.env } = {}) {
   if (!["all", "current"].includes(scope))
     throw new Error("Review export scope must be current or all.");
@@ -2894,7 +2913,13 @@ async function startDesignReviewUnlocked(file, {
       }).state;
       const stalePins = readDesignFeedback(file, env).pins.filter((pin) => pin.stale);
       return renderDesignStudio(
-        { ...current, envelope: model.envelope, state, stalePins },
+        {
+          ...current,
+          envelope: model.envelope,
+          state,
+          stalePins,
+          contentIdentity: studioContentIdentity(current)
+        },
         { stageRuntimeUrl: `${base}runtime.js` }
       ).replace(
         "</head>",
@@ -2908,6 +2933,8 @@ async function startDesignReviewUnlocked(file, {
           launchContext: base.startsWith("/studio/") ? "local Studio" : "private review"
         },
         stateUrl: `${base}api/design-state`,
+        viewContextUrl: `${base}api/design-view-context`,
+        layoutUrl: `${base}api/design-layout`,
         statusUrl: `${base}api/design-status`,
         readyUrl: `${base}api/design-ready`,
         shareUrl: `${base}api/design-share`,
@@ -3169,7 +3196,9 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
             revision: current.revision,
             status: ready?.revision === current.revision ? ready.status : "loading",
             verification: current.verification.status,
-            runtimeIdentity: studioRuntimeIdentity(current)
+            runtimeIdentity: studioRuntimeIdentity(current),
+            contentIdentity: studioContentIdentity(current),
+            layout: current.document.layout
           });
         } else if (route === "design-state" && req.method === "GET") {
           respond(res, 200, {
@@ -3181,6 +3210,18 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           });
         } else if (route === "design-state" && req.method === "PUT") {
           respond(res, 200, await saveDesignState(file, await readBody(req)));
+        } else if (route === "design-view-context" && req.method === "PUT") {
+          if (req.headers["x-openplanr-design"] !== "1" || !String(req.headers["content-type"] ?? "").startsWith("application/json") || req.headers.origin && req.headers.origin !== `http://127.0.0.1:${server.port}`)
+            throw Object.assign(new Error("View context requires a same-origin studio request."), {
+              statusCode: 403
+            });
+          respond(res, 200, saveDesignViewContext(file, await readBody(req), clock));
+        } else if (route === "design-layout" && req.method === "PUT") {
+          if (req.headers["x-openplanr-design"] !== "1" || !String(req.headers["content-type"] ?? "").startsWith("application/json") || req.headers.origin && req.headers.origin !== `http://127.0.0.1:${server.port}`)
+            throw Object.assign(new Error("Layout saves require a same-origin studio request."), {
+              statusCode: 403
+            });
+          respond(res, 200, await saveDesignLayout(file, await readBody(req)));
         } else if (route === "design-ready" && req.method === "POST") {
           const value = await readBody(req);
           const loadedArtifacts = new Set(Array.isArray(value?.artifacts) ? value.artifacts : []);

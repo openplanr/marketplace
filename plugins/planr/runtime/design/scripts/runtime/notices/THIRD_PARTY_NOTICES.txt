@@ -183,7 +183,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-accordion@1.3.0
+@radix-ui/react-accordion@1.3.1
 
 MIT License
 
@@ -210,7 +210,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-alert-dialog@1.2.0
+@radix-ui/react-alert-dialog@1.2.1
 
 MIT License
 
@@ -291,7 +291,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-avatar@1.3.0
+@radix-ui/react-avatar@1.3.1
 
 MIT License
 
@@ -318,7 +318,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-checkbox@1.4.0
+@radix-ui/react-checkbox@1.4.1
 
 MIT License
 
@@ -345,7 +345,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-collapsible@1.2.0
+@radix-ui/react-collapsible@1.2.1
 
 MIT License
 
@@ -453,7 +453,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-context-menu@2.4.0
+@radix-ui/react-context-menu@2.4.1
 
 MIT License
 
@@ -480,7 +480,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-dialog@1.3.0
+@radix-ui/react-dialog@1.3.1
 
 MIT License
 
@@ -534,7 +534,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-dismissable-layer@1.2.0
+@radix-ui/react-dismissable-layer@1.2.1
 
 MIT License
 
@@ -561,7 +561,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-dropdown-menu@2.2.0
+@radix-ui/react-dropdown-menu@2.2.1
 
 MIT License
 
@@ -615,7 +615,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-focus-scope@1.3.0
+@radix-ui/react-focus-scope@1.3.1
 
 MIT License
 
@@ -669,7 +669,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-hover-card@1.2.0
+@radix-ui/react-hover-card@1.2.1
 
 MIT License
 
@@ -750,7 +750,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-menu@2.2.0
+@radix-ui/react-menu@2.2.1
 
 MIT License
 
@@ -777,7 +777,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-menubar@1.2.0
+@radix-ui/react-menubar@1.2.1
 
 MIT License
 
@@ -804,7 +804,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-navigation-menu@1.4.0
+@radix-ui/react-navigation-menu@1.4.1
 
 MIT License
 
@@ -831,7 +831,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-one-time-password-field@0.2.0
+@radix-ui/react-one-time-password-field@0.2.1
 
 MIT License
 
@@ -858,7 +858,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-password-toggle-field@0.2.0
+@radix-ui/react-password-toggle-field@0.2.1
 
 MIT License
 
@@ -885,7 +885,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-popover@1.3.0
+@radix-ui/react-popover@1.3.1
 
 MIT License
 
@@ -1020,7 +1020,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-progress@1.2.0
+@radix-ui/react-progress@1.2.1
 
 MIT License
 
@@ -1047,7 +1047,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-radio-group@1.5.0
+@radix-ui/react-radio-group@1.5.1
 
 MIT License
 
@@ -1074,7 +1074,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-roving-focus@1.2.0
+@radix-ui/react-roving-focus@1.2.1
 
 MIT License
 
@@ -1128,7 +1128,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-select@2.4.0
+@radix-ui/react-select@2.4.1
 
 MIT License
 
@@ -1182,7 +1182,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-slider@1.6.0
+@radix-ui/react-slider@1.6.1
 
 MIT License
 
@@ -1236,7 +1236,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-switch@1.4.0
+@radix-ui/react-switch@1.4.1
 
 MIT License
 
@@ -1263,7 +1263,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-tabs@1.2.0
+@radix-ui/react-tabs@1.2.1
 
 MIT License
 
@@ -1290,7 +1290,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-toast@1.3.0
+@radix-ui/react-toast@1.3.1
 
 MIT License
 
@@ -1317,7 +1317,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-toggle@1.2.0
+@radix-ui/react-toggle@1.2.1
 
 MIT License
 
@@ -1344,7 +1344,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-toggle-group@1.2.0
+@radix-ui/react-toggle-group@1.2.1
 
 MIT License
 
@@ -1371,7 +1371,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-toolbar@1.2.0
+@radix-ui/react-toolbar@1.2.1
 
 MIT License
 
@@ -1398,7 +1398,7 @@ SOFTWARE.
 
 ----------------
 
-@radix-ui/react-tooltip@1.4.0
+@radix-ui/react-tooltip@1.4.1
 
 MIT License
 
@@ -1791,7 +1791,7 @@ THE SOFTWARE.
 
 ----------------
 
-radix-ui@1.8.0
+radix-ui@1.8.1
 
 MIT License
 
@@ -1818,7 +1818,7 @@ SOFTWARE.
 
 ----------------
 
-react@19.3.0
+react@19.3.1
 
 MIT License
 
@@ -1845,7 +1845,7 @@ SOFTWARE.
 
 ----------------
 
-react-dom@19.3.0
+react-dom@19.3.1
 
 MIT License
 

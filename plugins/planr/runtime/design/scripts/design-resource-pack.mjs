@@ -7,7 +7,7 @@ import {
   LARGE_OBJECT_LIMITS,
   RESOURCE_HTML_SEGMENT_ENCODING,
   assertLargeObjectContract
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
+} from "./design-shared-protocol-contracts-b5f28f94.mjs";
 import {
   canonicalizeJson
 } from "./design-shared-protocol-contracts-75a938cc.mjs";
