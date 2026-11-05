@@ -1,8 +1,7 @@
 
 
   // ../artifact/lib/artifact/ui/studio-shell-components.mjs
-  var import_react3 = __toESM(require_react(), 1);
-  var StudioButton = (0, import_react3.forwardRef)(function StudioButton2({ variant = "default", className = "", type = "button", ...props }, ref) {
+  var import_react3 = __toESM(require_react(), 1), StudioButton = (0, import_react3.forwardRef)(function({ variant = "default", className = "", type = "button", ...props }, ref) {
     return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
       "button",
       {
@@ -33,37 +32,29 @@
     ] }) }) });
   }
   function inlineGap(element) {
-    const view = element?.ownerDocument.defaultView;
-    return view && element ? parseFloat(view.getComputedStyle(element).gap) || 0 : 0;
+    let view = element?.ownerDocument.defaultView;
+    return view && element && parseFloat(view.getComputedStyle(element).gap) || 0;
   }
   function measureLeadingFloor(leading) {
-    const view = leading.ownerDocument.defaultView;
+    let view = leading.ownerDocument.defaultView;
     if (!view) return 128;
-    const leadingControls = [...leading.children].filter(
+    let leadingControls = [...leading.children].filter(
       (node) => node instanceof view.HTMLElement && !node.classList.contains("planr-brand") && node.getClientRects().length > 0
-    );
-    const branding = [
+    ), branding = [
       ...leading.querySelectorAll(".planr-mark,.design-wordmark")
-    ].filter((node) => node.getClientRects().length);
-    const brandGap = inlineGap(leading.querySelector(".planr-brand"));
-    const brandingWidth = branding.reduce(
+    ].filter((node) => node.getClientRects().length), brandGap = inlineGap(leading.querySelector(".planr-brand")), brandingWidth = branding.reduce(
       (total, node) => total + node.getBoundingClientRect().width + brandGap,
       0
-    );
-    const titleBlock = leading.querySelector(".planr-title-block");
-    const badge = titleBlock?.querySelector(".studio-type-badge");
-    const title = titleBlock?.querySelector("strong,.de-title");
-    const titleFloor = Math.max(36, parseFloat(view.getComputedStyle(title ?? leading).fontSize) * 3);
-    const identityFloor = Math.max(
+    ), titleBlock = leading.querySelector(".planr-title-block"), badge = titleBlock?.querySelector(".studio-type-badge"), title = titleBlock?.querySelector("strong,.de-title"), titleFloor = Math.max(36, parseFloat(view.getComputedStyle(title ?? leading).fontSize) * 3);
+    return Math.max(
       128,
       (badge?.getBoundingClientRect().width || 0) + inlineGap(titleBlock) + titleFloor
-    );
-    return identityFloor + brandingWidth + leadingControls.reduce((total, control) => total + control.getBoundingClientRect().width, 0) + leadingControls.length * inlineGap(leading);
+    ) + brandingWidth + leadingControls.reduce((total, control) => total + control.getBoundingClientRect().width, 0) + leadingControls.length * inlineGap(leading);
   }
   function StudioToolbar({
     title,
     titleNode,
-    brand = true,
+    brand = !0,
     as: Tag = "header",
     kind,
     hierarchy = [],
@@ -75,80 +66,58 @@
     secondaryActions,
     className = ""
   }) {
-    const toolbar = (0, import_react3.useRef)(null);
-    (0, import_react3.useLayoutEffect)(() => {
-      const element = toolbar.current;
-      const window2 = element?.ownerDocument.defaultView;
+    let toolbar = (0, import_react3.useRef)(null);
+    return (0, import_react3.useLayoutEffect)(() => {
+      let element = toolbar.current, window2 = element?.ownerDocument.defaultView;
       if (!element || !window2) return;
-      const center = element.querySelector(".studio-toolbar-center");
-      const trailing = element.querySelector(".studio-toolbar-trailing");
-      const leading2 = element.querySelector(".studio-toolbar-leading");
-      const secondary = element.querySelector(".studio-toolbar-secondary");
+      let center = element.querySelector(".studio-toolbar-center"), trailing = element.querySelector(".studio-toolbar-trailing"), leading2 = element.querySelector(".studio-toolbar-leading"), secondary = element.querySelector(".studio-toolbar-secondary");
       if (!center || !trailing || !leading2) return;
-      const measure = () => {
-        const width = element.getBoundingClientRect().width;
+      let measure = () => {
+        let width = element.getBoundingClientRect().width;
         if (!width) return;
         element.dataset.studioDensity = width <= 680 ? "narrow" : "regular";
-        const style = window2.getComputedStyle(element);
-        const available = width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
-        const gap = Math.max(12, parseFloat(style.columnGap) || 0);
+        let style = window2.getComputedStyle(element), available = width - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight), gap = Math.max(12, parseFloat(style.columnGap) || 0);
         element.dataset.studioCenter = "true";
-        const centerWidth = center.scrollWidth;
+        let centerWidth = center.scrollWidth;
         element.dataset.studioCenter = String(centerWidth > 0);
-        const controlSelector = 'button,a,summary,input,select,output,[role="status"]';
-        const controls = [
+        let controlSelector = 'button,a,summary,input,select,output,[role="status"]', controls = [
           ...trailing.querySelectorAll(controlSelector),
           ...secondary?.querySelectorAll(controlSelector) ?? []
         ].filter(
           (control) => control.getClientRects().length && !control.closest('[role="menu"],.studio-tooltip,[role="dialog"]') && (!control.closest("details") || !!control.closest("summary")) && !control.parentElement?.closest(controlSelector)
-        );
-        const actionWidth = controls.reduce((total, control) => {
+        ), actionWidth = controls.reduce((total, control) => {
           if (secondary?.contains(control) && control.getAttribute("role") === "status") {
-            const range = element.ownerDocument.createRange();
+            let range = element.ownerDocument.createRange();
             range.selectNodeContents(control);
-            const textWidth = range.getBoundingClientRect().width;
-            const controlStyle = window2.getComputedStyle(control);
+            let textWidth = range.getBoundingClientRect().width, controlStyle = window2.getComputedStyle(control);
             return total + textWidth + (parseFloat(controlStyle.paddingLeft) || 0) + (parseFloat(controlStyle.paddingRight) || 0);
           }
           return total + control.getBoundingClientRect().width;
-        }, 0) + Math.max(0, controls.length - 1) * (parseFloat(window2.getComputedStyle(trailing).gap) || 8);
-        const leadingFloor = measureLeadingFloor(leading2);
-        const outerWidth = Math.max(leadingFloor, actionWidth);
+        }, 0) + Math.max(0, controls.length - 1) * (parseFloat(window2.getComputedStyle(trailing).gap) || 8), leadingFloor = measureLeadingFloor(leading2), outerWidth = Math.max(leadingFloor, actionWidth);
         element.dataset.studioLayout = centerWidth > 0 ? width <= 680 || centerWidth + outerWidth * 2 + gap * 2 > available ? "compact" : "inline" : leadingFloor + actionWidth + gap > available ? "compact" : "inline";
       };
       measure();
-      let frame = 0;
-      const scheduleMeasure = () => {
-        if (frame) return;
-        frame = window2.requestAnimationFrame(() => {
-          frame = 0;
-          measure();
-        });
-      };
-      const resize = typeof window2.ResizeObserver === "function" ? new window2.ResizeObserver(scheduleMeasure) : null;
-      for (const node of [element, center, trailing, secondary]) if (node) resize?.observe(node);
-      const mutations = new window2.MutationObserver(scheduleMeasure);
+      let frame = 0, scheduleMeasure = () => {
+        frame || (frame = window2.requestAnimationFrame(() => {
+          frame = 0, measure();
+        }));
+      }, resize = typeof window2.ResizeObserver == "function" ? new window2.ResizeObserver(scheduleMeasure) : null;
+      for (let node of [element, center, trailing, secondary]) node && resize?.observe(node);
+      let mutations = new window2.MutationObserver(scheduleMeasure);
       mutations.observe(element, {
-        subtree: true,
-        childList: true,
-        characterData: true,
-        attributes: true,
+        subtree: !0,
+        childList: !0,
+        characterData: !0,
+        attributes: !0,
         attributeFilter: ["hidden"]
-      });
-      window2.addEventListener("resize", scheduleMeasure);
-      let active = true;
-      void element.ownerDocument.fonts?.ready.then(() => {
-        if (active) scheduleMeasure();
-      });
-      return () => {
-        active = false;
-        resize?.disconnect();
-        mutations.disconnect();
-        window2.cancelAnimationFrame(frame);
-        window2.removeEventListener("resize", scheduleMeasure);
+      }), window2.addEventListener("resize", scheduleMeasure);
+      let active = !0;
+      return element.ownerDocument.fonts?.ready.then(() => {
+        active && scheduleMeasure();
+      }), () => {
+        active = !1, resize?.disconnect(), mutations.disconnect(), window2.cancelAnimationFrame(frame), window2.removeEventListener("resize", scheduleMeasure);
       };
-    }, [Tag]);
-    return /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+    }, [Tag]), /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
       Tag,
       {
         ref: (node) => {
@@ -198,51 +167,37 @@
     open,
     onOpenChange
   }) {
-    const trigger = (0, import_react3.useRef)(null);
-    const mousePosition = (0, import_react3.useRef)(null);
-    const keyboardPosition = (0, import_react3.useRef)(null);
+    let trigger = (0, import_react3.useRef)(null), mousePosition = (0, import_react3.useRef)(null), keyboardPosition = (0, import_react3.useRef)(null);
     (0, import_react3.useLayoutEffect)(() => {
-      const ownerDocument = trigger.current?.ownerDocument;
+      let ownerDocument = trigger.current?.ownerDocument;
       if (!ownerDocument) return;
-      const move = (event) => {
+      let move = (event) => {
         if (event.pointerType !== "mouse") return;
-        const position = { x: event.clientX, y: event.clientY };
-        const previous = keyboardPosition.current;
-        if (previous && (previous.x !== position.x || previous.y !== position.y))
-          keyboardPosition.current = null;
-        mousePosition.current = position;
+        let position = { x: event.clientX, y: event.clientY }, previous = keyboardPosition.current;
+        previous && (previous.x !== position.x || previous.y !== position.y) && (keyboardPosition.current = null), mousePosition.current = position;
+      }, down = (event) => {
+        keyboardPosition.current = null, event.pointerType === "mouse" && (mousePosition.current = { x: event.clientX, y: event.clientY });
       };
-      const down = (event) => {
-        keyboardPosition.current = null;
-        if (event.pointerType === "mouse")
-          mousePosition.current = { x: event.clientX, y: event.clientY };
-      };
-      ownerDocument.addEventListener("pointermove", move, true);
-      ownerDocument.addEventListener("pointerdown", down, true);
-      return () => {
-        ownerDocument.removeEventListener("pointermove", move, true);
-        ownerDocument.removeEventListener("pointerdown", down, true);
+      return ownerDocument.addEventListener("pointermove", move, !0), ownerDocument.addEventListener("pointerdown", down, !0), () => {
+        ownerDocument.removeEventListener("pointermove", move, !0), ownerDocument.removeEventListener("pointerdown", down, !0);
       };
     }, []);
-    const retainKeyboardFocus = (event) => {
-      const position = keyboardPosition.current;
-      if (event.pointerType === "mouse" && position?.x === event.clientX && position.y === event.clientY)
-        event.preventDefault();
-    };
-    const keyboardInput = () => {
+    let retainKeyboardFocus = (event) => {
+      let position = keyboardPosition.current;
+      event.pointerType === "mouse" && position?.x === event.clientX && position.y === event.clientY && event.preventDefault();
+    }, keyboardInput = () => {
       keyboardPosition.current = mousePosition.current;
     };
     return /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
       dist_exports5.Root,
       {
-        modal: false,
+        modal: !1,
         open,
         onOpenChange: (value) => {
-          if (!value) keyboardPosition.current = null;
-          onOpenChange?.(value);
+          value || (keyboardPosition.current = null), onOpenChange?.(value);
         },
         children: /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)("span", { className: `studio-menu ${className}`, children: [
-          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(dist_exports5.Trigger, { asChild: true, children: /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
+          /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(dist_exports5.Trigger, { asChild: !0, children: /* @__PURE__ */ (0, import_jsx_runtime15.jsxs)(
             StudioButton,
             {
               "aria-label": label,
@@ -266,17 +221,13 @@
               onKeyDownCapture: keyboardInput,
               onCloseAutoFocus: (event) => {
                 event.preventDefault();
-                const content = event.target;
-                const ownerDocument = content?.ownerDocument;
-                const active = ownerDocument?.activeElement;
-                if (active?.isConnected && active !== ownerDocument?.body && active !== ownerDocument?.documentElement && !content?.contains(active))
-                  return;
-                if (trigger.current?.isConnected) trigger.current.focus();
+                let content = event.target, ownerDocument = content?.ownerDocument, active = ownerDocument?.activeElement;
+                active?.isConnected && active !== ownerDocument?.body && active !== ownerDocument?.documentElement && !content?.contains(active) || trigger.current?.isConnected && trigger.current.focus();
               },
               children: items.map((item, index2) => /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
                 dist_exports5.Item,
                 {
-                  asChild: true,
+                  asChild: !0,
                   disabled: item.disabled,
                   onSelect: item.onSelect,
                   onPointerMove: retainKeyboardFocus,
@@ -320,7 +271,7 @@
           children: [
             /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(dist_exports.Title, { className: "planr-visually-hidden", children: title }),
             /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(dist_exports.Description, { className: "planr-visually-hidden", children: description }),
-            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(dist_exports.Close, { asChild: true, children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
+            /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(dist_exports.Close, { asChild: !0, children: /* @__PURE__ */ (0, import_jsx_runtime15.jsx)(
               StudioButton,
               {
                 className: "studio-panel-close",
@@ -342,45 +293,31 @@
     title,
     state: initial
   }) {
-    const document2 = root.ownerDocument;
-    const window2 = document2.defaultView;
+    let document2 = root.ownerDocument, window2 = document2.defaultView;
     if (!window2) return null;
-    const old = root.querySelector(".design-toolbar");
+    let old = root.querySelector(".design-toolbar");
     if (!old || old.hasAttribute("data-studio-react-chrome")) return null;
-    const share = old.querySelector(".design-share");
-    const showShare = !!share && !share.hidden;
-    const showExport = !old.querySelector(".design-export")?.hidden;
-    let state = {
+    let share = old.querySelector(".design-share"), showShare = !!share && !share.hidden, showExport = !old.querySelector(".design-export")?.hidden, state = {
       previewLabel: old.querySelector("[data-design-preview-state]")?.textContent ?? "Loading preview",
       saveLabel: old.querySelector("[data-design-save-state]")?.textContent ?? "Loading studio",
       savePhase: "loading",
       ...initial,
-      exportMenuOpen: false
-    };
-    const listeners = /* @__PURE__ */ new Set();
-    const update = (value) => {
-      const next = { ...state, ...value };
-      if (Object.keys(next).every(
+      exportMenuOpen: !1
+    }, listeners = /* @__PURE__ */ new Set(), update = (value) => {
+      let next = { ...state, ...value };
+      Object.keys(next).every(
         (key) => next[key] === state[key]
-      ))
-        return;
-      state = next;
-      (0, import_react_dom2.flushSync)(
+      ) || (state = next, (0, import_react_dom2.flushSync)(
         () => listeners.forEach((listener) => {
           listener();
         })
-      );
-    };
-    const mount = document2.createElement("div");
-    mount.className = "studio-chrome-mount";
-    old.replaceWith(mount);
-    const react = (0, import_client.createRoot)(mount);
+      ));
+    }, mount = document2.createElement("div");
+    mount.className = "studio-chrome-mount", old.replaceWith(mount);
+    let react = (0, import_client.createRoot)(mount);
     function Chrome() {
-      const current = (0, import_react4.useSyncExternalStore)(
-        (listener) => {
-          listeners.add(listener);
-          return () => listeners.delete(listener);
-        },
+      let current = (0, import_react4.useSyncExternalStore)(
+        (listener) => (listeners.add(listener), () => listeners.delete(listener)),
         () => state
       );
       return /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
@@ -480,94 +417,63 @@
       );
     }
     (0, import_react_dom2.flushSync)(() => react.render(/* @__PURE__ */ (0, import_jsx_runtime16.jsx)(Chrome, {})));
-    const observer = new window2.MutationObserver(() => {
-      const node = root.querySelector("[data-design-save-state]");
-      if (node)
-        update({
-          saveLabel: node.textContent ?? "",
-          savePhase: node.dataset.status ?? state.savePhase
-        });
+    let observer = new window2.MutationObserver(() => {
+      let node = root.querySelector("[data-design-save-state]");
+      node && update({
+        saveLabel: node.textContent ?? "",
+        savePhase: node.dataset.status ?? state.savePhase
+      });
     });
     observer.observe(mount, {
-      subtree: true,
-      characterData: true,
-      childList: true,
-      attributes: true,
+      subtree: !0,
+      characterData: !0,
+      childList: !0,
+      attributes: !0,
       attributeFilter: ["data-status"]
-    });
-    root.dataset.studioFramework = "react";
-    let destroyed = false;
+    }), root.dataset.studioFramework = "react";
+    let destroyed = !1;
     return {
       update,
       destroy() {
-        if (destroyed) return;
-        destroyed = true;
-        observer.disconnect();
-        (0, import_react_dom2.flushSync)(() => react.unmount());
-        mount.replaceWith(old);
-        delete root.dataset.studioFramework;
+        destroyed || (destroyed = !0, observer.disconnect(), (0, import_react_dom2.flushSync)(() => react.unmount()), mount.replaceWith(old), delete root.dataset.studioFramework);
       }
     };
   }
   function PersistentPanel({ element }) {
-    const host = (0, import_react4.useRef)(null);
-    (0, import_react4.useLayoutEffect)(() => {
-      const target = host.current;
+    let host = (0, import_react4.useRef)(null);
+    return (0, import_react4.useLayoutEffect)(() => {
+      let target = host.current;
       if (!target) return;
-      const marker = element.ownerDocument.createComment("studio-panel-home");
-      element.before(marker);
-      target.append(element);
-      return () => {
+      let marker = element.ownerDocument.createComment("studio-panel-home");
+      return element.before(marker), target.append(element), () => {
         marker.replaceWith(element);
       };
-    }, [element]);
-    return /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { ref: host, className: "studio-panel-content" });
+    }, [element]), /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("div", { ref: host, className: "studio-panel-content" });
   }
   function mountStudioPanelDialogs({
     root,
     closePanel,
     breakpoint = 960
   }) {
-    const document2 = root.ownerDocument;
-    const window2 = document2.defaultView;
+    let document2 = root.ownerDocument, window2 = document2.defaultView;
     if (!window2) return { destroy() {
     } };
-    const left = root.querySelector(".design-navigator,.diagram-outline");
-    const right = root.querySelector(".planr-review-rail");
+    let left = root.querySelector(".design-navigator,.diagram-outline"), right = root.querySelector(".planr-review-rail");
     if (!left || !right) return { destroy() {
     } };
-    const panels = { left, right };
-    const mount = document2.createElement("div");
-    mount.className = "studio-panel-mount";
-    root.append(mount);
-    const react = (0, import_client.createRoot)(mount);
-    let snapshot = "";
-    let wasCompact = false;
-    let lastOpenSide = "left";
-    const listeners = /* @__PURE__ */ new Set();
-    const read = () => {
-      const width = root.getBoundingClientRect().width || window2.innerWidth;
-      const compact = width <= breakpoint;
-      if (compact && !wasCompact) {
-        wasCompact = true;
-        if (root.dataset.outlineOpen === "true") closePanel("left");
-      }
-      wasCompact = compact;
-      const next = width <= breakpoint ? root.dataset.designNavOpen === "true" || root.dataset.outlineOpen === "true" ? "left" : root.dataset.planrRailOpen === "true" ? "right" : "" : "";
-      if (snapshot !== next) {
-        if (next) lastOpenSide = next;
-        snapshot = next;
-        listeners.forEach((listener) => {
-          listener();
-        });
-      }
+    let panels = { left, right }, mount = document2.createElement("div");
+    mount.className = "studio-panel-mount", root.append(mount);
+    let react = (0, import_client.createRoot)(mount), snapshot = "", wasCompact = !1, lastOpenSide = "left", listeners = /* @__PURE__ */ new Set(), read = () => {
+      let width = root.getBoundingClientRect().width || window2.innerWidth, compact = width <= breakpoint;
+      compact && !wasCompact && (wasCompact = !0, root.dataset.outlineOpen === "true" && closePanel("left")), wasCompact = compact;
+      let next = width <= breakpoint ? root.dataset.designNavOpen === "true" || root.dataset.outlineOpen === "true" ? "left" : root.dataset.planrRailOpen === "true" ? "right" : "" : "";
+      snapshot !== next && (next && (lastOpenSide = next), snapshot = next, listeners.forEach((listener) => {
+        listener();
+      }));
     };
     function Panels() {
-      const side = (0, import_react4.useSyncExternalStore)(
-        (listener) => {
-          listeners.add(listener);
-          return () => listeners.delete(listener);
-        },
+      let side = (0, import_react4.useSyncExternalStore)(
+        (listener) => (listeners.add(listener), () => listeners.delete(listener)),
         () => snapshot
       );
       return /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(
@@ -578,48 +484,37 @@
           title: side === "left" ? "Screens" : "Review",
           container: root,
           onCloseAutoFocus: (event) => {
-            event.preventDefault();
-            root.querySelector(
+            event.preventDefault(), root.querySelector(
               lastOpenSide === "left" ? "[data-design-toggle-nav],[data-action=outline]" : "[data-planr-action=feedback],[data-action=review]"
-            )?.focus({ preventScroll: true });
+            )?.focus({ preventScroll: !0 });
           },
           onOpenChange: (open) => {
-            if (!open && side) closePanel(side);
+            !open && side && closePanel(side);
           },
           children: side && /* @__PURE__ */ (0, import_jsx_runtime16.jsx)(PersistentPanel, { element: panels[side === "left" ? "left" : "right"] }, side)
         }
       );
     }
-    read();
-    (0, import_react_dom2.flushSync)(() => react.render(/* @__PURE__ */ (0, import_jsx_runtime16.jsx)(Panels, {})));
-    const observer = new window2.MutationObserver(read);
+    read(), (0, import_react_dom2.flushSync)(() => react.render(/* @__PURE__ */ (0, import_jsx_runtime16.jsx)(Panels, {})));
+    let observer = new window2.MutationObserver(read);
     observer.observe(root, {
-      attributes: true,
+      attributes: !0,
       attributeFilter: ["data-design-nav-open", "data-outline-open", "data-planr-rail-open"]
     });
-    const resize = typeof window2.ResizeObserver === "function" ? new window2.ResizeObserver(read) : null;
-    resize?.observe(root);
-    window2.addEventListener("resize", read);
-    return {
+    let resize = typeof window2.ResizeObserver == "function" ? new window2.ResizeObserver(read) : null;
+    return resize?.observe(root), window2.addEventListener("resize", read), {
       destroy() {
-        observer.disconnect();
-        resize?.disconnect();
-        window2.removeEventListener("resize", read);
-        (0, import_react_dom2.flushSync)(() => react.unmount());
-        mount.remove();
+        observer.disconnect(), resize?.disconnect(), window2.removeEventListener("resize", read), (0, import_react_dom2.flushSync)(() => react.unmount()), mount.remove();
       }
     };
   }
   function PreservedNode({ element }) {
-    const host = (0, import_react4.useRef)(null);
-    (0, import_react4.useLayoutEffect)(() => {
+    let host = (0, import_react4.useRef)(null);
+    return (0, import_react4.useLayoutEffect)(() => {
       if (!element) return;
-      const marker = element.ownerDocument.createComment("studio-control-home");
-      element.before(marker);
-      host.current?.append(element);
-      return () => {
+      let marker = element.ownerDocument.createComment("studio-control-home");
+      return element.before(marker), host.current?.append(element), () => {
         marker.replaceWith(element);
       };
-    }, [element]);
-    return /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { ref: host, className: "studio-preserved-control" });
+    }, [element]), /* @__PURE__ */ (0, import_jsx_runtime16.jsx)("span", { ref: host, className: "studio-preserved-control" });
   }

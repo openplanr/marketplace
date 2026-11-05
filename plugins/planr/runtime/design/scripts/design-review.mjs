@@ -1,14 +1,25 @@
 import {
+  ARTIFACT_REVIEW_MAX_STATE_BYTES,
+  CLI_COMMAND,
+  PLANNING_FOLDER,
   assertDesignImplementationHandoff,
+  createReviewLedger,
   designImplementationHandoffDigest,
   designReviewKey,
   designReviewPath,
+  effectiveReviewDecision,
+  exportArtifactReview,
   isDesignHandoffRelativePath,
+  mergeReviewLedger,
+  readArtifactReviewState,
   readDesignExperience,
   readDesignFeedback,
   readDesignHandoff,
   readDesignHandoffReadiness,
-  updateDesignHandoff
+  resolveArtifactReviewDestination,
+  updateDesignHandoff,
+  withArtifactReviewLock,
+  writeArtifactReviewState
 } from "./design-handoff.mjs";
 import {
   createArtifactBridgeNonce,
@@ -19,46 +30,51 @@ import {
   readRuntimeAsset,
   renderArtifactParentRuntime,
   renderDesignStudio,
+  saveDesignLayout,
+  saveDesignViewContext,
   standaloneDesignHtml,
   timingSafeTokenEqual
 } from "./design-document.mjs";
 import {
+  canonicalizeJson,
+  listDesignRevisions,
+  readDesignRevision,
+  reviewDigest
+} from "./design-shared-artifact-support-dependencies-design-support-protocol-contracts-d707e49b.mjs";
+import {
+  reviewControlHeaders,
+  reviewInstanceStatePath,
+  reviewStateRecordPaths
+} from "./design-review-state-store.mjs";
+import {
   renderArtifactShellDocument
 } from "./design-artifact-shell.mjs";
 import {
-  ARTIFACT_REVIEW_MAX_STATE_BYTES,
-  createReviewLedger,
-  effectiveReviewDecision,
-  exportArtifactReview,
+  ARTIFACT_ERROR_CODES,
+  MAX_ARTIFACT_HTML_BYTES,
+  PipelineError,
+  digestArtifactEnvelope,
+  resolveArtifactHtml,
+  validateArtifactEnvelope,
+  validateArtifactReview
+} from "./design-shared-artifact-support-protocol-contracts-9f6918b0.mjs";
+import {
+  defaultDesignRecoveryOutput,
   exportDesignShareRecovery,
   getDesignShareStatus,
+  getDesignShareStatusAsync,
   manageDesignShare,
-  mergeReviewLedger,
   publishDesignShare,
-  readArtifactReviewState,
-  resolveArtifactReviewDestination,
   shareDesign,
-  syncDesignShare,
-  withArtifactReviewLock,
-  writeArtifactReviewState
-} from "./design-share.mjs";
+  syncDesignShare
+} from "./design-share-cli-bridge.mjs";
 import {
   atomicJson,
   currentDesign,
   designSpecPath,
   hash,
-  listDesignRevisions,
-  readDesignRevision,
-  readJson,
-  reviewDigest
-} from "./design-shared-artifact-support-dependencies-design-support-protocol-contracts-3d9b1a86.mjs";
-import {
-  CLI_COMMAND,
-  PLANNING_FOLDER
-} from "./design-owner-custody.mjs";
-import {
-  planrHome
-} from "./design-runtime-home.mjs";
+  readJson
+} from "./design-shared-design-support-0bac378d.mjs";
 import {
   LOOPBACK_HOST,
   acquireStartLock,
@@ -70,18 +86,6 @@ import {
   readRequestBody,
   writePrivateJsonState
 } from "./design-loopback-server.mjs";
-import {
-  ARTIFACT_ERROR_CODES,
-  MAX_ARTIFACT_HTML_BYTES,
-  PipelineError,
-  digestArtifactEnvelope,
-  resolveArtifactHtml,
-  validateArtifactEnvelope,
-  validateArtifactReview
-} from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
-import {
-  canonicalizeJson
-} from "./design-shared-protocol-contracts-75a938cc.mjs";
 
 // packages/design/lib/design/review-export.mjs
 function reviewExportTools() {
@@ -282,7 +286,7 @@ function reviewExportTools() {
           frame: {
             id: refs.frame,
             label: field(frame?.label),
-            ...dimensions(frame) ?? { width: null, height: null }
+            ...frame?.height === "auto" && Number.isInteger(frame.width) && frame.width > 0 && frame.width <= 16384 ? { width: frame.width, height: "auto" } : dimensions(frame) ?? { width: null, height: null }
           },
           threads: []
         });
@@ -327,7 +331,7 @@ function reviewExportTools() {
       overallNotes
     };
   }
-  const inline = (value) => String(value ?? "Unavailable").replaceAll("\\", "\\\\").replace(/[\r\n]/gu, " ").replace(/[\[\]<>`*#|]/gu, (char) => "\\" + char);
+  const inline = (value) => String(value ?? "Unavailable").replaceAll("\\", "\\\\").replace(/[\r\n]/gu, " ").replace(/[[\]<>`*#|]/gu, (char) => "\\" + char);
   const quoted = (value) => {
     const runs = value.match(/`+/gu) ?? [];
     const fence = "`".repeat(Math.max(3, ...runs.map((run) => run.length + 1)));
@@ -418,9 +422,9 @@ import { existsSync as existsSync5, readFileSync as readFileSync4 } from "node:f
 import { dirname as dirname4, join as join5, relative, resolve as resolve3 } from "node:path";
 
 // packages/artifact/lib/artifact/review-server.mjs
-import { existsSync, lstatSync, readdirSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
-import { dirname, isAbsolute, join, resolve } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 var here = dirname(fileURLToPath(new URL("./runtime/packages/artifact/lib/artifact/review-server.mjs", import.meta.url).href));
 var STAGE_RUNTIME_PATH = join(here, "..", "..", "templates", "artifact-review-stage.js");
@@ -429,7 +433,6 @@ var ARTIFACT_REVIEW_SERVER_KIND = "artifact-review";
 var CONTROL_HEADER = "x-openplanr-control";
 var CONTROLLABLE_SERVER_VERSIONS = /* @__PURE__ */ new Set([2, ARTIFACT_REVIEW_SERVER_VERSION]);
 var EXPORT_ONLY_SERVER_VERSIONS = /* @__PURE__ */ new Set([1]);
-var AUTHORIZATION_CONTROL_VERSIONS = /* @__PURE__ */ new Set([1, 2]);
 var CONTROL_WINDOW_BYTES = 64 * 1024 * 1024;
 var ARTIFACT_REVIEW_MAX_CONTROL_BYTES = Math.ceil((MAX_ARTIFACT_HTML_BYTES * 2 + ARTIFACT_REVIEW_MAX_STATE_BYTES) / CONTROL_WINDOW_BYTES) * CONTROL_WINDOW_BYTES;
 var ARTIFACT_REVIEW_MAX_STATE_BYTES2 = ARTIFACT_REVIEW_MAX_STATE_BYTES;
@@ -489,10 +492,7 @@ function artifactReviewControlHeaders(controlToken) {
   return { [CONTROL_HEADER]: controlToken };
 }
 function stateControlHeaders(state) {
-  return AUTHORIZATION_CONTROL_VERSIONS.has(state.serverVersion) ? { authorization: `Bearer ${state.controlToken}` } : artifactReviewControlHeaders(state.controlToken);
-}
-function reviewStateDir(env = process.env) {
-  return join(planrHome(env), "artifact-daemon");
+  return reviewControlHeaders(state, CONTROL_HEADER);
 }
 function statusForError(error) {
   if (error?.code === "E_REQUEST_BODY_LIMIT" || error?.code === ARTIFACT_ERROR_CODES.REQUEST_LIMIT)
@@ -830,7 +830,7 @@ function createArtifactReviewServer({
   }
   if (serverMetadata !== void 0 && (!serverMetadata || !["artifact", "design", "diagram"].includes(serverMetadata.kind) || typeof serverMetadata.projectRoot !== "string" || !isAbsolute(serverMetadata.projectRoot)))
     throw artifactError(ARTIFACT_ERROR_CODES.LOOPBACK_STATE, "Local server metadata is invalid.");
-  const instanceStatePath = serverMetadata ? join(reviewStateDir(env), `instance-${instanceId}.json`) : null;
+  const instanceStatePath = serverMetadata ? reviewInstanceStatePath(instanceId, env) : null;
   const sessions = /* @__PURE__ */ new Map();
   const pendingStudioIds = /* @__PURE__ */ new Set();
   const pendingMutations = /* @__PURE__ */ new Set();
@@ -1499,20 +1499,11 @@ async function controlRequest(descriptor, path, { method, body, fetchImpl } = {}
   return value;
 }
 async function discoveredArtifactServers({ env, fetchImpl }) {
-  let names;
-  try {
-    names = readdirSync(reviewStateDir(env));
-  } catch (error) {
-    if (error.code === "ENOENT") return [];
-    throw error;
-  }
   const live = /* @__PURE__ */ new Map();
-  for (const name of names.sort()) {
-    if (!/^(?:instance-[A-Za-z0-9_-]{22}|state-(?:default|\d+))\.json$/u.test(name)) continue;
-    const path = join(reviewStateDir(env), name);
+  for (const path of reviewStateRecordPaths(env)) {
     const state = readReviewServerState(path);
     if (!validState(state, 0) || !await stateIsHealthy(state, fetchImpl)) continue;
-    if (!live.has(state.instanceId) || name.startsWith("instance-"))
+    if (!live.has(state.instanceId) || basename(path).startsWith("instance-"))
       live.set(state.instanceId, state);
   }
   return [...live.values()];
@@ -1548,7 +1539,7 @@ async function stopArtifactReviewServer(instanceId, { env = process.env, fetchIm
 }
 
 // packages/protocol/src/planning-folder.mjs
-import { existsSync as existsSync2, readdirSync as readdirSync2, statSync } from "node:fs";
+import { existsSync as existsSync2, readdirSync, statSync } from "node:fs";
 import { join as join2 } from "node:path";
 var FOREIGN_FILES = Object.freeze(["planr.config.json", "board.html"]);
 var GOAL_DIRECTORIES = Object.freeze(["tasks", "plans"]);
@@ -1559,7 +1550,7 @@ function foreignPlanningFolderSigns(projectRoot2) {
   const signs = FOREIGN_FILES.filter((name) => existsSync2(join2(folder, name)));
   for (const name of GOAL_DIRECTORIES) {
     const directory = join2(folder, name);
-    if (isDirectory(directory) && readdirSync2(directory).some((entry) => entry.endsWith("-goal.md")))
+    if (isDirectory(directory) && readdirSync(directory).some((entry) => entry.endsWith("-goal.md")))
       signs.push(`*-goal.md files in ${name}`);
   }
   return signs;
@@ -1943,7 +1934,7 @@ import { createHash as createHash2, randomUUID as randomUUID2 } from "node:crypt
 import {
   existsSync as existsSync4,
   mkdirSync as mkdirSync2,
-  readdirSync as readdirSync3,
+  readdirSync as readdirSync2,
   readFileSync as readFileSync3,
   renameSync as renameSync2,
   rmSync as rmSync3,
@@ -2123,7 +2114,7 @@ function listImplementationHandoffHistory(root) {
   recoverImplementationHandoffApproval(root);
   const directory = implementationHandoffPaths(root).history;
   if (!existsSync4(directory)) return [];
-  return readdirSync3(directory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map(
+  return readdirSync2(directory, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map(
     (entry) => assertImplementationHandoffProjection(readJson2(join4(directory, entry.name, "handoff.json")))
   ).sort((left, right) => left.version - right.version || left.id.localeCompare(right.id));
 }
@@ -2131,7 +2122,7 @@ function readImplementationHandoffLifecycle(root) {
   recoverImplementationHandoffApproval(root);
   const paths = implementationHandoffApprovalPaths(root);
   const current = readJson2(paths.current, null);
-  const events = existsSync4(paths.events) ? readdirSync3(paths.events).filter((name) => name.endsWith(".json")).map((name) => readJson2(join4(paths.events, name))).sort(
+  const events = existsSync4(paths.events) ? readdirSync2(paths.events).filter((name) => name.endsWith(".json")).map((name) => readJson2(join4(paths.events, name))).sort(
     (left, right) => left.at.localeCompare(right.at) || left.eventId.localeCompare(right.eventId)
   ) : [];
   return Object.freeze({ current, history: listImplementationHandoffHistory(root), events });
@@ -2470,7 +2461,24 @@ function studioRuntimeIdentity(current) {
     )
   };
 }
-function exportDesignReview(file, { scope = "all", env = process.env } = {}) {
+function studioContentIdentity(current) {
+  const document = { ...current.document };
+  delete document.layout;
+  return hash(
+    JSON.stringify({
+      document,
+      layoutGuidance: {
+        titles: Object.entries(current.document.layout?.boards ?? {}).filter(([, board]) => board.title !== void 0).map(([key, board]) => [key, board.title]).sort(([left], [right]) => left.localeCompare(right)),
+        sections: current.document.layout?.sections ?? []
+      },
+      artifactDigest: digestArtifactEnvelope(current.envelope),
+      fingerprints: current.fingerprints,
+      contextDigest: current.contextDigest,
+      specification: readFileSync4(join5(current.directory, "design-spec.md"), "utf8")
+    })
+  );
+}
+function exportDesignReview(file, { scope = "all", env = process.env, shared: known } = {}) {
   if (!["all", "current"].includes(scope))
     throw new Error("Review export scope must be current or all.");
   const current = currentDesign(file), feedback = readDesignFeedback(file, env);
@@ -2499,11 +2507,12 @@ function exportDesignReview(file, { scope = "all", env = process.env } = {}) {
   const byDigest = /* @__PURE__ */ new Map();
   for (const value of local.values())
     byDigest.set(value.reviewOf, [...byDigest.get(value.reviewOf) ?? [], value]);
-  let shared = null;
-  try {
-    shared = getDesignShareStatus(file, { env });
-  } catch {
-  }
+  let shared = known ?? null;
+  if (known === void 0)
+    try {
+      shared = getDesignShareStatus(file, { env });
+    } catch {
+    }
   const currentRevisionId = shared?.publishedRevision === current.revision && shared?.revision ? shared.revision : current.revision;
   const revisions = [...local.values()];
   const entries = (feedback.ledger?.reviews ?? []).filter(
@@ -2894,7 +2903,13 @@ async function startDesignReviewUnlocked(file, {
       }).state;
       const stalePins = readDesignFeedback(file, env).pins.filter((pin) => pin.stale);
       return renderDesignStudio(
-        { ...current, envelope: model.envelope, state, stalePins },
+        {
+          ...current,
+          envelope: model.envelope,
+          state,
+          stalePins,
+          contentIdentity: studioContentIdentity(current)
+        },
         { stageRuntimeUrl: `${base}runtime.js` }
       ).replace(
         "</head>",
@@ -2908,6 +2923,8 @@ async function startDesignReviewUnlocked(file, {
           launchContext: base.startsWith("/studio/") ? "local Studio" : "private review"
         },
         stateUrl: `${base}api/design-state`,
+        viewContextUrl: `${base}api/design-view-context`,
+        layoutUrl: `${base}api/design-layout`,
         statusUrl: `${base}api/design-status`,
         readyUrl: `${base}api/design-ready`,
         shareUrl: `${base}api/design-share`,
@@ -3093,8 +3110,13 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           } else if (route === "design-feedback-export") {
             if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((key) => key !== "scope") || input.scope !== void 0 && !["all", "current"].includes(input.scope))
               throw new Error("Review export requires scope current or all.");
-            await syncDesignShare(file, { env, fetchImpl });
-            respond(res, 200, exportDesignReview(file, { scope: input.scope ?? "all", env }));
+            await syncDesignShare(file, { env, fetchImpl, unavailable: "skip" });
+            const shared = await getDesignShareStatusAsync(file, { env }).catch(() => null);
+            respond(
+              res,
+              200,
+              exportDesignReview(file, { scope: input.scope ?? "all", env, shared })
+            );
           } else {
             if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((key) => !["revision", "artifactIds"].includes(key)) || input.artifactIds !== void 0 && (!Array.isArray(input.artifactIds) || input.artifactIds.length < 1 || input.artifactIds.length > 2 || input.artifactIds.some((id) => typeof id !== "string") || new Set(input.artifactIds).size !== input.artifactIds.length))
               throw new Error("Revision comparison requires one or two distinct view IDs.");
@@ -3133,7 +3155,7 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
             readFileSync4(new URL("../../templates/studio/share.js", new URL("./runtime/packages/design/lib/design/review.mjs", import.meta.url).href), "utf8")
           );
         } else if (route === "design-share" && req.method === "GET") {
-          respond(res, 200, getDesignShareStatus(file, { env }));
+          respond(res, 200, await getDesignShareStatusAsync(file, { env }));
         } else if (route === "design-share" && req.method === "POST") {
           if (req.headers["x-openplanr-design"] !== "1" || !String(req.headers["content-type"] ?? "").startsWith("application/json"))
             throw Object.assign(new Error("Sharing requires a same-origin studio request."), {
@@ -3153,11 +3175,7 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           else if (action === "recovery")
             result = await exportDesignShareRecovery(file, {
               ...options,
-              output: join5(
-                env.HOME ?? process.env.HOME,
-                "Downloads",
-                `openplanr-design-recovery-${Date.now()}.json`
-              )
+              output: defaultDesignRecoveryOutput(env)
             });
           else result = await manageDesignShare(file, action, options);
           respond(res, 200, result);
@@ -3169,7 +3187,9 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
             revision: current.revision,
             status: ready?.revision === current.revision ? ready.status : "loading",
             verification: current.verification.status,
-            runtimeIdentity: studioRuntimeIdentity(current)
+            runtimeIdentity: studioRuntimeIdentity(current),
+            contentIdentity: studioContentIdentity(current),
+            layout: current.document.layout
           });
         } else if (route === "design-state" && req.method === "GET") {
           respond(res, 200, {
@@ -3181,6 +3201,18 @@ ${renderArtifactParentRuntime({ ...options, adapterRuntimeUrl: `${base}api/desig
           });
         } else if (route === "design-state" && req.method === "PUT") {
           respond(res, 200, await saveDesignState(file, await readBody(req)));
+        } else if (route === "design-view-context" && req.method === "PUT") {
+          if (req.headers["x-openplanr-design"] !== "1" || !String(req.headers["content-type"] ?? "").startsWith("application/json") || req.headers.origin && req.headers.origin !== `http://127.0.0.1:${server.port}`)
+            throw Object.assign(new Error("View context requires a same-origin studio request."), {
+              statusCode: 403
+            });
+          respond(res, 200, saveDesignViewContext(file, await readBody(req), clock));
+        } else if (route === "design-layout" && req.method === "PUT") {
+          if (req.headers["x-openplanr-design"] !== "1" || !String(req.headers["content-type"] ?? "").startsWith("application/json") || req.headers.origin && req.headers.origin !== `http://127.0.0.1:${server.port}`)
+            throw Object.assign(new Error("Layout saves require a same-origin studio request."), {
+              statusCode: 403
+            });
+          respond(res, 200, await saveDesignLayout(file, await readBody(req)));
         } else if (route === "design-ready" && req.method === "POST") {
           const value = await readBody(req);
           const loadedArtifacts = new Set(Array.isArray(value?.artifacts) ? value.artifacts : []);

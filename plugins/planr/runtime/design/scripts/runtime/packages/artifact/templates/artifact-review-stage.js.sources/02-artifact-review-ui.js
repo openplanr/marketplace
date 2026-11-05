@@ -126,11 +126,11 @@
   }
   function domToken(value) {
     const source = String(value);
-    let token3 = "";
-    for (let index2 = 0; index2 < source.length; index2 += 1) {
-      token3 += source.charCodeAt(index2).toString(16).padStart(4, "0");
+    let token = "";
+    for (let index = 0; index < source.length; index += 1) {
+      token += source.charCodeAt(index).toString(16).padStart(4, "0");
     }
-    return token3;
+    return token;
   }
   function annotationDomIds(pinId) {
     const suffix = domToken(pinId);
@@ -143,26 +143,26 @@
     return typeof value === "string" ? value.trim().slice(0, max) : "";
   }
   function make(document2, tag, { className, textContent, attributes = {} } = {}) {
-    const node2 = document2.createElement(tag);
-    if (className) node2.className = className;
-    if (textContent !== void 0) node2.textContent = textContent;
+    const node = document2.createElement(tag);
+    if (className) node.className = className;
+    if (textContent !== void 0) node.textContent = textContent;
     for (const [name, value] of Object.entries(attributes)) {
-      if (value !== void 0 && value !== null) node2.setAttribute(name, String(value));
+      if (value !== void 0 && value !== null) node.setAttribute(name, String(value));
     }
-    return node2;
+    return node;
   }
-  function setRegionStyle(node2, region) {
+  function setRegionStyle(node, region) {
     const style = annotationStyle(region);
-    if (node2.style.left !== style.left) node2.style.left = style.left;
-    if (node2.style.top !== style.top) node2.style.top = style.top;
+    if (node.style.left !== style.left) node.style.left = style.left;
+    if (node.style.top !== style.top) node.style.top = style.top;
     if (region.w > 0 || region.h > 0) {
-      if (node2.style.width !== style.width) node2.style.width = style.width;
-      if (node2.style.height !== style.height) node2.style.height = style.height;
+      if (node.style.width !== style.width) node.style.width = style.width;
+      if (node.style.height !== style.height) node.style.height = style.height;
     }
   }
   function announce(document2, value) {
-    const node2 = document2.querySelector('[data-planr-slot="review-announcer"]');
-    if (node2) node2.textContent = value;
+    const node = document2.querySelector('[data-planr-slot="review-announcer"]');
+    if (node) node.textContent = value;
   }
   function identityName(reviewController) {
     return text(
@@ -175,14 +175,14 @@
       className: "planr-intent-picker",
       attributes: { role: "radiogroup", "aria-label": "Feedback intent" }
     });
-    for (const [index2, intent] of INTENTS.entries()) {
+    for (const [index, intent] of INTENTS.entries()) {
       const button = make(document2, "button", {
         textContent: intent[0].toUpperCase() + intent.slice(1),
         attributes: {
           type: "button",
           role: "radio",
-          "aria-checked": String(index2 === 0),
-          tabindex: index2 === 0 ? 0 : -1,
+          "aria-checked": String(index === 0),
+          tabindex: index === 0 ? 0 : -1,
           "data-planr-intent": intent
         }
       });
@@ -218,16 +218,16 @@
     }
     function layerFor(artifactId) {
       return [...document2.querySelectorAll("[data-planr-annotation-layer]")].find(
-        (node2) => node2.dataset.planrAnnotationLayer === artifactId
+        (node) => node.dataset.planrAnnotationLayer === artifactId
       ) ?? null;
     }
     function frameFor(artifactId) {
       return [...document2.querySelectorAll("[data-planr-artifact-frame]")].find(
-        (node2) => node2.dataset.planrArtifactFrame === artifactId
+        (node) => node.dataset.planrArtifactFrame === artifactId
       ) ?? null;
     }
     function focusThread(pinId) {
-      const pin = review()?.pins?.find((item2) => item2.id === pinId);
+      const pin = review()?.pins?.find((item) => item.id === pinId);
       if (!pin) return;
       reviewController.selectPin?.(pinId);
       const state = stageController.getState();
@@ -238,7 +238,7 @@
       queueMicrotask(() => document2.getElementById(annotationDomIds(pinId).thread)?.focus());
     }
     function focusPin(pinId) {
-      const pin = review()?.pins?.find((item2) => item2.id === pinId);
+      const pin = review()?.pins?.find((item) => item.id === pinId);
       if (!pin) return;
       reviewController.selectPin?.(pinId);
       const state = stageController.getState();
@@ -270,21 +270,21 @@
         pin.viewport
       ]);
     }
-    function setPinPosition(record2, region) {
-      const point2 = { x: region.x + region.w / 2, y: region.y + region.h / 2, w: 0, h: 0 };
-      setRegionStyle(record2.button, point2);
-      if (record2.region) setRegionStyle(record2.region, region);
-      if (record2.button.hidden) record2.button.hidden = false;
-      if (record2.region?.hidden) record2.region.hidden = false;
+    function setPinPosition(record, region) {
+      const point = { x: region.x + region.w / 2, y: region.y + region.h / 2, w: 0, h: 0 };
+      setRegionStyle(record.button, point);
+      if (record.region) setRegionStyle(record.region, region);
+      if (record.button.hidden) record.button.hidden = false;
+      if (record.region?.hidden) record.region.hidden = false;
     }
-    function hidePin(record2) {
-      if (!record2.button.hidden) record2.button.hidden = true;
-      if (record2.region && !record2.region.hidden) record2.region.hidden = true;
+    function hidePin(record) {
+      if (!record.button.hidden) record.button.hidden = true;
+      if (record.region && !record.region.hidden) record.region.hidden = true;
     }
-    function removePin(record2) {
-      record2.pending = null;
-      record2.button.remove();
-      record2.region?.remove();
+    function removePin(record) {
+      record.pending = null;
+      record.button.remove();
+      record.region?.remove();
     }
     function refreshAnchors() {
       if (destroyed) return;
@@ -295,40 +295,40 @@
           frame
         ])
       );
-      const records = [...pinRecords.values()].flatMap((records2) => [...records2.values()]).filter((record2) => record2.pin.anchor?.planrId).sort((a, b) => a.requestedAt - b.requestedAt);
-      for (const record2 of records) {
-        if (record2.pending || now - record2.requestedAt < 200 || !record2.button.isConnected) continue;
-        const frame = frames.get(record2.pin.artifactId);
+      const records = [...pinRecords.values()].flatMap((records2) => [...records2.values()]).filter((record) => record.pin.anchor?.planrId).sort((a, b) => a.requestedAt - b.requestedAt);
+      for (const record of records) {
+        if (record.pending || now - record.requestedAt < 200 || !record.button.isConnected) continue;
+        const frame = frames.get(record.pin.artifactId);
         const bridge = frame?.__openPlanrBridge;
         if (!bridge?.resolve || frame.closest("[hidden]") || frame.dataset.planrBridgeTrusted === "false" || (anchorRequests.get(frame) ?? 0) >= 8)
           continue;
-        const request = {}, key = record2.geometryKey, pin = record2.pin;
-        record2.pending = request;
-        record2.requestedAt = now;
+        const request = {}, key = record.geometryKey, pin = record.pin;
+        record.pending = request;
+        record.requestedAt = now;
         anchorRequests.set(frame, (anchorRequests.get(frame) ?? 0) + 1);
-        Promise.resolve().then(() => bridge.resolve(pin.anchor.planrId, pin.anchor.screen)).then((anchor2) => {
-          if (destroyed || record2.pending !== request || record2.geometryKey !== key || !record2.button.isConnected || frame.__openPlanrBridge !== bridge)
+        Promise.resolve().then(() => bridge.resolve(pin.anchor.planrId, pin.anchor.screen)).then((anchor) => {
+          if (destroyed || record.pending !== request || record.geometryKey !== key || !record.button.isConnected || frame.__openPlanrBridge !== bridge)
             return;
-          if (!anchor2 || anchor2.rect.width <= 0 || anchor2.rect.height <= 0) {
-            hidePin(record2);
-            if (record2.button.dataset.planrAnchorStatus !== "unavailable")
-              record2.button.dataset.planrAnchorStatus = "unavailable";
+          if (!anchor || anchor.rect.width <= 0 || anchor.rect.height <= 0) {
+            hidePin(record);
+            if (record.button.dataset.planrAnchorStatus !== "unavailable")
+              record.button.dataset.planrAnchorStatus = "unavailable";
             return;
           }
           const projected = anchorRegionToViewportRegion(
             pin.region,
-            anchor2.viewport ?? pin.viewport,
-            anchor2.rect
+            anchor.viewport ?? pin.viewport,
+            anchor.rect
           );
-          setPinPosition(record2, projected);
-          if (record2.button.dataset.planrAnchorStatus !== "resolved")
-            record2.button.dataset.planrAnchorStatus = "resolved";
+          setPinPosition(record, projected);
+          if (record.button.dataset.planrAnchorStatus !== "resolved")
+            record.button.dataset.planrAnchorStatus = "resolved";
         }).catch(() => {
         }).finally(() => {
           const remaining = (anchorRequests.get(frame) ?? 1) - 1;
           if (remaining > 0) anchorRequests.set(frame, remaining);
           else anchorRequests.delete(frame);
-          if (record2.pending === request) record2.pending = null;
+          if (record.pending === request) record.pending = null;
         });
       }
     }
@@ -338,7 +338,7 @@
       const layers = new Set(document2.querySelectorAll("[data-planr-annotation-layer]"));
       for (const [layer, records] of pinRecords) {
         if (layers.has(layer)) continue;
-        for (const record2 of records.values()) removePin(record2);
+        for (const record of records.values()) removePin(record);
         pinRecords.delete(layer);
       }
       for (const layer of layers) {
@@ -348,24 +348,24 @@
           pinRecords.set(layer, records);
         }
         const current = /* @__PURE__ */ new Set();
-        for (const [index2, pin] of pins.entries()) {
+        for (const [index, pin] of pins.entries()) {
           if (pin.artifactId !== layer.dataset.planrAnnotationLayer) continue;
           current.add(pin.id);
-          const ids2 = annotationDomIds(pin.id), ordinal = index2 + 1;
+          const ids = annotationDomIds(pin.id), ordinal = index + 1;
           const hasRegion = pin.region.w > 0 || pin.region.h > 0;
-          let record2 = records.get(pin.id);
-          if (!record2) {
+          let record = records.get(pin.id);
+          if (!record) {
             const button = make(document2, "button", {
               attributes: {
                 type: "button",
-                id: ids2.pin,
+                id: ids.pin,
                 "data-planr-pin-id": pin.id,
-                "aria-controls": ids2.thread
+                "aria-controls": ids.thread
               }
             });
             button.addEventListener("click", () => focusThread(pin.id));
             layer.append(button);
-            record2 = {
+            record = {
               button,
               region: null,
               pin,
@@ -373,56 +373,56 @@
               pending: null,
               requestedAt: -Infinity
             };
-            records.set(pin.id, record2);
+            records.set(pin.id, record);
           }
-          record2.pin = pin;
-          if (hasRegion && !record2.region) {
-            record2.region = make(document2, "span", {
+          record.pin = pin;
+          if (hasRegion && !record.region) {
+            record.region = make(document2, "span", {
               attributes: { "data-planr-pin-region-id": pin.id, "aria-hidden": "true" }
             });
-            layer.insertBefore(record2.region, record2.button);
-          } else if (!hasRegion && record2.region) {
-            record2.region.remove();
-            record2.region = null;
+            layer.insertBefore(record.region, record.button);
+          } else if (!hasRegion && record.region) {
+            record.region.remove();
+            record.region = null;
           }
-          const buttonClass = `planr-pin planr-pin-${pin.intent} planr-pin-${pin.status}${hasRegion ? " planr-pin-region-handle" : ""}${record2.button.classList.contains("planr-pin-highlight") ? " planr-pin-highlight" : ""}`;
-          if (record2.button.className !== buttonClass) record2.button.className = buttonClass;
-          if (record2.button.textContent !== String(ordinal))
-            record2.button.textContent = String(ordinal);
+          const buttonClass = `planr-pin planr-pin-${pin.intent} planr-pin-${pin.status}${hasRegion ? " planr-pin-region-handle" : ""}${record.button.classList.contains("planr-pin-highlight") ? " planr-pin-highlight" : ""}`;
+          if (record.button.className !== buttonClass) record.button.className = buttonClass;
+          if (record.button.textContent !== String(ordinal))
+            record.button.textContent = String(ordinal);
           for (const [name, value] of Object.entries({
             "data-planr-intent": pin.intent,
             "data-planr-status": pin.status,
             "aria-label": `${pin.intent} comment ${ordinal}: ${pin.comment}`
           })) {
-            if (record2.button.getAttribute(name) !== value) record2.button.setAttribute(name, value);
+            if (record.button.getAttribute(name) !== value) record.button.setAttribute(name, value);
           }
-          if (record2.region) {
+          if (record.region) {
             const regionClass = `planr-pin-region planr-pin-region-${pin.intent} planr-pin-region-${pin.status}`;
-            if (record2.region.className !== regionClass) record2.region.className = regionClass;
+            if (record.region.className !== regionClass) record.region.className = regionClass;
           }
           const key = pinGeometryKey(pin);
-          if (record2.geometryKey !== key) {
-            record2.geometryKey = key;
-            record2.pending = null;
-            record2.requestedAt = -Infinity;
-            if (pin.anchor?.planrId) hidePin(record2);
+          if (record.geometryKey !== key) {
+            record.geometryKey = key;
+            record.pending = null;
+            record.requestedAt = -Infinity;
+            if (pin.anchor?.planrId) hidePin(record);
             else {
-              delete record2.button.dataset.planrAnchorStatus;
-              setPinPosition(record2, pin.region);
+              delete record.button.dataset.planrAnchorStatus;
+              setPinPosition(record, pin.region);
             }
           }
         }
-        for (const [id7, record2] of records) {
-          if (!current.has(id7)) {
-            removePin(record2);
-            records.delete(id7);
+        for (const [id, record] of records) {
+          if (!current.has(id)) {
+            removePin(record);
+            records.delete(id);
           }
         }
       }
       refreshAnchors();
     }
     function closeComposer({ restoreFocus = false, preserveDraft = false } = {}) {
-      const snapshot2 = preserveDraft ? snapshotDraft() : null;
+      const snapshot = preserveDraft ? snapshotDraft() : null;
       draftFieldCleanup?.();
       draftFieldCleanup = null;
       composerLayoutCleanup?.();
@@ -435,7 +435,7 @@
       }
       composer?.remove();
       draft = null;
-      suspendedDraft = snapshot2;
+      suspendedDraft = snapshot;
       draftToken += 1;
       if (activeLayer && stageController.getState().reviewMode !== "comment") {
         activeLayer.setAttribute("aria-disabled", "true");
@@ -446,22 +446,22 @@
       }
       composerReturnFocus = null;
     }
-    async function resolveAnchor(token3, candidate) {
+    async function resolveAnchor(token, candidate) {
       const frame = frameFor(candidate.artifactId);
-      const point2 = artifactAnchorPoint(candidate.region, candidate.viewport);
+      const point = artifactAnchorPoint(candidate.region, candidate.viewport);
       let result = null;
       try {
-        const anchor2 = frame?.__openPlanrBridge?.hitTest?.(point2.x, point2.y);
-        if (anchor2) {
+        const anchor = frame?.__openPlanrBridge?.hitTest?.(point.x, point.y);
+        if (anchor) {
           result = await Promise.race([
-            anchor2,
+            anchor,
             new Promise((resolve) => window.setTimeout(() => resolve(null), 800))
           ]);
         }
       } catch {
         result = null;
       }
-      if (token3 !== draftToken || !draft || draft.artifactId !== candidate.artifactId) return;
+      if (token !== draftToken || !draft || draft.artifactId !== candidate.artifactId) return;
       if (result?.planrId) {
         draft.anchor = Object.freeze({
           planrId: String(result.planrId).slice(0, 512),
@@ -485,16 +485,16 @@
       const availableWidth = Math.max(1, viewport.width - margin * 2), availableHeight = Math.max(1, viewport.height - margin * 2);
       composer.style.width = `${Math.min(360, availableWidth)}px`;
       composer.style.maxHeight = `${Math.min(620, availableHeight)}px`;
-      const bounds2 = layer.getBoundingClientRect();
-      const point2 = {
-        x: bounds2.left + clamp(draft.displayRegion.x + draft.displayRegion.w / 2) * bounds2.width,
-        y: bounds2.top + clamp(draft.displayRegion.y + draft.displayRegion.h / 2) * bounds2.height
+      const bounds = layer.getBoundingClientRect();
+      const point = {
+        x: bounds.left + clamp(draft.displayRegion.x + draft.displayRegion.w / 2) * bounds.width,
+        y: bounds.top + clamp(draft.displayRegion.y + draft.displayRegion.h / 2) * bounds.height
       };
       const size = composer.getBoundingClientRect();
       const width = Math.min(size.width || 360, availableWidth), height = Math.min(size.height || 360, availableHeight);
-      const left = point2.x + 16 + width <= viewport.x + viewport.width - margin ? point2.x + 16 : point2.x - width - 16;
+      const left = point.x + 16 + width <= viewport.x + viewport.width - margin ? point.x + 16 : point.x - width - 16;
       composer.style.left = `${clamp(left, viewport.x + margin, viewport.x + viewport.width - width - margin)}px`;
-      composer.style.top = `${clamp(point2.y + 16, viewport.y + margin, viewport.y + viewport.height - height - margin)}px`;
+      composer.style.top = `${clamp(point.y + 16, viewport.y + margin, viewport.y + viewport.height - height - margin)}px`;
     }
     function openComposer(detail, { restoredDraft = null } = {}) {
       const opener = document2.activeElement;
@@ -503,7 +503,7 @@
       const layer = layerFor(detail.artifactId);
       if (!layer) return;
       draftToken += 1;
-      const token3 = draftToken;
+      const token = draftToken;
       draft = {
         artifactId: detail.artifactId,
         region: Object.freeze({ ...detail.region }),
@@ -637,7 +637,7 @@
           return;
         }
         reviewController.setIdentity?.({ name: author });
-        const existingIds = new Set(review()?.pins?.map(({ id: id7 }) => id7) ?? []);
+        const existingIds = new Set(review()?.pins?.map(({ id }) => id) ?? []);
         const action = {
           type: "add-pin",
           pin: {
@@ -652,7 +652,7 @@
         };
         const next = reviewController.dispatch(action);
         const nextReview = next?.review ?? next;
-        const created = nextReview?.pins?.find?.(({ id: id7 }) => !existingIds.has(id7));
+        const created = nextReview?.pins?.find?.(({ id }) => !existingIds.has(id));
         closeComposer();
         renderPins();
         announce(document2, `${selectedIntent} comment added.`);
@@ -687,7 +687,7 @@
         );
         if (fields.size) {
           let restoreFields = function() {
-            if (token3 !== draftToken || !composer.isConnected) {
+            if (token !== draftToken || !composer.isConnected) {
               finish();
               return;
             }
@@ -711,7 +711,7 @@
           draftFieldCleanup = finish;
           restoreFields();
         }
-      } else void resolveAnchor(token3, draft);
+      } else void resolveAnchor(token, draft);
     }
     function snapshotDraft() {
       const composer = document2.querySelector("[data-planr-annotation-composer]");
@@ -736,17 +736,17 @@
         selectionDirection: comment.selectionDirection
       });
     }
-    function restoreDraft(snapshot2) {
-      if (!snapshot2 || snapshot2.reviewOf !== (reviewController.getReviewOf?.() ?? review()?.reviewOf ?? null))
+    function restoreDraft(snapshot) {
+      if (!snapshot || snapshot.reviewOf !== (reviewController.getReviewOf?.() ?? review()?.reviewOf ?? null))
         return false;
-      const artifact = stageController.getState().artifacts.find((entry) => entry.id === snapshot2.artifactId);
-      if (!artifact || artifact.viewport.width !== snapshot2.viewport?.width || artifact.viewport.height !== snapshot2.viewport?.height || !["x", "y", "w", "h"].every(
-        (key) => Number.isFinite(snapshot2.region?.[key]) && snapshot2.region[key] >= 0 && snapshot2.region[key] <= 1
+      const artifact = stageController.getState().artifacts.find((entry) => entry.id === snapshot.artifactId);
+      if (!artifact || artifact.viewport.width !== snapshot.viewport?.width || artifact.viewport.height !== snapshot.viewport?.height || !["x", "y", "w", "h"].every(
+        (key) => Number.isFinite(snapshot.region?.[key]) && snapshot.region[key] >= 0 && snapshot.region[key] <= 1
       ) || !["x", "y", "w", "h"].every(
-        (key) => Number.isFinite(snapshot2.displayRegion?.[key]) && snapshot2.displayRegion[key] >= 0 && snapshot2.displayRegion[key] <= 1
-      ) || typeof snapshot2.comment !== "string" || snapshot2.comment.length > ARTIFACT_ANNOTATION_LIMITS.maxCommentLength || typeof snapshot2.identity !== "string" || snapshot2.identity.length > ARTIFACT_ANNOTATION_LIMITS.maxIdentityLength || !INTENTS.includes(snapshot2.intent) || snapshot2.anchor && (typeof snapshot2.anchor.planrId !== "string" || snapshot2.anchor.planrId.length > 512))
+        (key) => Number.isFinite(snapshot.displayRegion?.[key]) && snapshot.displayRegion[key] >= 0 && snapshot.displayRegion[key] <= 1
+      ) || typeof snapshot.comment !== "string" || snapshot.comment.length > ARTIFACT_ANNOTATION_LIMITS.maxCommentLength || typeof snapshot.identity !== "string" || snapshot.identity.length > ARTIFACT_ANNOTATION_LIMITS.maxIdentityLength || !INTENTS.includes(snapshot.intent) || snapshot.anchor && (typeof snapshot.anchor.planrId !== "string" || snapshot.anchor.planrId.length > 512))
         return false;
-      openComposer(snapshot2, { restoredDraft: snapshot2 });
+      openComposer(snapshot, { restoredDraft: snapshot });
       return Boolean(draft);
     }
     listen(window, "resize", positionComposer);
@@ -799,11 +799,16 @@
         closeComposer();
         for (const remove of cleanup.splice(0)) remove();
         for (const records of pinRecords.values())
-          for (const record2 of records.values()) removePin(record2);
+          for (const record of records.values()) removePin(record);
         pinRecords.clear();
         anchorRequests.clear();
       }
     });
     window.__openPlanrArtifactAnnotations = controller;
     return controller;
+  }
+
+  // local-stage-stub:./durable-paste-share.mjs
+  function createDurablePasteShare() {
+    return null;
   }

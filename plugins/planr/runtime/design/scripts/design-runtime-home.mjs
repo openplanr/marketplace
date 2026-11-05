@@ -34,6 +34,5 @@ function planrHome(env = process.env) {
 }
 
 export {
-  configuredPlanrHome,
   planrHome
 };

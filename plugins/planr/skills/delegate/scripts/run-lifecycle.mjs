@@ -5,7 +5,7 @@ import { basename, dirname, join } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { terminateProcessGroup } from './adapters/generic.mjs';
 import { captureFileState, cleanupWorktreeCustody, validateWorktreeCustody } from './custody.mjs';
-import { git, treeIdentity } from './integration-files.mjs';
+import { git } from './integration-files.mjs';
 import {
   implementationReport,
   liveExecutionTiming,
@@ -118,8 +118,13 @@ async function initialAbandonmentInventory(record, custody) {
     (record.initialIndex && record.initialIndex !== custody.initialIndex)
   )
     throw abandonError(record, 'The initial worktree HEAD, index or protected contents changed.');
+  if (
+    custody.base &&
+    (await git(target, 'rev-parse', 'HEAD')).toString('utf8').trim() !== custody.base
+  )
+    throw abandonError(record, 'The run branch advanced past its base commit.');
   const entries = new Map(
-    (await git(target, 'ls-tree', '-r', '-z', custody.initialHead))
+    (await git(target, 'ls-tree', '-r', '-z', custody.base ?? custody.initialHead))
       .toString('utf8')
       .split('\0')
       .filter(Boolean)
@@ -338,6 +343,12 @@ export async function recoverDelegateRun({ runId, runDirectory = defaultRunDirec
   });
 }
 
+async function worktreeAtTip(target, tip) {
+  const head = (await git(target, 'rev-parse', 'HEAD')).toString('utf8').trim();
+  const status = await git(target, 'status', '--porcelain=v1', '-z', '--untracked-files=all');
+  return head === tip && status.length === 0;
+}
+
 export async function cleanupAcceptedWorktree(record, runDirectory) {
   if (record.cleanup?.status === 'removed') return record.cleanup;
   const disposition = record.disposition === 'integrated' ? 'accepted' : 'abandoned';
@@ -357,11 +368,7 @@ export async function cleanupAcceptedWorktree(record, runDirectory) {
     beforeRemove: async (target) => {
       if (unstarted)
         await assertUnchangedAbandonment(record, await custodyAt(record, runDirectory));
-      if (
-        record.nativeSelection &&
-        record.integration?.worktreeIdentity &&
-        (await treeIdentity(target)) !== record.integration.worktreeIdentity
-      )
+      if (record.integration?.tip && !(await worktreeAtTip(target, record.integration.tip)))
         throw new DelegateRunError(
           'E_DELEGATE_CLEANUP_DRIFT',
           'Owned worktree changed after acceptance; retain it for inspection.',
@@ -450,9 +457,6 @@ export async function delegateRunStatus({ runId, runDirectory = defaultRunDirect
       ? {
           status: record.integration.status,
           phase: record.integration.phase,
-          journalPath: record.integration.journalPath,
-          cursor: record.integration.cursor,
-          pendingPath: record.integration.pendingPath,
           nextAction: `Run node ${record.helper?.integrationPath ?? 'integrate.mjs'} recover with this run ID and resolution rollback (default) or accept after verifying every written path.`,
         }
       : null,
