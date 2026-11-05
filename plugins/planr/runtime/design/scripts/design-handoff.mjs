@@ -1,40 +1,817 @@
 import {
-  getDesignShareStatus,
-  publishDesignReviewMetadata,
-  readArtifactReviewState,
-  resolveArtifactReviewDestination,
-  withArtifactReviewLock
-} from "./design-share.mjs";
-import {
   DESIGN_HANDOFF_CONTENT_SCHEMA,
   DESIGN_HANDOFF_SCHEMA,
+  assertPlainData,
   assertReviewExperience,
+  canonicalizeJson,
+  deepFreeze,
+  emptyReviewContext,
+  reviewDigest,
+  sha256Hex
+} from "./design-shared-artifact-support-dependencies-design-support-protocol-contracts-d707e49b.mjs";
+import {
+  ARTIFACT_ERROR_CODES,
+  PipelineError,
+  canonicalSerialize,
+  digestArtifactEnvelope,
+  validateArtifactEnvelope,
+  validateArtifactReview,
+  validateJson
+} from "./design-shared-artifact-support-protocol-contracts-9f6918b0.mjs";
+import {
+  assertDesignShareAvailable,
+  getDesignShareStatus,
+  publishDesignReviewMetadata
+} from "./design-share-cli-bridge.mjs";
+import {
   atomicJson,
   currentDesign,
   designSpecPath,
-  emptyReviewContext,
   hash,
-  readJson,
-  reviewDigest
-} from "./design-shared-artifact-support-dependencies-design-support-protocol-contracts-3d9b1a86.mjs";
+  readJson
+} from "./design-shared-design-support-0bac378d.mjs";
+import {
+  planrHome
+} from "./design-runtime-home.mjs";
 import {
   acquireStartLock
 } from "./design-loopback-server.mjs";
-import {
-  digestArtifactEnvelope
-} from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
-import {
-  validateJson
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
-import {
-  assertPlainData,
-  canonicalizeJson,
-  deepFreeze,
-  sha256Hex
-} from "./design-shared-protocol-contracts-75a938cc.mjs";
 
 // packages/design/lib/design/feedback-reader.mjs
-import { join } from "node:path";
+import { join as join2 } from "node:path";
+
+// packages/artifact/lib/artifact/import.mjs
+import {
+  existsSync as existsSync2,
+  lstatSync as lstatSync2,
+  mkdirSync as mkdirSync2,
+  readFileSync as readFileSync2,
+  realpathSync,
+  renameSync as renameSync2,
+  rmSync as rmSync2,
+  statSync as statSync2,
+  writeFileSync as writeFileSync2
+} from "node:fs";
+import { homedir } from "node:os";
+import { dirname as dirname2, isAbsolute, join, relative, resolve } from "node:path";
+
+// packages/protocol/src/names.mjs
+var PLANNING_FOLDER = ".planr";
+var CLI_COMMAND = "openplanr";
+
+// packages/artifact/lib/artifact/internal/feedback.mjs
+var FEEDBACK_FILE = "feedback.json";
+
+// packages/artifact/lib/artifact/merge.mjs
+var ARTIFACT_REVIEW_STATE_VERSION = "1.0.0";
+var ARTIFACT_REVIEW_STATE_KIND = "artifact-review-state";
+var SHA256_RE = /^[a-f0-9]{64}$/;
+var ARTIFACT_ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+function conflict(message2, details = void 0) {
+  throw new PipelineError(
+    ARTIFACT_ERROR_CODES.MERGE_CONFLICT,
+    message2,
+    "Keep both reviews under different stable IDs or resolve the conflicting item explicitly.",
+    details
+  );
+}
+function assertUniqueReviewItemIds(review) {
+  const pinIds = /* @__PURE__ */ new Set();
+  for (const pin of review.pins ?? []) {
+    if (pinIds.has(pin.id)) {
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.REVIEW_INVALID,
+        "Artifact review contains a duplicate pin ID."
+      );
+    }
+    pinIds.add(pin.id);
+    const replyIds = /* @__PURE__ */ new Set();
+    for (const reply of pin.replies ?? []) {
+      if (replyIds.has(reply.id)) {
+        throw new PipelineError(
+          ARTIFACT_ERROR_CODES.REVIEW_INVALID,
+          "Artifact review contains a duplicate reply ID in one thread."
+        );
+      }
+      replyIds.add(reply.id);
+    }
+  }
+  return review;
+}
+function clone(value) {
+  return structuredClone(value);
+}
+function same(a, b) {
+  return canonicalSerialize(a) === canonicalSerialize(b);
+}
+function timeValue(value) {
+  if (typeof value !== "string") return Number.NEGATIVE_INFINITY;
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY;
+}
+function compareStable(a, b, idKey) {
+  const aTime = a.createdAt ?? a.updatedAt ?? "";
+  const bTime = b.createdAt ?? b.updatedAt ?? "";
+  return aTime.localeCompare(bTime) || String(a[idKey]).localeCompare(String(b[idKey]));
+}
+function replyMap(replies) {
+  const map = /* @__PURE__ */ new Map();
+  for (const reply of replies ?? []) {
+    const previous = map.get(reply.id);
+    if (previous && !same(previous, reply)) {
+      conflict("A reply ID refers to different immutable reply content.", { entity: "reply" });
+    }
+    map.set(reply.id, clone(reply));
+  }
+  return map;
+}
+function mergeReplies(stored = [], incoming = []) {
+  const merged = replyMap(stored);
+  for (const reply of incoming) {
+    const previous = merged.get(reply.id);
+    if (previous && !same(previous, reply)) {
+      conflict("A reply ID refers to different immutable reply content.", { entity: "reply" });
+    }
+    if (!previous) merged.set(reply.id, clone(reply));
+  }
+  return [...merged.values()].sort((a, b) => compareStable(a, b, "id"));
+}
+var immutablePin = (pin) => ({
+  id: pin.id,
+  author: pin.author,
+  artifactId: pin.artifactId,
+  ...pin.variant === void 0 ? {} : { variant: pin.variant },
+  region: pin.region,
+  viewport: pin.viewport,
+  ...pin.anchor === void 0 ? {} : { anchor: pin.anchor },
+  createdAt: pin.createdAt
+});
+var mutablePin = (pin) => ({
+  intent: pin.intent,
+  status: pin.status,
+  comment: pin.comment
+});
+function mergePin(stored, incoming) {
+  if (!same(immutablePin(stored), immutablePin(incoming))) {
+    conflict("A pin ID refers to different immutable geometry, author, or artifact content.", {
+      entity: "pin"
+    });
+  }
+  const replies = mergeReplies(stored.replies, incoming.replies);
+  const storedTime = timeValue(stored.updatedAt);
+  const incomingTime = timeValue(incoming.updatedAt);
+  let selected = stored;
+  if (incomingTime > storedTime) selected = incoming;
+  if (incomingTime === storedTime && !same(mutablePin(stored), mutablePin(incoming))) {
+    conflict("A pin has divergent mutable content at the same update time.", { entity: "pin" });
+  }
+  return { ...clone(selected), replies };
+}
+function mergePins(stored = [], incoming = []) {
+  const merged = /* @__PURE__ */ new Map();
+  for (const pin of stored) merged.set(pin.id, clone(pin));
+  for (const pin of incoming) {
+    const previous = merged.get(pin.id);
+    merged.set(pin.id, previous ? mergePin(previous, pin) : clone(pin));
+  }
+  return [...merged.values()].sort((a, b) => compareStable(a, b, "id"));
+}
+var immutableReview = (review) => ({
+  schemaVersion: review.schemaVersion,
+  reviewId: review.reviewId,
+  reviewOf: review.reviewOf,
+  ...review.createdAt === void 0 ? {} : { createdAt: review.createdAt }
+});
+var mutableReview = (review) => ({ decision: review.decision, overall: review.overall });
+function mergeArtifactReviews(stored, incoming) {
+  validateArtifactReview(stored);
+  validateArtifactReview(incoming);
+  assertUniqueReviewItemIds(stored);
+  assertUniqueReviewItemIds(incoming);
+  if (stored.reviewId !== incoming.reviewId) {
+    conflict("Only reviews with the same review ID can be revision-merged.", {
+      entity: "review"
+    });
+  }
+  if (same(stored, incoming)) return stored;
+  if (!same(immutableReview(stored), immutableReview(incoming))) {
+    conflict("A review ID refers to a different digest or creation identity.", {
+      entity: "review"
+    });
+  }
+  const storedTime = timeValue(stored.updatedAt);
+  const incomingTime = timeValue(incoming.updatedAt);
+  let selected = stored;
+  if (incomingTime > storedTime) selected = incoming;
+  if (incomingTime === storedTime && !same(mutableReview(stored), mutableReview(incoming))) {
+    conflict("A review has divergent verdict or overall feedback at the same update time.", {
+      entity: "review"
+    });
+  }
+  const merged = {
+    ...clone(selected),
+    pins: mergePins(stored.pins, incoming.pins)
+  };
+  validateArtifactReview(merged);
+  return merged;
+}
+function validateReviewLedger(ledger) {
+  if (!ledger || typeof ledger !== "object" || Array.isArray(ledger) || ledger.schemaVersion !== ARTIFACT_REVIEW_STATE_VERSION || ledger.kind !== ARTIFACT_REVIEW_STATE_KIND || !ARTIFACT_ID_RE.test(ledger.artifactId ?? "") || !SHA256_RE.test(ledger.currentReviewOf ?? "") || !Array.isArray(ledger.reviews)) {
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_INVALID,
+      "Artifact review state is not a valid versioned review ledger."
+    );
+  }
+  const ids = /* @__PURE__ */ new Set();
+  for (const entry of ledger.reviews) {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry) || typeof entry.stale !== "boolean" || !entry.review) {
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.REVIEW_INVALID,
+        "Artifact review ledger entry is invalid."
+      );
+    }
+    validateArtifactReview(entry.review);
+    assertUniqueReviewItemIds(entry.review);
+    if (ids.has(entry.review.reviewId)) {
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.REVIEW_INVALID,
+        "Artifact review ledger IDs must be unique."
+      );
+    }
+    ids.add(entry.review.reviewId);
+  }
+  return ledger;
+}
+function createReviewLedger({ artifactId, currentReviewOf, reviews = [] } = {}) {
+  const ledger = {
+    schemaVersion: ARTIFACT_REVIEW_STATE_VERSION,
+    kind: ARTIFACT_REVIEW_STATE_KIND,
+    artifactId,
+    currentReviewOf,
+    reviews: reviews.map((entry) => ({ review: clone(entry.review), stale: Boolean(entry.stale) }))
+  };
+  ledger.reviews.sort((a, b) => compareStable(a.review, b.review, "reviewId"));
+  return validateReviewLedger(ledger);
+}
+function mergeReviewLedger(ledger, incoming, { stale = false } = {}) {
+  validateReviewLedger(ledger);
+  const reviews = Array.isArray(incoming) ? incoming : [incoming];
+  const byId = new Map(
+    ledger.reviews.map((entry) => [
+      entry.review.reviewId,
+      {
+        review: clone(entry.review),
+        stale: entry.stale
+      }
+    ])
+  );
+  for (const review of reviews) {
+    validateArtifactReview(review);
+    const previous = byId.get(review.reviewId);
+    if (previous) {
+      byId.set(review.reviewId, {
+        review: mergeArtifactReviews(previous.review, review),
+        stale: previous.stale || Boolean(stale)
+      });
+    } else {
+      byId.set(review.reviewId, { review: clone(review), stale: Boolean(stale) });
+    }
+  }
+  const merged = createReviewLedger({
+    artifactId: ledger.artifactId,
+    currentReviewOf: ledger.currentReviewOf,
+    reviews: [...byId.values()]
+  });
+  return same(ledger, merged) ? ledger : merged;
+}
+function effectiveReviewDecision(value) {
+  const entries = Array.isArray(value) ? value : value?.reviews ?? [];
+  const decisions = entries.map((entry) => entry.review?.decision ?? entry.decision);
+  if (decisions.includes("changes_requested")) return "changes_requested";
+  if (decisions.includes("pending")) return "pending";
+  return decisions.length > 0 && decisions.every((decision) => decision === "approved") ? "approved" : "pending";
+}
+
+// packages/artifact/lib/artifact/review.mjs
+import { randomBytes, randomUUID } from "node:crypto";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from "node:fs";
+import { dirname } from "node:path";
+var ARTIFACT_REVIEW_MAX_STATE_BYTES = 5 * 1024 * 1024;
+var reviewPathQueues = /* @__PURE__ */ new Map();
+function finalEntry(path, fs = { lstatSync }) {
+  try {
+    return fs.lstatSync(path);
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+function clone2(value) {
+  return structuredClone(value);
+}
+function canonicalObject(value) {
+  if (Array.isArray(value)) return value.map(canonicalObject);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.keys(value).sort().map((key) => [key, canonicalObject(value[key])])
+  );
+}
+function stableItemSort(a, b) {
+  return String(a.createdAt ?? a.updatedAt ?? "").localeCompare(
+    String(b.createdAt ?? b.updatedAt ?? "")
+  ) || String(a.id ?? a.reviewId).localeCompare(String(b.id ?? b.reviewId));
+}
+function normalizeArtifactReview(review) {
+  let normalized;
+  try {
+    normalized = clone2(review);
+  } catch {
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_INVALID,
+      "Artifact review is not cloneable."
+    );
+  }
+  try {
+    validateArtifactReview(normalized);
+    assertUniqueReviewItemIds(normalized);
+  } catch (error) {
+    if (error instanceof PipelineError) {
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.REVIEW_INVALID,
+        "Artifact review does not satisfy the Protocol v1.1 review contract.",
+        "",
+        { issues: error.details?.issues ?? [] }
+      );
+    }
+    throw error;
+  }
+  normalized.pins = normalized.pins.map((pin) => ({
+    ...pin,
+    replies: [...pin.replies].sort(stableItemSort)
+  })).sort(stableItemSort);
+  validateArtifactReview(normalized);
+  return normalized;
+}
+function serializeReviewState(value) {
+  const normalized = value?.kind === "artifact-review-state" ? validateReviewLedger(clone2(value)) : normalizeArtifactReview(value);
+  return `${JSON.stringify(canonicalObject(normalized), null, 2)}
+`;
+}
+function readArtifactReviewState(path, { allowMissing = false } = {}) {
+  const entry = finalEntry(path);
+  if (!entry) {
+    if (allowMissing) return null;
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+      "Artifact review state does not exist."
+    );
+  }
+  try {
+    if (entry.isSymbolicLink() || !entry.isFile()) {
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.SYMLINK_ESCAPE,
+        "Artifact review state destination is not a regular file."
+      );
+    }
+    if (statSync(path).size > ARTIFACT_REVIEW_MAX_STATE_BYTES) {
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.REQUEST_LIMIT,
+        `Artifact review state exceeds ${ARTIFACT_REVIEW_MAX_STATE_BYTES} bytes.`
+      );
+    }
+    return validateReviewLedger(JSON.parse(readFileSync(path, "utf8")));
+  } catch (error) {
+    if (error instanceof PipelineError) throw error;
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_INVALID,
+      "Artifact review state is malformed."
+    );
+  }
+}
+function writeArtifactReviewState(path, ledger, { fileSystem = {}, suffix = `${process.pid}.${randomBytes(8).toString("hex")}` } = {}) {
+  validateReviewLedger(ledger);
+  const fs = { existsSync, lstatSync, mkdirSync, writeFileSync, renameSync, rmSync, ...fileSystem };
+  const temporary = `${path}.${suffix}.tmp`;
+  const serialized = serializeReviewState(ledger);
+  if (Buffer.byteLength(serialized, "utf8") > ARTIFACT_REVIEW_MAX_STATE_BYTES) {
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REQUEST_LIMIT,
+      `Artifact review state exceeds ${ARTIFACT_REVIEW_MAX_STATE_BYTES} bytes.`
+    );
+  }
+  try {
+    const initial = finalEntry(path, fs);
+    if (initial) {
+      const target = initial;
+      if (target.isSymbolicLink() || !target.isFile()) throw new Error("unsafe final target");
+    }
+    fs.mkdirSync(dirname(path), { recursive: true, mode: 448 });
+    fs.writeFileSync(temporary, serialized, { mode: 384, flag: "wx" });
+    const final = finalEntry(path, fs);
+    if (final) {
+      const target = final;
+      if (target.isSymbolicLink() || !target.isFile()) throw new Error("unsafe final target");
+    }
+    fs.renameSync(temporary, path);
+  } catch {
+    try {
+      fs.rmSync(temporary, { force: true });
+    } catch {
+    }
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_WRITE,
+      "Artifact review state could not be written atomically.",
+      "Check destination permissions and retry; the previous review state was left unchanged."
+    );
+  }
+  return ledger;
+}
+function withArtifactReviewLock(path, action3) {
+  const previous = reviewPathQueues.get(path) ?? Promise.resolve();
+  const run = async () => {
+    let release;
+    try {
+      release = await acquireStartLock(`${path}.lock`, { timeout: 15e3, stale: 3e4 });
+      return await action3();
+    } catch (error) {
+      if (error instanceof PipelineError) throw error;
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.REVIEW_WRITE,
+        "Artifact review state is busy or its cross-process lock is unavailable.",
+        "Wait for the active review write to finish, then retry."
+      );
+    } finally {
+      release?.();
+    }
+  };
+  const operation = previous.then(run, run);
+  const tail = operation.then(
+    () => void 0,
+    () => void 0
+  );
+  reviewPathQueues.set(path, tail);
+  tail.finally(() => {
+    if (reviewPathQueues.get(path) === tail) reviewPathQueues.delete(path);
+  });
+  return operation;
+}
+function normalizedExportInput(value) {
+  if (value?.kind === "artifact-review-state") return validateReviewLedger(clone2(value));
+  if (value?.review && value?.artifacts) return normalizeArtifactReview(value.review);
+  return normalizeArtifactReview(value);
+}
+function markdownText(value) {
+  return String(value ?? "").replace(/\r\n?/g, "\n").trim();
+}
+function renderPinMarkdown(pin, number) {
+  const region = `${pin.region.x}, ${pin.region.y}, ${pin.region.w}, ${pin.region.h}`;
+  const lines = [
+    `### ${number}. ${pin.intent.toUpperCase()} \xB7 ${pin.status}`,
+    "",
+    `- Pin: \`${pin.id}\``,
+    `- Artifact: \`${pin.artifactId}\`${pin.variant ? ` \xB7 variant \`${pin.variant}\`` : ""}`,
+    `- Author: ${pin.author.name}`,
+    `- Region: \`${region}\` at ${pin.viewport.width}\xD7${pin.viewport.height}`,
+    ...pin.anchor ? [
+      `- Anchor: \`${pin.anchor.planrId}\`${pin.anchor.screen ? ` \xB7 screen \`${pin.anchor.screen}\`` : ""}`
+    ] : [],
+    `- Updated: ${pin.updatedAt}`,
+    "",
+    markdownText(pin.comment)
+  ];
+  if (pin.replies.length > 0) {
+    lines.push("", "#### Thread", "");
+    for (const reply of pin.replies) {
+      lines.push(`- **${reply.author.name}** (${reply.createdAt}): ${markdownText(reply.comment)}`);
+    }
+  }
+  return lines.join("\n");
+}
+function reviewMarkdown(review, headingLevel = 2, stale = false) {
+  const mark = "#".repeat(headingLevel);
+  const lines = [
+    `${mark} Review ${review.reviewId}${stale ? " \xB7 STALE" : ""}`,
+    "",
+    `- Digest: \`${review.reviewOf}\``,
+    `- Decision: **${review.decision}**`,
+    `- Pins: ${review.pins.length}`,
+    ...review.createdAt ? [`- Created: ${review.createdAt}`] : [],
+    ...review.updatedAt ? [`- Updated: ${review.updatedAt}`] : [],
+    "",
+    `${mark}# Overall feedback`,
+    "",
+    markdownText(review.overall) || "_No overall feedback._"
+  ];
+  if (review.pins.length > 0) {
+    lines.push("", `${mark}# Pins`, "");
+    review.pins.forEach((pin, index) => lines.push(renderPinMarkdown(pin, index + 1), ""));
+    if (lines.at(-1) === "") lines.pop();
+  }
+  return lines.join("\n");
+}
+function exportArtifactReview(value, { format = "json" } = {}) {
+  let normalized;
+  try {
+    normalized = normalizedExportInput(value);
+  } catch (error) {
+    if (error instanceof PipelineError) throw error;
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_EXPORT,
+      "Artifact review cannot be exported."
+    );
+  }
+  if (format === "json") return serializeReviewState(normalized);
+  if (format !== "markdown") {
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_EXPORT,
+      "Artifact review export format must be json or markdown."
+    );
+  }
+  if (normalized.kind !== "artifact-review-state") {
+    return `# OpenPlanr Artifact Review
+
+${reviewMarkdown(normalized)}
+`;
+  }
+  const lines = [
+    "# OpenPlanr Artifact Reviews",
+    "",
+    `- Artifact: \`${normalized.artifactId}\``,
+    `- Current digest: \`${normalized.currentReviewOf}\``,
+    `- Effective decision: **${effectiveReviewDecision(normalized)}**`,
+    `- Reviews: ${normalized.reviews.length}`
+  ];
+  for (const entry of normalized.reviews) {
+    lines.push("", reviewMarkdown(entry.review, 2, entry.stale));
+  }
+  return `${lines.join("\n")}
+`;
+}
+
+// packages/artifact/lib/artifact/import.mjs
+var ARTIFACT_ID_RE2 = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
+function pathError(code, message2) {
+  throw new PipelineError(
+    code,
+    message2,
+    "Choose a real, non-symlinked project or user review destination."
+  );
+}
+function pathEntry(path, fs = { lstatSync: lstatSync2 }) {
+  try {
+    return fs.lstatSync(path);
+  } catch (error) {
+    if (error?.code === "ENOENT") return null;
+    throw error;
+  }
+}
+function inside(base, candidate) {
+  const rel = relative(base, candidate);
+  return rel === "" || !rel.startsWith("..") && !isAbsolute(rel);
+}
+function parseablePlanrConfig(root) {
+  const path = join(root, PLANNING_FOLDER, "config.json");
+  if (!existsSync2(path)) return false;
+  try {
+    if (lstatSync2(path).isSymbolicLink()) return false;
+    const value = JSON.parse(readFileSync2(path, "utf8"));
+    return value && typeof value === "object" && !Array.isArray(value) && (typeof value.projectName === "string" && value.projectName.trim() !== "" || value.idPrefix && typeof value.idPrefix === "object" && !Array.isArray(value.idPrefix) && Object.keys(value.idPrefix).length > 0);
+  } catch {
+    return false;
+  }
+}
+function hasGitMarker(root) {
+  const marker = join(root, ".git");
+  if (!existsSync2(marker)) return false;
+  try {
+    const stat = lstatSync2(marker);
+    if (stat.isSymbolicLink()) return false;
+    if (stat.isDirectory()) {
+      const head = join(marker, "HEAD");
+      return existsSync2(head) && lstatSync2(head).isFile();
+    }
+    if (!stat.isFile() || stat.size > 4096) return false;
+    const match = /^gitdir:\s*(.+?)\s*$/u.exec(readFileSync2(marker, "utf8"));
+    if (!match) return false;
+    const gitDir = resolve(root, match[1]);
+    return existsSync2(gitDir) && statSync2(gitDir).isDirectory() && existsSync2(join(gitDir, "HEAD")) && lstatSync2(join(gitDir, "HEAD")).isFile();
+  } catch {
+    return false;
+  }
+}
+function findArtifactProjectRoot(start = process.cwd(), { env = process.env } = {}) {
+  let current;
+  try {
+    current = realpathSync(resolve(start));
+  } catch {
+    pathError(
+      ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+      "Artifact review working directory does not exist."
+    );
+  }
+  const homeCandidate = resolve(env.HOME ?? homedir());
+  let home = homeCandidate;
+  try {
+    home = realpathSync(homeCandidate);
+  } catch {
+  }
+  while (true) {
+    if (current !== home && (parseablePlanrConfig(current) || hasGitMarker(current)))
+      return current;
+    const parent = dirname2(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+function assertSafeDestination(base, relativeParts) {
+  const absoluteBase = resolve(base);
+  if (existsSync2(absoluteBase) && lstatSync2(absoluteBase).isSymbolicLink()) {
+    pathError(
+      ARTIFACT_ERROR_CODES.SYMLINK_ESCAPE,
+      "Artifact review destination base is a symlink."
+    );
+  }
+  let realBase = absoluteBase;
+  if (existsSync2(absoluteBase)) realBase = realpathSync(absoluteBase);
+  let current = absoluteBase;
+  for (const part of relativeParts) {
+    if (!part || part === "." || part === ".." || part.includes("/") || part.includes("\\") || part.includes("\0")) {
+      pathError(
+        ARTIFACT_ERROR_CODES.PATH_TRAVERSAL,
+        "Artifact review destination contains an unsafe segment."
+      );
+    }
+    current = join(current, part);
+    const entry = pathEntry(current);
+    if (!entry) continue;
+    if (entry.isSymbolicLink()) {
+      pathError(
+        ARTIFACT_ERROR_CODES.SYMLINK_ESCAPE,
+        "Artifact review destination contains a symlink."
+      );
+    }
+    if (!inside(realBase, realpathSync(current))) {
+      pathError(
+        ARTIFACT_ERROR_CODES.PATH_TRAVERSAL,
+        "Artifact review destination escapes its storage root."
+      );
+    }
+  }
+  if (!inside(absoluteBase, current)) {
+    pathError(
+      ARTIFACT_ERROR_CODES.PATH_TRAVERSAL,
+      "Artifact review destination escapes its storage root."
+    );
+  }
+  return current;
+}
+function resolveArtifactReviewDestination({
+  cwd = process.cwd(),
+  env = process.env,
+  artifactId,
+  designDir
+} = {}) {
+  if (!ARTIFACT_ID_RE2.test(artifactId ?? "")) {
+    pathError(
+      ARTIFACT_ERROR_CODES.PATH_TRAVERSAL,
+      "Artifact review ID is unsafe for local storage."
+    );
+  }
+  if (designDir !== void 0) {
+    const lexical = resolve(designDir);
+    if (!existsSync2(lexical) || !statSync2(lexical).isDirectory()) {
+      pathError(ARTIFACT_ERROR_CODES.REVIEW_IMPORT, "Design review destination does not exist.");
+    }
+    if (lstatSync2(lexical).isSymbolicLink()) {
+      pathError(
+        ARTIFACT_ERROR_CODES.SYMLINK_ESCAPE,
+        "Design review destination must be a real directory."
+      );
+    }
+    const requested = realpathSync(lexical);
+    return Object.freeze({
+      kind: "design",
+      artifactId,
+      directory: requested,
+      path: join(requested, FEEDBACK_FILE),
+      reviewStatePath: join(requested, "artifact-review-state.json")
+    });
+  }
+  const projectRoot = findArtifactProjectRoot(cwd, { env });
+  if (projectRoot) {
+    const directory2 = assertSafeDestination(projectRoot, [
+      PLANNING_FOLDER,
+      "artifacts",
+      artifactId
+    ]);
+    return Object.freeze({
+      kind: "project",
+      artifactId,
+      root: projectRoot,
+      directory: directory2,
+      path: join(directory2, "review-state.json")
+    });
+  }
+  const root = resolve(planrHome(env));
+  const directory = assertSafeDestination(root, ["artifacts", artifactId]);
+  return Object.freeze({
+    kind: "user",
+    artifactId,
+    root,
+    directory,
+    path: join(directory, "review-state.json")
+  });
+}
+function reviewsFromDecoded(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+      "Decoded review payload is not an object."
+    );
+  }
+  if (value.kind === "artifact-review-state") {
+    validateReviewLedger(value);
+    return value.reviews.map((entry) => ({ review: entry.review, stale: entry.stale }));
+  }
+  if (value.artifacts && value.viewer) {
+    validateArtifactEnvelope(value);
+    if (!value.review) {
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+        "Decoded artifact envelope contains no review."
+      );
+    }
+    return [{ review: value.review, stale: false }];
+  }
+  if (value.review && !value.reviewId) return reviewsFromDecoded(value.review);
+  validateArtifactReview(value);
+  return [{ review: value, stale: false }];
+}
+async function decodeArtifactReviewSources(sources, { decodeSource, withMetadata = false } = {}) {
+  const list2 = Array.isArray(sources) ? sources : [sources];
+  if (list2.length === 0) {
+    throw new PipelineError(
+      ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+      "At least one artifact review source is required."
+    );
+  }
+  const entries = [];
+  for (let index = 0; index < list2.length; index += 1) {
+    const source = list2[index];
+    let decoded = source;
+    if (typeof source === "string") {
+      if (typeof decodeSource !== "function") {
+        throw new PipelineError(
+          ARTIFACT_ERROR_CODES.REVIEW_DECODER_REQUIRED,
+          "String and URL review sources require an injected async decoder.",
+          "Provide decodeSource(source, { index }); the review lifecycle has no transport dependency.",
+          { sourceIndex: index }
+        );
+      }
+      try {
+        decoded = await decodeSource(source, { index });
+      } catch {
+        throw new PipelineError(
+          ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+          "Artifact review source could not be decoded.",
+          "Verify the immutable review link and retry.",
+          { sourceIndex: index }
+        );
+      }
+    }
+    try {
+      entries.push(
+        ...reviewsFromDecoded(decoded).map((entry) => ({
+          review: structuredClone(entry.review),
+          stale: Boolean(entry.stale)
+        }))
+      );
+    } catch (error) {
+      if (error instanceof PipelineError && error.code === ARTIFACT_ERROR_CODES.REVIEW_IMPORT) {
+        error.details = { sourceIndex: index };
+        throw error;
+      }
+      throw new PipelineError(
+        ARTIFACT_ERROR_CODES.REVIEW_IMPORT,
+        "Decoded artifact review does not satisfy the Protocol v1.1 contract.",
+        "",
+        { sourceIndex: index }
+      );
+    }
+  }
+  return withMetadata ? entries : entries.map((entry) => entry.review);
+}
+
+// packages/design/lib/design/feedback-reader.mjs
 var designReviewKey = (document) => `design-${hash(document.id).slice(0, 24)}`;
 function designReviewPath(file, env = process.env, options = {}) {
   const { root, document } = currentDesign(file, options);
@@ -69,18 +846,18 @@ function readDesignFeedback(file, env = process.env, options = {}) {
     revision: current.revision,
     reviewPath: designReviewPath(file, env, options),
     pins,
-    state: readJson(join(current.root, ".design/studio-state.json"), {
+    state: readJson(join2(current.root, ".design/studio-state.json"), {
       state: {},
       stateVersion: 0
     }).state,
     ledger,
-    shared: readJson(join(current.root, ".design/shared-feedback.json"), null)
+    shared: readJson(join2(current.root, ".design/shared-feedback.json"), null)
   };
 }
 
 // packages/design/lib/design/handoff-reader.mjs
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join as join2 } from "node:path";
+import { existsSync as existsSync3, readFileSync as readFileSync3 } from "node:fs";
+import { dirname as dirname3, join as join3 } from "node:path";
 
 // packages/design/lib/design/handoff-format.mjs
 var safeMd = (text2) => String(text2).replaceAll("[", "\\[").replaceAll("]", "\\]").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
@@ -654,7 +1431,7 @@ function compileDesignHandoffReadiness(input) {
   if (input === null || input === void 0) return designHandoffReadinessAbsence();
   const source = plainClone(input);
   const document = source.document;
-  if (!document || document.kind !== "openplanr-design-document" || document.schemaVersion !== "1.0.0" || typeof document.id !== "string" || !document.id)
+  if (!document || document.kind !== "openplanr-design-document" || !["1.0.0", "1.1.0"].includes(document.schemaVersion) || typeof document.id !== "string" || !document.id)
     throw new TypeError("Readiness requires one supported design document.");
   const revision = source.sourceRevision === null || source.sourceRevision === void 0 ? null : normalizeDigest(source.sourceRevision, "design revision");
   const direction = selectedDirection(document, source.studioState);
@@ -836,7 +1613,7 @@ var digestPattern2 = /^[a-f0-9]{64}$/u;
 var revisionOf = (pin) => pin.revisionId ?? pin.reviewId;
 var keyOf = (pin) => `${revisionOf(pin)}:${pin.id}`;
 var compare = (left, right) => left.localeCompare(right, "en");
-var clone = (value) => {
+var clone3 = (value) => {
   assertPlainData(value, "Review resolution data");
   return JSON.parse(canonicalizeJson(value));
 };
@@ -942,7 +1719,7 @@ function unknownMetadata(metadata2, known, diagnostics) {
   }
 }
 function compileDesignHandoffResolution(input) {
-  const source = clone(input ?? {});
+  const source = clone3(input ?? {});
   const pins = Array.isArray(source.pins) ? source.pins : [];
   if (pins.length > MAX_COMMENTS)
     throw new RangeError("Review resolution exceeds the comment limit.");
@@ -1017,9 +1794,9 @@ function compileDesignHandoffResolution(input) {
       anchor: pin.elementId ? { screenId: pin.screenId, elementId: pin.elementId } : pin.screenId ? { screenId: pin.screenId } : pin.anchor?.planrId ? { planrId: pin.anchor.planrId } : { artifactId: pin.artifactId },
       source: {
         text: pin.comment,
-        author: clone(pin.author),
+        author: clone3(pin.author),
         status: pin.status,
-        ...resolved.disposition && typeof resolved.disposition === "object" ? { decision: clone(resolved.disposition) } : {}
+        ...resolved.disposition && typeof resolved.disposition === "object" ? { decision: clone3(resolved.disposition) } : {}
       }
     };
   });
@@ -1089,7 +1866,7 @@ function canApproveDesignHandoffResolution(value) {
 
 // packages/design/lib/design/handoff-reader.mjs
 var sections = ["agreedChanges", "openQuestions", "deferred", "rejected"];
-var metadataPath = (current) => join2(current.root, ".design/review-metadata.json");
+var metadataPath = (current) => join3(current.root, ".design/review-metadata.json");
 var revisionOf2 = (pin) => pin.revisionId ?? pin.reviewId;
 var pinKey = (pin) => `${revisionOf2(pin)}:${pin.id}`;
 function metadata(current, feedback) {
@@ -1218,12 +1995,12 @@ function readDesignExperience(file, { env = process.env } = {}) {
 }
 function readDesignHandoff(file, { env = process.env, ...shareOptions } = {}) {
   const value = snapshot(file, env, shareOptions);
-  const path = join2(dirname(designSpecPath(value.current.root)), "review-handoff.json");
+  const path = join3(dirname3(designSpecPath(value.current.root)), "review-handoff.json");
   const draft = readJson(path, null);
   if (draft) {
     assertDraft(draft);
     const markdownPath = path.replace(/\.json$/u, ".md");
-    if (!existsSync(markdownPath) || readFileSync(markdownPath, "utf8") !== draft.markdown)
+    if (!existsSync3(markdownPath) || readFileSync3(markdownPath, "utf8") !== draft.markdown)
       throw new Error(
         "The handoff Markdown differs from its approved JSON. Rebuild the handoff projection before using it in Plan."
       );
@@ -1242,7 +2019,7 @@ function readDesignHandoff(file, { env = process.env, ...shareOptions } = {}) {
 }
 function readDesignHandoffReadiness(file, { env = process.env, ...shareOptions } = {}) {
   const value = snapshot(file, env, shareOptions);
-  const path = join2(dirname(designSpecPath(value.current.root)), "review-handoff.json");
+  const path = join3(dirname3(designSpecPath(value.current.root)), "review-handoff.json");
   const handoff = readJson(path, null);
   if (handoff) assertDraft(handoff);
   const outcomes = new Map(value.resolution.items.map((item) => [item.id, item]));
@@ -1259,13 +2036,13 @@ function readDesignHandoffReadiness(file, { env = process.env, ...shareOptions }
     };
   });
   const specificationPath = designSpecPath(value.current.root);
-  const specification = existsSync(specificationPath) ? {
+  const specification = existsSync3(specificationPath) ? {
     path: "design-spec.md",
     revision: value.current.revision,
-    digest: `sha256:${hash(readFileSync(specificationPath))}`,
+    digest: `sha256:${hash(readFileSync3(specificationPath))}`,
     complete: true
   } : void 0;
-  const studioState = readJson(join2(value.current.root, ".design/studio-state.json"), {
+  const studioState = readJson(join3(value.current.root, ".design/studio-state.json"), {
     state: {}
   }).state;
   const readiness = compileDesignHandoffReadiness({
@@ -1311,9 +2088,9 @@ function assertDraft(draft) {
 }
 
 // packages/design/lib/design/handoff.mjs
-import { existsSync as existsSync2, writeFileSync } from "node:fs";
-import { dirname as dirname2, join as join3 } from "node:path";
-var conflict = (message2) => Object.assign(new Error(message2), { statusCode: 409 });
+import { existsSync as existsSync4, writeFileSync as writeFileSync3 } from "node:fs";
+import { dirname as dirname4, join as join4 } from "node:path";
+var conflict2 = (message2) => Object.assign(new Error(message2), { statusCode: 409 });
 function sourceItem(pin, shareUrl) {
   const source = pin.revisionId ? `${shareUrl ?? ""}#revision=${encodeURIComponent(pin.revisionId)}&pin=${encodeURIComponent(pin.id)}` : `#review=${encodeURIComponent(pin.reviewId)}&pin=${encodeURIComponent(pin.id)}`;
   return {
@@ -1394,28 +2171,29 @@ async function preserveReviewErrors(path, action3) {
   if (failure) throw failure;
   return result;
 }
-async function updateDesignHandoff(file, input, { env = process.env, fetchImpl = fetch, ...shareOptions } = {}) {
+async function updateDesignHandoff(file, input, { env = process.env, ...shareOptions } = {}) {
   if (!input || !["draft", "update", "approve", "category", "disposition"].includes(input.action))
     throw new Error("Unknown design handoff action.");
   const initial = currentDesign(file);
-  const unlockRender = await acquireStartLock(join3(initial.root, ".design/render.lock"));
+  const unlockRender = await acquireStartLock(join4(initial.root, ".design/render.lock"));
   let outgoing;
   try {
-    const unlock = await acquireStartLock(join3(initial.root, ".design/handoff.lock"));
+    const unlock = await acquireStartLock(join4(initial.root, ".design/handoff.lock"));
     try {
       await preserveReviewErrors(designReviewPath(file, env), async () => {
         const value = snapshot(file, env, shareOptions);
         if (input.revision !== value.current.revision)
-          throw conflict("The design changed. Refresh the review before updating its handoff.");
+          throw conflict2("The design changed. Refresh the review before updating its handoff.");
         if (["category", "disposition"].includes(input.action)) {
           if (input.version !== value.metadata.version)
-            throw conflict("Review organization changed in another window. Reload before saving.");
+            throw conflict2("Review organization changed in another window. Reload before saving.");
           const pin = findPin(value.feedback.pins, input.pinId, input.revisionId ?? input.reviewId);
           if (!pin) throw new Error("The comment is no longer available.");
           const choices = input.action === "category" ? ["question", "suggestion", "change-request", "blocker"] : ["accepted", "deferred", "rejected"];
           if (!choices.includes(input[input.action])) throw new Error(`Invalid ${input.action}.`);
           if (typeof (input.reason ?? "") !== "string" || (input.reason ?? "").length > 16384)
             throw new Error("Disposition reason is too long.");
+          if (pin.revisionId) assertDesignShareAvailable({ env, ...shareOptions });
           const updatedAt = (/* @__PURE__ */ new Date()).toISOString();
           const local = normalizedLocalMetadata(
             readJson(metadataPath(value.current), { version: 0, byRevision: {} }),
@@ -1457,11 +2235,11 @@ async function updateDesignHandoff(file, input, { env = process.env, fetchImpl =
             };
           return;
         }
-        const path = join3(dirname2(designSpecPath(value.current.root)), "review-handoff.json");
+        const path = join4(dirname4(designSpecPath(value.current.root)), "review-handoff.json");
         const previous = readJson(path, null);
         if (previous) assertDraft(previous);
         if (input.version !== (previous?.version ?? 0))
-          throw conflict("The handoff changed in another window. Reload before saving.");
+          throw conflict2("The handoff changed in another window. Reload before saving.");
         let shareUrl;
         try {
           shareUrl = getDesignShareStatus(file, { env, ...shareOptions }).url;
@@ -1469,12 +2247,12 @@ async function updateDesignHandoff(file, input, { env = process.env, fetchImpl =
         }
         if (input.action === "approve") {
           if (!previous || input.contentHash !== previous.contentHash || reviewDigest(previous.basis) !== reviewDigest(value.basis))
-            throw conflict(
+            throw conflict2(
               "The handoff is out of date. Rebuild and review the current draft before approving."
             );
           if (!canApproveDesignHandoffResolution(value.resolution)) {
             const diagnostic = value.resolution.diagnostics[0];
-            throw conflict(
+            throw conflict2(
               diagnostic?.message ?? "Resolve the blocking review decisions before approving this handoff."
             );
           }
@@ -1488,19 +2266,19 @@ async function updateDesignHandoff(file, input, { env = process.env, fetchImpl =
           };
           approved.markdown = renderMarkdown(approved, value.current.document.title);
           assertReviewExperience(approved, DESIGN_HANDOFF_SCHEMA);
-          const archive = join3(
+          const archive = join4(
             value.current.root,
             ".design/handoff-approvals",
             `${approved.contentHash}.json`
           );
-          if (!existsSync2(archive)) atomicJson(archive, approved);
+          if (!existsSync4(archive)) atomicJson(archive, approved);
           atomicJson(path, approved);
-          writeFileSync(path.replace(/\.json$/u, ".md"), approved.markdown);
+          writeFileSync3(path.replace(/\.json$/u, ".md"), approved.markdown);
           return;
         }
         const content = input.action === "draft" ? contentFromFeedback(value, shareUrl) : enrichContent(input.content, value, shareUrl);
         if (input.action === "update" && (!previous || reviewDigest(previous.basis) !== reviewDigest(value.basis)))
-          throw conflict("The review changed. Rebuild the draft before refining it.");
+          throw conflict2("The review changed. Rebuild the draft before refining it.");
         const affectedScreens = [
           ...new Set(
             sections.flatMap((key) => content[key].map((item) => item.screenId).filter(Boolean))
@@ -1535,7 +2313,7 @@ async function updateDesignHandoff(file, input, { env = process.env, fetchImpl =
         draft.markdown = renderMarkdown(draft, value.current.document.title);
         assertReviewExperience(draft, DESIGN_HANDOFF_SCHEMA);
         atomicJson(path, draft);
-        writeFileSync(path.replace(/\.json$/u, ".md"), draft.markdown);
+        writeFileSync3(path.replace(/\.json$/u, ".md"), draft.markdown);
       });
     } finally {
       unlock();
@@ -1549,11 +2327,14 @@ async function updateDesignHandoff(file, input, { env = process.env, fetchImpl =
       synchronization = await publishDesignReviewMetadata(file, outgoing.payload, {
         revisionId: outgoing.revisionId,
         env,
-        fetchImpl,
         ...shareOptions
       });
     } catch (error) {
-      synchronization = { pending: true, error: error.message };
+      synchronization = {
+        pending: false,
+        error: error.message,
+        ...error.code ? { code: error.code } : {}
+      };
     }
   }
   return {
@@ -1563,6 +2344,19 @@ async function updateDesignHandoff(file, input, { env = process.env, fetchImpl =
 }
 
 export {
+  PLANNING_FOLDER,
+  CLI_COMMAND,
+  createReviewLedger,
+  mergeReviewLedger,
+  effectiveReviewDecision,
+  ARTIFACT_REVIEW_MAX_STATE_BYTES,
+  normalizeArtifactReview,
+  readArtifactReviewState,
+  writeArtifactReviewState,
+  withArtifactReviewLock,
+  exportArtifactReview,
+  resolveArtifactReviewDestination,
+  decodeArtifactReviewSources,
   designReviewKey,
   designReviewPath,
   readDesignFeedback,

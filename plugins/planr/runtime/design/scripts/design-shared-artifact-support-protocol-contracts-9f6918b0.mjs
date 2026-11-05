@@ -1,8 +1,3 @@
-import {
-  LARGE_OBJECT_LIMITS,
-  validateJson
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
-
 // packages/protocol/src/errors.mjs
 var ARTIFACT_ERROR_CODES = Object.freeze({
   INPUT_INVALID: "E_ARTIFACT_INPUT_INVALID",
@@ -116,11 +111,547 @@ function resolveArtifactHtml(envelope, artifactOrId) {
 // packages/artifact/lib/artifact/envelope.mjs
 import { createHash } from "node:crypto";
 
+// packages/protocol/src/large-object-limits.mjs
+var LARGE_OBJECT_LIMITS = Object.freeze({
+  uniqueHtmlBytes: 100 * 1024 * 1024,
+  decodedBytes: 128 * 1024 * 1024,
+  catalogBytes: 8 * 1024 * 1024,
+  manifestBytes: 64 * 1024,
+  chunkBytes: 1024 * 1024,
+  chunkPlaintextBytes: 1024 * 1024 - 16,
+  chunks: 129,
+  ciphertextBytes: 128 * 1024 * 1024 + 129 * 16,
+  sources: 256,
+  views: 4096,
+  resources: 1024,
+  eventBytes: 256 * 1024,
+  eventPageBytes: 1024 * 1024,
+  eventPageCount: 100
+});
+
 // packages/artifact/lib/artifact/internal/schema-loader.mjs
 import { fileURLToPath as __planrAssetFile } from "node:url";
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
+
+// packages/protocol/src/json-schema.mjs
+var typeOf = (v) => {
+  if (v === null) return "null";
+  if (Array.isArray(v)) return "array";
+  if (Number.isInteger(v)) return "integer";
+  if (typeof v === "number") return "number";
+  return typeof v;
+};
+var matchesType = (v, t) => {
+  if (t === "integer") return Number.isInteger(v);
+  if (t === "number") return typeof v === "number";
+  if (t === "string") return typeof v === "string";
+  if (t === "boolean") return typeof v === "boolean";
+  if (t === "null") return v === null;
+  if (t === "array") return Array.isArray(v);
+  if (t === "object") return v !== null && typeof v === "object" && !Array.isArray(v);
+  return false;
+};
+var FORMAT_DATE = /^\d{4}-\d{2}-\d{2}$/;
+var FORMAT_DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+var SUPPORTED_FORMATS = /* @__PURE__ */ new Set(["date", "date-time"]);
+var ANNOTATION_KEYWORDS = [
+  "$schema",
+  "$id",
+  "$defs",
+  "$comment",
+  "title",
+  "description",
+  "default",
+  "examples",
+  "deprecated",
+  "readOnly",
+  "writeOnly"
+];
+var VALIDATION_KEYWORDS = [
+  "$ref",
+  "type",
+  "const",
+  "enum",
+  "minLength",
+  "maxLength",
+  "pattern",
+  "format",
+  "minimum",
+  "maximum",
+  "exclusiveMinimum",
+  "minItems",
+  "maxItems",
+  "prefixItems",
+  "items",
+  "uniqueItems",
+  "contains",
+  "minContains",
+  "maxContains",
+  "required",
+  "properties",
+  "propertyNames",
+  "additionalProperties",
+  "maxProperties",
+  "dependentRequired",
+  "unevaluatedProperties",
+  "oneOf",
+  "anyOf",
+  "allOf",
+  "if",
+  "then",
+  "else",
+  "not"
+];
+var KNOWN_KEYWORDS = /* @__PURE__ */ new Set([...ANNOTATION_KEYWORDS, ...VALIDATION_KEYWORDS]);
+var TYPE_NAMES = /* @__PURE__ */ new Set(["array", "boolean", "integer", "null", "number", "object", "string"]);
+var isSchema = (value) => typeof value === "boolean" || value !== null && typeof value === "object" && !Array.isArray(value);
+var isPlainObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+var isCount = (value) => Number.isSafeInteger(value) && value >= 0;
+var isUniqueStrings = (value) => Array.isArray(value) && value.every((item) => typeof item === "string") && new Set(value).size === value.length;
+var isSchemaArray = (value) => Array.isArray(value) && value.length > 0 && value.every(isSchema);
+var isSchemaMap = (value) => isPlainObject(value) && Object.values(value).every(isSchema);
+var compiledPatterns = /* @__PURE__ */ new Map();
+var MAX_COMPILED_PATTERNS = 1024;
+var tryCompilePattern = (source) => {
+  try {
+    return new RegExp(source);
+  } catch (error) {
+    if (error instanceof SyntaxError) return null;
+    throw error;
+  }
+};
+var compilePattern = (source) => {
+  if (!compiledPatterns.has(source)) {
+    if (compiledPatterns.size >= MAX_COMPILED_PATTERNS) compiledPatterns.clear();
+    compiledPatterns.set(source, tryCompilePattern(source));
+  }
+  return compiledPatterns.get(source) ?? null;
+};
+var describeValue = (value) => {
+  const text = String(JSON.stringify(value));
+  return text.length > 80 ? `${text.slice(0, 77)}...` : text;
+};
+var KEYWORD_SHAPES = {
+  $ref: ["a string", (value) => typeof value === "string"],
+  $defs: ["an object of schemas", isSchemaMap],
+  type: [
+    "a type name or a non-empty array of unique type names",
+    (value) => typeof value === "string" && TYPE_NAMES.has(value) || isUniqueStrings(value) && value.length > 0 && value.every((name) => TYPE_NAMES.has(name))
+  ],
+  enum: ["an array", Array.isArray],
+  minLength: ["a non-negative integer", isCount],
+  maxLength: ["a non-negative integer", isCount],
+  pattern: [
+    "a valid regular expression string",
+    (value) => typeof value === "string" && compilePattern(value) !== null
+  ],
+  minimum: ["a finite number", Number.isFinite],
+  maximum: ["a finite number", Number.isFinite],
+  exclusiveMinimum: ["a finite number", Number.isFinite],
+  minItems: ["a non-negative integer", isCount],
+  maxItems: ["a non-negative integer", isCount],
+  prefixItems: ["a non-empty array of schemas", isSchemaArray],
+  items: ["a schema", isSchema],
+  uniqueItems: ["a boolean", (value) => typeof value === "boolean"],
+  contains: ["a schema", isSchema],
+  minContains: ["a non-negative integer", isCount],
+  maxContains: ["a non-negative integer", isCount],
+  required: ["an array of unique strings", isUniqueStrings],
+  properties: ["an object of schemas", isSchemaMap],
+  propertyNames: ["a schema", isSchema],
+  additionalProperties: ["a schema", isSchema],
+  maxProperties: ["a non-negative integer", isCount],
+  dependentRequired: [
+    "an object of unique string arrays",
+    (value) => isPlainObject(value) && Object.values(value).every(isUniqueStrings)
+  ],
+  unevaluatedProperties: ["a schema", isSchema],
+  oneOf: ["a non-empty array of schemas", isSchemaArray],
+  anyOf: ["a non-empty array of schemas", isSchemaArray],
+  allOf: ["a non-empty array of schemas", isSchemaArray],
+  if: ["a schema", isSchema],
+  then: ["a schema", isSchema],
+  else: ["a schema", isSchema],
+  not: ["a schema", isSchema]
+};
+function resolveJsonPointer(root, reference) {
+  if (reference === "#") return root;
+  if (!reference.startsWith("#/")) return null;
+  return reference.slice(2).split("/").map((part) => part.replaceAll("~1", "/").replaceAll("~0", "~")).reduce((value, part) => value?.[part], root);
+}
+var wellFormedSchemas = /* @__PURE__ */ new WeakSet();
+var isFrozenNode = (schema) => Object.isFrozen(schema) && Object.values(schema).every(Object.isFrozen) && (!isPlainObject(schema.dependentRequired) || Object.values(schema.dependentRequired).every(Object.isFrozen));
+var checkSchemaNode = (schema, path, context) => {
+  if (wellFormedSchemas.has(schema) || context.checkedSchemas.has(schema)) return;
+  context.checkedSchemas.add(schema);
+  const errorCount = context.schemaErrors.length;
+  for (const keyword of Object.keys(schema)) {
+    if (!KNOWN_KEYWORDS.has(keyword) && !keyword.startsWith("x-")) {
+      context.schemaErrors.push({
+        path,
+        rule: "unsupported-keyword",
+        detail: `schema keyword '${keyword}' is not supported by this validator`
+      });
+    }
+  }
+  if (Object.hasOwn(schema, "format") && !SUPPORTED_FORMATS.has(schema.format)) {
+    context.schemaErrors.push({
+      path,
+      rule: "unsupported-format",
+      detail: `schema format ${JSON.stringify(schema.format)} is not supported by this validator`
+    });
+  }
+  for (const [keyword, [expected, isValid]] of Object.entries(KEYWORD_SHAPES)) {
+    if (Object.hasOwn(schema, keyword) && !isValid(schema[keyword])) {
+      context.schemaErrors.push({
+        path,
+        rule: "schema",
+        detail: `schema keyword '${keyword}' must be ${expected}, got ${describeValue(schema[keyword])}`
+      });
+    }
+  }
+  if (context.schemaErrors.length === errorCount && isFrozenNode(schema)) {
+    wellFormedSchemas.add(schema);
+  }
+};
+var reportReference = (schema, path, detail, context) => {
+  if (context.reportedReferences.has(schema)) return;
+  context.reportedReferences.add(schema);
+  context.schemaErrors.push({ path, rule: "$ref", detail });
+};
+var validateNode = (value, schema, path, errs, context) => {
+  const evaluated = /* @__PURE__ */ new Set();
+  if (schema === true) return evaluated;
+  if (schema === false) {
+    errs.push({ path, rule: "schema:false", detail: "value not allowed" });
+    return evaluated;
+  }
+  if (!isSchema(schema)) return evaluated;
+  checkSchemaNode(schema, path, context);
+  if (typeof schema?.$ref === "string") {
+    const reference = schema.$ref;
+    let resolved;
+    let nextRoot = context.rootSchema;
+    let resolvedBase = context.base;
+    if (reference.startsWith("#")) {
+      resolved = resolveJsonPointer(context.rootSchema, reference);
+    } else if (typeof context.resolveRef === "function") {
+      const result = context.resolveRef(reference, { base: context.base });
+      resolved = result?.schema ?? result;
+      nextRoot = result?.rootSchema ?? resolved;
+      resolvedBase = result?.base ?? resolved?.$id ?? context.base;
+    }
+    if (!isSchema(resolved)) {
+      const detail = resolved === void 0 || resolved === null ? `could not resolve schema reference ${reference}` : `schema reference ${reference} resolved to ${typeOf(resolved)}, not a schema`;
+      reportReference(schema, path, detail, context);
+      return evaluated;
+    }
+    const referenceKey = `${path} ${context.base ?? "<root>"}:${reference}`;
+    if (context.referenceStack.includes(referenceKey)) {
+      reportReference(schema, path, `circular schema reference ${reference}`, context);
+      return evaluated;
+    }
+    const referenced = validateNode(value, resolved, path, errs, {
+      ...context,
+      rootSchema: nextRoot,
+      base: resolvedBase,
+      referenceStack: [...context.referenceStack, referenceKey]
+    });
+    for (const key of referenced) evaluated.add(key);
+  }
+  if (schema.type !== void 0) {
+    const types = Array.isArray(schema.type) ? schema.type : [schema.type];
+    if (!types.some((t) => matchesType(value, t))) {
+      errs.push({
+        path,
+        rule: "type",
+        detail: `expected ${types.join("|")}, got ${typeOf(value)}`
+      });
+      return evaluated;
+    }
+  }
+  if (schema.const !== void 0) {
+    if (value !== schema.const) {
+      errs.push({
+        path,
+        rule: "const",
+        detail: `expected ${JSON.stringify(schema.const)}, got ${JSON.stringify(value)}`
+      });
+    }
+  }
+  if (Array.isArray(schema.enum)) {
+    if (!schema.enum.includes(value)) {
+      errs.push({
+        path,
+        rule: "enum",
+        detail: `value ${JSON.stringify(value)} not in enum [${schema.enum.map((x) => JSON.stringify(x)).join(", ")}]`
+      });
+    }
+  }
+  if (typeof value === "string") {
+    if (typeof schema.minLength === "number" && value.length < schema.minLength) {
+      errs.push({
+        path,
+        rule: "minLength",
+        detail: `length ${value.length} < ${schema.minLength}`
+      });
+    }
+    if (typeof schema.maxLength === "number" && value.length > schema.maxLength) {
+      errs.push({
+        path,
+        rule: "maxLength",
+        detail: `length ${value.length} > ${schema.maxLength}`
+      });
+    }
+    const pattern = typeof schema.pattern === "string" ? compilePattern(schema.pattern) : null;
+    if (pattern && !pattern.test(value)) {
+      errs.push({
+        path,
+        rule: "pattern",
+        detail: `value ${JSON.stringify(value)} does not match /${schema.pattern}/`
+      });
+    }
+    if (typeof schema.format === "string") {
+      if (schema.format === "date" && !FORMAT_DATE.test(value)) {
+        errs.push({
+          path,
+          rule: "format:date",
+          detail: `value ${JSON.stringify(value)} is not YYYY-MM-DD`
+        });
+      } else if (schema.format === "date-time" && !FORMAT_DATETIME.test(value)) {
+        errs.push({
+          path,
+          rule: "format:date-time",
+          detail: `value ${JSON.stringify(value)} is not ISO 8601 date-time`
+        });
+      }
+    }
+  }
+  if (typeof value === "number") {
+    if (typeof schema.minimum === "number" && value < schema.minimum) {
+      errs.push({ path, rule: "minimum", detail: `value ${value} < ${schema.minimum}` });
+    }
+    if (typeof schema.maximum === "number" && value > schema.maximum) {
+      errs.push({ path, rule: "maximum", detail: `value ${value} > ${schema.maximum}` });
+    }
+    if (typeof schema.exclusiveMinimum === "number" && value <= schema.exclusiveMinimum) {
+      errs.push({
+        path,
+        rule: "exclusiveMinimum",
+        detail: `value ${value} <= ${schema.exclusiveMinimum}`
+      });
+    }
+  }
+  if (Array.isArray(value)) {
+    if (typeof schema.minItems === "number" && value.length < schema.minItems) {
+      errs.push({ path, rule: "minItems", detail: `length ${value.length} < ${schema.minItems}` });
+    }
+    if (typeof schema.maxItems === "number" && value.length > schema.maxItems) {
+      errs.push({ path, rule: "maxItems", detail: `length ${value.length} > ${schema.maxItems}` });
+    }
+    const prefixLength = Array.isArray(schema.prefixItems) ? schema.prefixItems.length : 0;
+    if (prefixLength > 0) {
+      for (let i = 0; i < Math.min(value.length, prefixLength); i++) {
+        validateNode(value[i], schema.prefixItems[i], `${path}[${i}]`, errs, context);
+      }
+    }
+    if (schema.items !== void 0) {
+      for (let i = prefixLength; i < value.length; i++) {
+        validateNode(value[i], schema.items, `${path}[${i}]`, errs, context);
+      }
+    }
+    if (schema.uniqueItems === true) {
+      const seen = /* @__PURE__ */ new Set();
+      for (const item of value) {
+        const key = JSON.stringify(item);
+        if (seen.has(key)) {
+          errs.push({ path, rule: "uniqueItems", detail: `duplicate item ${key}` });
+          break;
+        }
+        seen.add(key);
+      }
+    }
+    if (schema.contains !== void 0) {
+      let matches = 0;
+      for (let index = 0; index < value.length; index += 1) {
+        const containedErrors = [];
+        validateNode(value[index], schema.contains, `${path}[${index}]`, containedErrors, context);
+        if (containedErrors.length === 0) matches += 1;
+      }
+      const minimum = Number.isSafeInteger(schema.minContains) ? schema.minContains : 1;
+      const maximum = Number.isSafeInteger(schema.maxContains) ? schema.maxContains : null;
+      if (matches < minimum) {
+        errs.push({
+          path,
+          rule: "contains",
+          detail: `matched ${matches} contained items; expected at least ${minimum}`
+        });
+      }
+      if (maximum !== null && matches > maximum) {
+        errs.push({
+          path,
+          rule: "contains",
+          detail: `matched ${matches} contained items; expected at most ${maximum}`
+        });
+      }
+    }
+  }
+  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+    if (Array.isArray(schema.required)) {
+      for (const req of schema.required) {
+        if (!Object.hasOwn(value, req)) {
+          errs.push({ path, rule: "required", detail: `missing required property '${req}'` });
+        }
+      }
+    }
+    if (typeof schema.maxProperties === "number" && Object.keys(value).length > schema.maxProperties) {
+      errs.push({
+        path,
+        rule: "maxProperties",
+        detail: `property count ${Object.keys(value).length} > ${schema.maxProperties}`
+      });
+    }
+    if (schema.dependentRequired !== null && typeof schema.dependentRequired === "object") {
+      for (const [trigger, dependencies] of Object.entries(schema.dependentRequired)) {
+        if (!Object.hasOwn(value, trigger) || !Array.isArray(dependencies)) continue;
+        for (const dependency of dependencies) {
+          if (!Object.hasOwn(value, dependency)) {
+            errs.push({
+              path,
+              rule: "dependentRequired",
+              detail: `property '${trigger}' requires property '${dependency}'`
+            });
+          }
+        }
+      }
+    }
+    const props = schema.properties || {};
+    for (const [k, v] of Object.entries(value)) {
+      if (schema.propertyNames !== void 0)
+        validateNode(k, schema.propertyNames, `${path}.${k}`, errs, context);
+      if (Object.hasOwn(props, k)) evaluated.add(k);
+      else if (schema.additionalProperties !== void 0) evaluated.add(k);
+      if (!Object.hasOwn(props, k)) {
+        if (schema.additionalProperties === false) {
+          errs.push({ path, rule: "additionalProperties", detail: `unknown property '${k}'` });
+        } else if (schema.additionalProperties === true || schema.additionalProperties !== null && typeof schema.additionalProperties === "object") {
+          validateNode(v, schema.additionalProperties, `${path}.${k}`, errs, context);
+        }
+      }
+    }
+    for (const [k, v] of Object.entries(value)) {
+      if (Object.hasOwn(props, k)) validateNode(v, props[k], `${path}.${k}`, errs, context);
+    }
+  }
+  if (Array.isArray(schema.oneOf)) {
+    let matched = 0;
+    for (const sub of schema.oneOf) {
+      const e = [];
+      const branch = validateNode(value, sub, path, e, context);
+      if (e.length === 0) {
+        matched++;
+        for (const key of branch) evaluated.add(key);
+      }
+    }
+    if (matched !== 1) {
+      const titles = schema.oneOf.map((s) => s.title || "(unnamed)").join(" | ");
+      errs.push({
+        path,
+        rule: "oneOf",
+        detail: `matched ${matched}/${schema.oneOf.length} branches (expected exactly 1). Branches: ${titles}`
+      });
+    }
+  }
+  if (Array.isArray(schema.anyOf)) {
+    let matched = 0;
+    for (const sub of schema.anyOf) {
+      const candidateErrors = [];
+      const branch = validateNode(value, sub, path, candidateErrors, context);
+      if (candidateErrors.length === 0) {
+        matched += 1;
+        for (const key of branch) evaluated.add(key);
+      }
+    }
+    if (matched === 0) {
+      const titles = schema.anyOf.map((sub) => sub.title || "(unnamed)").join(" | ");
+      errs.push({
+        path,
+        rule: "anyOf",
+        detail: `matched 0/${schema.anyOf.length} branches (expected at least 1). Branches: ${titles}`
+      });
+    }
+  }
+  if (Array.isArray(schema.allOf)) {
+    for (const sub of schema.allOf) {
+      for (const key of validateNode(value, sub, path, errs, context)) evaluated.add(key);
+    }
+  }
+  if (schema.if !== void 0) {
+    const conditionErrors = [];
+    const condition = validateNode(value, schema.if, path, conditionErrors, context);
+    const passed = conditionErrors.length === 0;
+    if (passed) for (const key of condition) evaluated.add(key);
+    const branch = passed ? schema.then : schema.else;
+    if (branch !== void 0) {
+      const branchErrors = [];
+      const branchEvaluated = validateNode(value, branch, path, branchErrors, context);
+      errs.push(...branchErrors);
+      if (branchErrors.length === 0) for (const key of branchEvaluated) evaluated.add(key);
+    }
+  }
+  if (schema.not !== void 0) {
+    const e = [];
+    validateNode(value, schema.not, path, e, context);
+    if (e.length === 0) {
+      errs.push({ path, rule: "not", detail: "value matched a forbidden subschema" });
+    }
+  }
+  if (schema.unevaluatedProperties !== void 0 && value !== null && typeof value === "object" && !Array.isArray(value)) {
+    for (const [k, v] of Object.entries(value)) {
+      if (evaluated.has(k)) continue;
+      if (schema.unevaluatedProperties === false) {
+        errs.push({ path, rule: "unevaluatedProperties", detail: `unevaluated property '${k}'` });
+      } else {
+        validateNode(v, schema.unevaluatedProperties, `${path}.${k}`, errs, context);
+      }
+      evaluated.add(k);
+    }
+  }
+  return evaluated;
+};
+var validateJson = (value, schema, {
+  resolveRef,
+  base = (
+    /** @type {{ $id?: string } | null | undefined} */
+    schema?.$id ?? null
+  )
+} = {}) => {
+  const errs = [];
+  const schemaErrors = [];
+  if (!isSchema(schema)) {
+    return [
+      {
+        path: "$",
+        rule: "schema",
+        detail: `expected a schema object or boolean, got ${typeOf(schema)}`
+      }
+    ];
+  }
+  validateNode(value, schema, "$", errs, {
+    rootSchema: schema,
+    resolveRef,
+    base,
+    referenceStack: [],
+    schemaErrors,
+    checkedSchemas: /* @__PURE__ */ new WeakSet(),
+    reportedReferences: /* @__PURE__ */ new WeakSet()
+  });
+  return [...schemaErrors, ...errs];
+};
+
+// packages/artifact/lib/artifact/internal/schema-loader.mjs
 var require2 = createRequire(new URL("./runtime/packages/artifact/lib/artifact/internal/schema-loader.mjs", import.meta.url).href);
 var protocolPackageRoot = dirname(__planrAssetFile(new URL("./runtime/packages/protocol/package.json", import.meta.url)));
 var SCHEMAS_ROOT = join(protocolPackageRoot, "schemas");
@@ -496,6 +1027,7 @@ export {
   ARTIFACT_MAX_SOURCES,
   ARTIFACT_MAX_VIEWS,
   resolveArtifactHtml,
+  validateJson,
   MAX_ARTIFACT_HTML_BYTES,
   canonicalSerialize,
   digestArtifactEnvelope,

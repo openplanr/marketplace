@@ -6,15 +6,15 @@
     "url": "https://github.com/openplanr"
   },
   "metadata": {
-    "version": "3.1.0",
+    "version": "3.4.0",
     "description": "Official OpenPlanr Claude Code plugin marketplace. The planr plugin is generated from the openplanr npm package of the same version."
   },
   "plugins": [
     {
       "name": "planr",
       "source": "./plugins/planr",
-      "version": "3.1.0",
-      "description": "Close the loop from intent to delivery. Plan, design, build, review, and operate from durable context in your repository.",
+      "version": "3.4.0",
+      "description": "Close the loop from intent to delivery. Plans as files in your repo, checks before you merge, and a record of what shipped, in Claude Code, Codex and Cursor.",
       "strict": true
     }
   ]

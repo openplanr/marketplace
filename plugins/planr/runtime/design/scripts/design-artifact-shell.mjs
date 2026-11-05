@@ -1,9 +1,7 @@
 import {
-  digestArtifactEnvelope
-} from "./design-shared-artifact-support-protocol-contracts-ea2cd15e.mjs";
-import {
+  digestArtifactEnvelope,
   validateJson
-} from "./design-shared-protocol-contracts-31a760fc.mjs";
+} from "./design-shared-artifact-support-protocol-contracts-9f6918b0.mjs";
 
 // packages/artifact/lib/artifact/ui/shell.mjs
 import { readFileSync as readFileSync2 } from "node:fs";

@@ -94,6 +94,16 @@ export function handoffPresentation(outcome) {
   };
 }
 
+function warningText({ refs, omitted }) {
+  return `Refs changed outside this run (not blocking): ${refs.join(', ')}${omitted ? ` and ${omitted} more` : ''}`;
+}
+
+function violationText({ code, path, ref, change, omitted }) {
+  if (omitted) return `${code}: ${omitted} more path(s)`;
+  if (!path) return ref ? `${code}: ${ref}` : code;
+  return change ? `${code}: ${path} (${change})` : `${code}: ${path}`;
+}
+
 export function reviewPresentation(review) {
   return {
     phase: 'review',
@@ -102,7 +112,8 @@ export function reviewPresentation(review) {
       ? `${review.changedPaths.length} observed file change(s) ready for human review; nothing has been integrated.`
       : 'Observed changes require attention before integration.',
     changed: visiblePaths(review.changedPaths),
-    violations: review.violations.map(({ code, path }) => (path ? `${code}: ${path}` : code)),
+    violations: review.violations.map(violationText),
+    warnings: (review.warnings ?? []).map(warningText),
     nextAction: review.ready
       ? 'Inspect the retained worktree patch and then call apply with the same scope.'
       : 'Resolve the violations in the retained worktree or source before retrying.',
@@ -121,7 +132,8 @@ export function implementationReport(result, selector) {
     ...(result.cleanup?.status === 'failed'
       ? ['Owned worktree cleanup failed; integration remains accepted']
       : []),
-    ...(result.violations ?? []).map(({ code, path }) => (path ? `${code}: ${path}` : code)),
+    ...(result.violations ?? []).map(violationText),
+    ...(result.warnings ?? []).map(warningText),
     ...(result.code ? [result.code] : []),
     ...failed.map(({ command, status, exitCode, timeoutMs, classification }) =>
       status === 'timed-out'
@@ -136,6 +148,10 @@ export function implementationReport(result, selector) {
         ]
       : []),
   ];
+  const unselected = result.unselectedDirtyPaths ?? [];
+  const unselectedNote = unselected.length
+    ? ` Checks did not include ${result.unselectedDirtyCount ?? unselected.length} unselected local change(s): ${visiblePaths(unselected)}.`
+    : '';
   return {
     Outcome: accepted
       ? paths.length
@@ -146,16 +162,17 @@ export function implementationReport(result, selector) {
     Changed: paths.length
       ? `${paths.length} observed file(s) ${accepted ? 'integrated' : 'not accepted'}: ${visiblePaths(paths)}`
       : 'No observed file changes.',
-    Checks: checks.length
-      ? `${checks.filter(({ status }) => status === 'passed').length}/${checks.length} independent check(s) passed: ${checks
-          .map(
-            ({ command, status, durationMs }) =>
-              `${command} (${status}${
-                durationMs === undefined ? '' : `, ${(durationMs / 1000).toFixed(1)}s`
-              })`,
-          )
-          .join(', ')}`
-      : 'No independent checks ran; verification remains unconfirmed.',
+    Checks:
+      (checks.length
+        ? `${checks.filter(({ status }) => status === 'passed').length}/${checks.length} independent check(s) passed: ${checks
+            .map(
+              ({ command, status, durationMs }) =>
+                `${command} (${status}${
+                  durationMs === undefined ? '' : `, ${(durationMs / 1000).toFixed(1)}s`
+                })`,
+            )
+            .join(', ')}${unselectedNote ? '.' : ''}`
+        : 'No independent checks ran; verification remains unconfirmed.') + unselectedNote,
     Issues: issues.length
       ? `${issues.join('; ')}.${accepted ? '' : ` ${result.nextAction ?? ''}`}`.trim()
       : 'None found in this review.',

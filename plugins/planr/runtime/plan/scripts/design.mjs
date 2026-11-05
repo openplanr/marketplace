@@ -1,20 +1,20 @@
 #!/usr/bin/env node
 import {
-  DESIGN_REVIEW_BUNDLE_SCHEMA,
-  LARGE_OBJECT_LIMITS,
+  DESIGN_HANDOFF_SCHEMA,
   assertPlainData,
+  assertReviewExperience,
   canonicalizeJson,
   validateJson
 } from "./design-protocol-contracts.mjs";
 
 // packages/design/lib/design/plan-handoff-utility.mjs
-import { realpathSync as realpathSync5 } from "node:fs";
-import { resolve as resolve6 } from "node:path";
+import { realpathSync as realpathSync3 } from "node:fs";
+import { resolve as resolve4 } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // packages/design/lib/design/handoff-reader.mjs
-import { existsSync as existsSync5, readFileSync as readFileSync6 } from "node:fs";
-import { dirname as dirname6, join as join8 } from "node:path";
+import { existsSync as existsSync4, readFileSync as readFileSync6 } from "node:fs";
+import { dirname as dirname4, join as join7 } from "node:path";
 
 // packages/artifact/lib/artifact/envelope.mjs
 import { createHash } from "node:crypto";
@@ -112,6 +112,24 @@ var PipelineError = class extends Error {
   }
 };
 
+// packages/protocol/src/large-object-limits.mjs
+var LARGE_OBJECT_LIMITS = Object.freeze({
+  uniqueHtmlBytes: 100 * 1024 * 1024,
+  decodedBytes: 128 * 1024 * 1024,
+  catalogBytes: 8 * 1024 * 1024,
+  manifestBytes: 64 * 1024,
+  chunkBytes: 1024 * 1024,
+  chunkPlaintextBytes: 1024 * 1024 - 16,
+  chunks: 129,
+  ciphertextBytes: 128 * 1024 * 1024 + 129 * 16,
+  sources: 256,
+  views: 4096,
+  resources: 1024,
+  eventBytes: 256 * 1024,
+  eventPageBytes: 1024 * 1024,
+  eventPageCount: 100
+});
+
 // packages/artifact/lib/artifact/artifact-sources.mjs
 var ARTIFACT_SHARED_ENVELOPE_VERSION = "1.1.0";
 
@@ -148,9 +166,9 @@ function loadSchema(name, version = void 0) {
     if (schemaCache.has(key)) return schemaCache.get(key);
     const path = join(SCHEMAS_ROOT, candidateVersion, `${cleanName}.schema.json`);
     try {
-      const schema2 = JSON.parse(readFileSync(path, "utf-8"));
-      schemaCache.set(key, schema2);
-      return schema2;
+      const schema = JSON.parse(readFileSync(path, "utf-8"));
+      schemaCache.set(key, schema);
+      return schema;
     } catch (error) {
       if (error?.code !== "ENOENT") throw error;
     }
@@ -267,214 +285,6 @@ function validateArtifactReview(review) {
   }
   return review;
 }
-
-// packages/protocol/src/review-experience-contracts.mjs
-var text = { type: "string", maxLength: 16384 };
-var id = { type: "string", minLength: 1, maxLength: 128 };
-var digest = { type: "string", pattern: "^[a-f0-9]{64}$" };
-var texts = { type: "array", maxItems: 256, items: text };
-var closed = (properties, required = Object.keys(properties)) => ({
-  type: "object",
-  additionalProperties: false,
-  properties,
-  required
-});
-var list = (items, maxItems = 256) => ({ type: "array", maxItems, items });
-var schema = (name, properties, required) => ({
-  $schema: "https://json-schema.org/draft/2020-12/schema",
-  $id: `https://openplanr.dev/schemas/v1.10.0/${name}.schema.json`,
-  "x-openplanr-contract": { id: name, version: "1.10.0" },
-  ...closed(properties, required)
-});
-var DESIGN_REVIEW_CONTEXT_SCHEMA = schema(
-  "design-review-context",
-  {
-    kind: { const: "openplanr-design-review-context" },
-    schemaVersion: { const: "1.0.0" },
-    designId: id,
-    brief: closed({ purpose: text, requests: { ...texts, maxItems: 3 }, audience: text }, [
-      "purpose",
-      "requests"
-    ]),
-    revisionSummary: text,
-    implementation: closed({
-      tokens: list(closed({ name: id, value: text, description: text }, ["name", "value"]), 512),
-      components: list(
-        closed(
-          {
-            id,
-            name: text,
-            screenIds: list(id),
-            anchorIds: list(id),
-            states: list(closed({ name: id, description: text })),
-            notes: text,
-            responsive: text,
-            accessibility: text
-          },
-          ["id", "name"]
-        )
-      ),
-      responsive: texts,
-      accessibility: texts
-    })
-  },
-  ["kind", "schemaVersion", "designId", "brief", "implementation"]
-);
-var DESIGN_FINGERPRINT_SCHEMA = closed({
-  screenId: id,
-  variantId: id,
-  frameId: id,
-  contentDigest: digest,
-  guidanceDigest: digest
-});
-var bundleV11 = {
-  .../** @type {MutableSchema} */
-  structuredClone(DESIGN_REVIEW_BUNDLE_SCHEMA),
-  $id: "https://openplanr.dev/schemas/v1.10.0/design-review-bundle.schema.json",
-  "x-openplanr-contract": { id: "design-review-bundle", version: "1.10.0" }
-};
-Object.assign(bundleV11.properties, {
-  schemaVersion: { const: "1.1.0" },
-  reviewContext: DESIGN_REVIEW_CONTEXT_SCHEMA,
-  contextDigest: digest,
-  fingerprints: list(DESIGN_FINGERPRINT_SCHEMA)
-});
-bundleV11.required.push("reviewContext", "contextDigest", "fingerprints");
-var DESIGN_REVIEW_BUNDLE_V11_SCHEMA = bundleV11;
-var bundleV12 = (
-  /** @type {MutableSchema} */
-  structuredClone(DESIGN_REVIEW_BUNDLE_V11_SCHEMA)
-);
-bundleV12.$id = "https://openplanr.dev/schemas/v1.16.0/design-review-bundle.schema.json";
-bundleV12["x-openplanr-contract"] = { id: "design-review-bundle", version: "1.16.0" };
-Object.assign(bundleV12.properties, {
-  schemaVersion: { const: "1.2.0" },
-  envelope: {
-    type: "object",
-    required: ["schemaVersion", "sources", "artifacts", "viewer"],
-    properties: { schemaVersion: { const: "1.1.0" } }
-  },
-  entries: {
-    .../** @type {Record<string, unknown>} */
-    bundleV12.properties.entries,
-    maxItems: 4096
-  },
-  fingerprints: list(DESIGN_FINGERPRINT_SCHEMA, 4096)
-});
-var item = closed(
-  {
-    pinId: id,
-    reviewId: id,
-    screenId: id,
-    revisionId: id,
-    text,
-    refinement: text,
-    stale: { type: "boolean" },
-    author: text,
-    reviewOf: digest,
-    source: text
-  },
-  ["pinId", "text"]
-);
-var DESIGN_HANDOFF_CONTENT_SCHEMA = closed({
-  summary: text,
-  agreedChanges: list(item, 1e4),
-  openQuestions: list(item, 1e4),
-  deferred: list(item, 1e4),
-  rejected: list(item, 1e4)
-});
-var DESIGN_HANDOFF_SCHEMA = schema(
-  "design-review-handoff",
-  {
-    kind: { const: "openplanr-design-review-handoff" },
-    schemaVersion: { const: "1.0.0" },
-    title: text,
-    version: { type: "integer", minimum: 1 },
-    status: { enum: ["draft", "approved"] },
-    basis: closed({
-      designId: id,
-      sourceRevision: digest,
-      contextDigest: digest,
-      reviewOf: digest,
-      selectedVariant: id,
-      feedbackDigest: digest,
-      verificationDigest: digest,
-      feedbackWatermark: { type: "integer", minimum: 0 }
-    }),
-    content: DESIGN_HANDOFF_CONTENT_SCHEMA,
-    contentHash: digest,
-    markdown: { type: "string", maxLength: 2097152 },
-    affectedScreens: list(id),
-    verificationGaps: texts,
-    reviewNotes: list(closed({ reviewId: id, text }), 1e4),
-    approval: closed({ contentHash: digest, at: { type: "string", format: "date-time" } })
-  },
-  [
-    "kind",
-    "schemaVersion",
-    "title",
-    "version",
-    "status",
-    "basis",
-    "content",
-    "contentHash",
-    "markdown",
-    "affectedScreens",
-    "verificationGaps",
-    "reviewNotes"
-  ]
-);
-var DESIGN_REVIEW_METADATA_PAYLOAD_SCHEMA = {
-  ...schema(
-    "design-review-metadata-payload",
-    {
-      schemaVersion: { const: "1.0.0" },
-      kind: { enum: ["category", "disposition"] },
-      author: { ...text, minLength: 1, maxLength: 160 },
-      reviewOf: digest,
-      pinId: id,
-      category: { enum: ["question", "suggestion", "blocker"] },
-      disposition: { enum: ["accepted", "deferred", "rejected"] },
-      reason: text,
-      updatedAt: { type: "string", format: "date-time" }
-    },
-    ["schemaVersion", "kind", "author", "reviewOf", "pinId", "updatedAt"]
-  ),
-  allOf: [
-    {
-      if: { properties: { kind: { const: "category" } } },
-      then: { required: ["category"], not: { required: ["disposition"] } }
-    },
-    {
-      if: { properties: { kind: { const: "disposition" } } },
-      then: { required: ["disposition", "reason"], not: { required: ["category"] } }
-    }
-  ]
-};
-var payloadV11 = {
-  .../** @type {MutableSchema} */
-  structuredClone(DESIGN_REVIEW_METADATA_PAYLOAD_SCHEMA),
-  $id: "https://openplanr.dev/schemas/v1.11.0/design-review-metadata-payload.schema.json",
-  "x-openplanr-contract": { id: "design-review-metadata-payload", version: "1.11.0" }
-};
-Object.assign(payloadV11.properties, {
-  schemaVersion: { const: "1.1.0" },
-  category: { enum: ["question", "suggestion", "change-request", "blocker"] }
-});
-function assertReviewExperience(value, contract) {
-  const errors = validateJson(value, contract);
-  if (errors.length)
-    throw new TypeError(
-      `Invalid ${contract["x-openplanr-contract"]?.id ?? "review data"}: ${errors.slice(0, 4).map((item2) => `${item2.path} ${item2.detail}`).join("; ")}`
-    );
-  return value;
-}
-var REVIEW_EXPERIENCE_SCHEMAS = Object.freeze({
-  "design-review-context": DESIGN_REVIEW_CONTEXT_SCHEMA,
-  "design-review-bundle": DESIGN_REVIEW_BUNDLE_V11_SCHEMA,
-  "design-review-handoff": DESIGN_HANDOFF_SCHEMA,
-  "design-review-metadata-payload": DESIGN_REVIEW_METADATA_PAYLOAD_SCHEMA
-});
 
 // packages/design/lib/design/context.mjs
 import { createHash as createHash2 } from "node:crypto";
@@ -1522,6 +1332,7 @@ function emptyReviewContext(document) {
 // packages/design/lib/design/document-state.mjs
 import { createHash as createHash3, randomUUID } from "node:crypto";
 import {
+  chmodSync,
   closeSync,
   lstatSync,
   mkdirSync,
@@ -1557,14 +1368,15 @@ function readJson(path, fallback = void 0) {
     throw error;
   }
 }
-function atomicJson(path, value) {
-  atomicBytes(path, json(value));
+function atomicJson(path, value, { mode } = {}) {
+  atomicBytes(path, json(value), mode);
 }
-function atomicBytes(path, bytes) {
+function atomicBytes(path, bytes, mode) {
   mkdirSync(dirname2(path), { recursive: true });
   const temporary = `${path}.${randomUUID()}.tmp`;
   try {
     writeFileSync(temporary, bytes, { mode: 384, flag: "wx" });
+    if (mode !== void 0) chmodSync(temporary, mode);
     renameSync(temporary, path);
   } finally {
     rmSync(temporary, { force: true });
@@ -2010,18 +1822,18 @@ function readDesignFeedback(file, env = process.env, options = {}) {
   const ledger = readArtifactReviewState(designReviewPath(file, env, options), {
     allowMissing: true
   });
-  const digest2 = digestArtifactEnvelope(current.envelope);
+  const digest = digestArtifactEnvelope(current.envelope);
   const pins = (ledger?.reviews ?? []).flatMap(
     (entry) => entry.review.pins.map((pin) => {
-      const target = current.entries.find((item2) => item2.artifactId === pin.artifactId);
-      const screen = target && current.document.screens.find((item2) => item2.id === target.screenId);
+      const target = current.entries.find((item) => item.artifactId === pin.artifactId);
+      const screen = target && current.document.screens.find((item) => item.id === target.screenId);
       const anchorMissing = pin.anchor?.planrId && screen?.anchors?.length && !screen.anchors.includes(pin.anchor.planrId) && pin.anchor.planrId !== screen.id;
       return {
         ...pin,
         reviewId: entry.review.reviewId,
         reviewOf: entry.review.reviewOf,
         ...entry.review.reviewId.startsWith("shared-") ? { revisionId: entry.review.reviewId.slice(7) } : {},
-        stale: entry.stale || entry.review.reviewOf !== digest2 || !target || Boolean(anchorMissing),
+        stale: entry.stale || entry.review.reviewOf !== digest || !target || Boolean(anchorMissing),
         ...target ? { screenId: target.screenId, variantId: target.variantId } : {}
       };
     })
@@ -2040,7 +1852,7 @@ function readDesignFeedback(file, env = process.env, options = {}) {
 }
 
 // packages/design/lib/design/handoff-format.mjs
-var safeMd = (text2) => String(text2).replaceAll("[", "\\[").replaceAll("]", "\\]").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+var safeMd = (text) => String(text).replaceAll("[", "\\[").replaceAll("]", "\\]").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 function renderMarkdown(draft, title) {
   const lines = [
     `# ${safeMd(title)} \u2014 review handoff`,
@@ -2057,11 +1869,11 @@ function renderMarkdown(draft, title) {
     ["rejected", "Rejected"]
   ]) {
     lines.push(`## ${label}`, "");
-    for (const item2 of draft.content[key]) {
+    for (const item of draft.content[key]) {
       lines.push(
-        `- ${safeMd(item2.refinement ?? item2.text)} \u2014 ${safeMd(item2.author ?? "Reviewer")}${item2.stale ? " \xB7 original revision" : ""} [source comment](${item2.source})`
+        `- ${safeMd(item.refinement ?? item.text)} \u2014 ${safeMd(item.author ?? "Reviewer")}${item.stale ? " \xB7 original revision" : ""} [source comment](${item.source})`
       );
-      if (item2.refinement) lines.push(`  Original comment: ${safeMd(item2.text)}`);
+      if (item.refinement) lines.push(`  Original comment: ${safeMd(item.text)}`);
     }
     if (!draft.content[key].length) lines.push("None recorded.");
     lines.push("");
@@ -2295,7 +2107,7 @@ function compileDesignHandoffResolution(input) {
     validatePin(pin);
     counts.set(pin.id, (counts.get(pin.id) ?? 0) + 1);
   }
-  const duplicatePinIds = new Set([...counts].filter(([, count]) => count > 1).map(([id2]) => id2));
+  const duplicatePinIds = new Set([...counts].filter(([, count]) => count > 1).map(([id]) => id));
   const known = /* @__PURE__ */ new Set();
   for (const pin of pins) {
     const key = keyOf(pin);
@@ -2413,7 +2225,7 @@ function compileDesignHandoffResolution(input) {
     )
   );
   const severity = new Set(diagnostics.map((value) => value.severity));
-  const status = severity.has("stale") ? "stale" : severity.has("blocked") ? "blocked" : items.some((item2) => item2.outcome === "open") ? "attention" : "ready";
+  const status = severity.has("stale") ? "stale" : severity.has("blocked") ? "blocked" : items.some((item) => item.outcome === "open") ? "attention" : "ready";
   return {
     kind: "openplanr-design-handoff-resolution",
     schemaVersion: "1.0.0",
@@ -2421,183 +2233,197 @@ function compileDesignHandoffResolution(input) {
     status,
     complete: source.historyComplete !== false && !["blocked", "stale"].includes(status),
     items,
-    implementationScope: items.filter((item2) => item2.implementationScope).map((item2) => item2.id),
+    implementationScope: items.filter((item) => item.implementationScope).map((item) => item.id),
     diagnostics
   };
 }
 
-// packages/design/lib/design/share-status.mjs
-import { existsSync as existsSync4, realpathSync as realpathSync4 } from "node:fs";
-import { homedir as homedir3 } from "node:os";
-import { dirname as dirname5, isAbsolute as isAbsolute3, join as join7, relative as relative3, resolve as resolve5 } from "node:path";
+// packages/design/lib/design/share-cli-bridge.mjs
+import { execFile, execFileSync } from "node:child_process";
+import { existsSync as existsSync3, readFileSync as readFileSync5 } from "node:fs";
+import { join as join6 } from "node:path";
 
-// packages/artifact/lib/artifact/owner-custody.mjs
-import {
-  chmodSync,
-  closeSync as closeSync2,
-  existsSync as existsSync3,
-  fsyncSync,
-  linkSync,
-  lstatSync as lstatSync4,
-  mkdirSync as mkdirSync4,
-  openSync as openSync2,
-  readFileSync as readFileSync5,
-  realpathSync as realpathSync3,
-  renameSync as renameSync4,
-  unlinkSync,
-  writeFileSync as writeFileSync4
-} from "node:fs";
-import { basename, dirname as dirname4, isAbsolute as isAbsolute2, join as join6, relative as relative2, resolve as resolve4 } from "node:path";
-function custodyError(message2, code = "E_OWNER_CUSTODY_LOCATION") {
-  return Object.assign(new Error(message2), { code, status: 400 });
-}
-function pathExists(path) {
-  try {
-    lstatSync4(path);
-    return true;
-  } catch (error) {
-    if (error.code === "ENOENT") return false;
-    throw error;
-  }
-}
-function assertDirectoryAncestry(root, label) {
-  for (let path = root; dirname4(path) !== path; path = dirname4(path)) {
-    if (pathExists(path) && lstatSync4(path).isSymbolicLink())
-      throw custodyError(`${label} custody directory must not contain symbolic links.`);
-  }
-}
-function assertPrivateFile(path, label) {
-  const stat = lstatSync4(path);
-  if (!stat.isFile() || stat.isSymbolicLink() || process.platform !== "win32" && (stat.mode & 63 || stat.uid !== process.getuid()))
-    throw custodyError(
-      `${label} owner custody must be a private 0600 file.`,
-      "E_OWNER_CUSTODY_INVALID"
-    );
-}
-function assertPrivateDirectory(root, label, recoveryOutput = false) {
-  const stat = lstatSync4(root);
-  if (!stat.isDirectory() || stat.isSymbolicLink() || !recoveryOutput && process.platform !== "win32" && (stat.mode & 63 || stat.uid !== process.getuid()))
-    throw custodyError(`${label} custody must use a private local directory.`);
-}
-function readCustody(path, { label = "Owner", format, recoveryInput = false } = {}) {
-  if (recoveryInput && existsSync3(path)) {
-    assertPrivateFile(path, label);
-    path = realpathSync3(path);
-  }
-  assertDirectoryAncestry(dirname4(path), label);
-  if (!pathExists(path)) return null;
-  assertPrivateDirectory(dirname4(path), label, recoveryInput);
-  assertPrivateFile(path, label);
-  let record;
-  try {
-    record = JSON.parse(readFileSync5(path, "utf8"));
-  } catch {
-    throw custodyError(`${label} owner custody is invalid.`, "E_OWNER_CUSTODY_INVALID");
-  }
-  if (record?.kind !== format || record.schemaVersion !== "1.0.0" || !record.custody)
-    throw custodyError(`${label} owner custody is invalid.`, "E_OWNER_CUSTODY_INVALID");
-  return record;
-}
+// packages/design/lib/design/share-compat.mjs
+var DESIGN_SHARE_COMPAT = 1;
 
-// packages/artifact/lib/artifact/internal/workspace-address.mjs
-function createWorkspaceAddress({
-  label,
-  reviewPath,
-  defaultBaseUrl = "https://share.openplanr.dev"
-}) {
-  function normalizeWorkspaceBase2(baseUrl = defaultBaseUrl) {
-    const url = new URL(baseUrl);
-    if (url.username || url.password || url.search || url.hash || url.pathname !== "/" || url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname)))
-      throw new TypeError(
-        `${label} sharing requires an HTTPS origin or a local development server.`
-      );
-    return url.origin;
-  }
-  function workspaceReviewUrl2(access) {
-    if (!/^[A-Za-z0-9_-]{22,64}$/.test(access.id))
-      throw new TypeError(`Invalid ${label.toLowerCase()} workspace identity.`);
-    return `${normalizeWorkspaceBase2(access.baseUrl)}${reviewPath}/${access.id}`;
-  }
-  return { normalizeWorkspaceBase: normalizeWorkspaceBase2, workspaceReviewUrl: workspaceReviewUrl2 };
+// packages/design/lib/design/share-cli-bridge.mjs
+var CLI = "openplanr";
+var UPLOAD_TIMEOUT_MS = 30 * 6e4;
+var STATUS_TIMEOUT_MS = 5e3;
+var FAILED_HANDSHAKE_TTL_MS = 3e4;
+var STATUS_TTL_MS = 1e4;
+var INSTALL = "Install the OpenPlanr CLI with `npm install -g openplanr`, then retry; your local design is unchanged.";
+var UNAVAILABLE = Object.freeze([
+  "E_DESIGN_SHARE_CLI_REQUIRED",
+  "E_DESIGN_SHARE_CLI_UNRESPONSIVE",
+  "E_DESIGN_SHARE_RUNTIME_MISMATCH",
+  "E_DESIGN_SHARE_PIPELINE_MISSING"
+]);
+function shareError(code, message2, fix) {
+  return Object.assign(new Error(fix ? `${message2} ${fix}` : message2), { code, name: code });
 }
-
-// packages/design/lib/design/workspace-address.mjs
-var DESIGN_SHARE_BASE_URL = "https://share.openplanr.dev";
-var DESIGN_SHARE_REVIEW_PATH = "/d";
-var address = createWorkspaceAddress({
-  label: "Design",
-  reviewPath: DESIGN_SHARE_REVIEW_PATH,
-  defaultBaseUrl: DESIGN_SHARE_BASE_URL
-});
-var normalizeWorkspaceBase = address.normalizeWorkspaceBase;
-var workspaceReviewUrl = (access) => `${address.workspaceReviewUrl(access)}${access.schemaVersion === "2.0.0" ? "?v=2" : ""}`;
-
-// packages/design/lib/design/share-status.mjs
-var FORMAT = "openplanr-design-owner-custody";
-function custodyLocation(file, options = {}, { allowMissing = false } = {}) {
-  const current = currentDesign(file, options);
-  const env = options.env ?? process.env;
-  const root = resolve5(options.custodyRoot ?? join7(planrHome(env), "design-shares"));
-  let project = current.root;
-  for (let candidate = current.root; dirname5(candidate) !== candidate; candidate = dirname5(candidate)) {
-    if (existsSync4(join7(candidate, ".git")) || existsSync4(join7(candidate, PLANNING_FOLDER))) {
-      project = candidate;
-      break;
-    }
-  }
-  const key = hash(`${current.root}
-${current.document.id}`);
-  const path = join7(root, `${key}.json`);
-  const within = relative3(project, root);
-  if ((!allowMissing || existsSync4(path)) && (within === "" || !within.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) && within !== ".." && !isAbsolute3(within)))
-    throw new Error(
-      "Design owner keys must be stored outside the project. Set PLANR_HOME to a private user-level directory."
-    );
-  const legacyPath = !options.custodyRoot && !configuredPlanrHome(env) ? join7(realpathSync4(env.HOME || homedir3()), ".openplanr", "design-shares", `${key}.json`) : null;
-  return { root, path, current, legacyPath };
-}
-function presentationFingerprint(current) {
-  const state = readJson(join7(current.root, ".design/studio-state.json"), { state: {} }).state;
-  return hash(
-    JSON.stringify({
-      revision: current.revision,
-      selectedVariant: state.selectedVariant ?? current.document.selectedVariant,
-      positions: state.positions ?? {},
-      verification: current.verification.status
-    })
+function cliMissing() {
+  return shareError(
+    "E_DESIGN_SHARE_CLI_REQUIRED",
+    "Sharing runs in the OpenPlanr CLI, which is not installed.",
+    INSTALL
   );
 }
-var safeStatus = (record, current) => ({
-  ok: true,
-  shared: Boolean(record),
-  title: current.document.title,
-  localRevision: current.revision,
-  retention: "until-revoked",
-  ...record ? {
-    id: record.custody.id,
-    url: workspaceReviewUrl(record.custody),
-    revision: record.custody.currentRevision ?? record.publishedRevision ?? null,
-    publishedRevision: record.publishedRevision ?? null,
-    hasUpdate: record.publishedRevision !== current.revision || record.publishedPresentation !== presentationFingerprint(current),
-    epoch: record.custody.epoch,
-    commentsPaused: Boolean(record.custody.commentsPaused ?? record.commentsPaused),
-    revoked: Boolean(record.revoked),
-    deleted: Boolean(record.deleted),
-    pending: Boolean(
-      record.custody.pendingCreate || record.custody.pendingMutation || record.pendingReviewMetadata?.length
-    ),
-    pendingAction: record.custody.pendingCreate ? "create" : record.custody.pendingMutation?.action ?? (record.pendingReviewMetadata?.length ? "review-metadata" : null),
-    pendingReviewMetadata: Boolean(record.pendingReviewMetadata?.length)
-  } : {}
-});
-function getDesignShareStatus(file, options = {}) {
-  const { path, current, legacyPath } = custodyLocation(file, options);
-  const record = readCustody(path, { label: "Design", format: FORMAT }) ?? (legacyPath ? readCustody(legacyPath, { label: "Design", format: FORMAT }) : null);
-  return safeStatus(record, current);
+function pathOf(env) {
+  const key = Object.keys(env).find((name) => name.toUpperCase() === "PATH");
+  return key ? env[key] ?? "" : "";
+}
+function cliLauncher({
+  platform = process.platform,
+  env = process.env,
+  execPath = process.execPath
+} = {}) {
+  if (platform !== "win32") return { file: CLI, args: [] };
+  for (const directory of pathOf(env).split(";").filter(Boolean)) {
+    const shim = join6(directory, `${CLI}.cmd`);
+    if (!existsSync3(shim)) continue;
+    const target = /"%~?dp0%?\\([^"\r\n]+?\.js)"/iu.exec(readFileSync5(shim, "utf8"))?.[1];
+    const script = target ? join6(directory, ...target.split("\\")) : join6(directory, "node_modules", CLI, "bin", `${CLI}.js`);
+    if (existsSync3(script)) return { file: execPath, args: [script] };
+  }
+  return null;
+}
+function lastJsonLine(stdout) {
+  const line = String(stdout ?? "").trim().split("\n").at(-1);
+  try {
+    return line ? JSON.parse(line) : null;
+  } catch {
+    return null;
+  }
+}
+function settle(command, timeout, error, stdout, stderr) {
+  if (error?.code === "ENOENT") throw cliMissing();
+  if (error?.code === "ETIMEDOUT" || error?.killed || error?.signal)
+    throw shareError(
+      "E_DESIGN_SHARE_CLI_UNRESPONSIVE",
+      `The OpenPlanr CLI did not finish \`artifact ${command}\` within ${Math.round(timeout / 1e3)} s.`,
+      "Check that `openplanr --version` answers, then retry."
+    );
+  const value = lastJsonLine(stdout);
+  if (!error && value && value.ok !== false) return value;
+  if (value && value.ok === false)
+    throw shareError(
+      value.code ?? "E_DESIGN_SHARE_FAILED",
+      value.problem ?? "The OpenPlanr CLI could not complete the sharing operation.",
+      value.recovery
+    );
+  const detail = String(stderr ?? "").trim().split("\n").at(-1) || error?.message || "no output";
+  throw shareError(
+    "E_DESIGN_SHARE_FAILED",
+    `openplanr artifact ${command} failed without a JSON result: ${detail}`
+  );
+}
+function argv(command, file, flags) {
+  return ["artifact", command, ...flags, "--json", ...file === void 0 ? [] : ["--", file]];
+}
+function launch(env) {
+  const launcher = cliLauncher({ env });
+  if (!launcher) throw cliMissing();
+  return launcher;
+}
+function runSync(command, file, flags, { env = process.env, timeout = STATUS_TIMEOUT_MS } = {}) {
+  const { file: program, args } = launch(env);
+  let stdout;
+  try {
+    stdout = execFileSync(program, [...args, ...argv(command, file, flags)], {
+      env,
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+      timeout,
+      windowsHide: true
+    });
+  } catch (error) {
+    return settle(command, timeout, error, error?.stdout, error?.stderr);
+  }
+  return settle(command, timeout, null, stdout, "");
+}
+function compatibility(runtime, error) {
+  if (error) {
+    if (UNAVAILABLE.includes(error.code)) return { error };
+    return {
+      error: shareError(
+        "E_DESIGN_SHARE_RUNTIME_MISMATCH",
+        `The installed OpenPlanr CLI is too old to share designs for this skill (${error.message}).`,
+        "Update the CLI with `npm install -g openplanr`, then retry."
+      )
+    };
+  }
+  if (runtime.designShareCompat === DESIGN_SHARE_COMPAT) return { runtime };
+  const older = typeof runtime.designShareCompat !== "number" || runtime.designShareCompat < DESIGN_SHARE_COMPAT;
+  return {
+    error: shareError(
+      "E_DESIGN_SHARE_RUNTIME_MISMATCH",
+      `The installed OpenPlanr CLI (${runtime.cli}) shares designs in format ${runtime.designShareCompat ?? "unknown"}, but this skill uses format ${DESIGN_SHARE_COMPAT}.`,
+      older ? "Update the CLI with `npm install -g openplanr`, then retry." : "Update the OpenPlanr plugin or skills to match the CLI, then retry."
+    )
+  };
+}
+var handshakes = /* @__PURE__ */ new Map();
+function remembered(env) {
+  const known = handshakes.get(pathOf(env));
+  if (known?.outcome?.error && Date.now() - known.at > FAILED_HANDSHAKE_TTL_MS) {
+    handshakes.delete(pathOf(env));
+    return void 0;
+  }
+  return known;
+}
+function remember(env, outcome) {
+  handshakes.set(pathOf(env), { at: Date.now(), outcome });
+  return outcome;
+}
+function outcomeOf(outcome) {
+  if (outcome.error) throw outcome.error;
+  return outcome.runtime;
+}
+function requireCompatibleRuntime(env = process.env) {
+  const known = remembered(env);
+  if (known?.outcome) return outcomeOf(known.outcome);
+  let outcome;
+  try {
+    outcome = compatibility(runSync("share-runtime", void 0, [], { env }));
+  } catch (error) {
+    outcome = compatibility(null, error);
+  }
+  return outcomeOf(remember(env, outcome));
+}
+var statuses = /* @__PURE__ */ new Map();
+function statusKey(file, env) {
+  try {
+    return `${pathOf(env)}\0${file}\0${currentDesign(file).revision}`;
+  } catch {
+    return null;
+  }
+}
+function cachedStatus(key) {
+  const known = key && statuses.get(key);
+  return known && Date.now() - known.at <= STATUS_TTL_MS ? known.value : void 0;
+}
+function unavailableStatus(error) {
+  if (!UNAVAILABLE.includes(error.code)) throw error;
+  return { ok: true, shared: false, unavailable: { code: error.code, message: error.message } };
+}
+function getDesignShareStatus(file, { env } = {}) {
+  const key = statusKey(file, env);
+  const known = cachedStatus(key);
+  if (known) return known;
+  let value;
+  try {
+    requireCompatibleRuntime(env);
+    value = runSync("status", file, [], { env });
+  } catch (error) {
+    value = unavailableStatus(error);
+  }
+  if (key) statuses.set(key, { at: Date.now(), value });
+  return value;
 }
 
 // packages/design/lib/design/handoff-reader.mjs
-var metadataPath = (current) => join8(current.root, ".design/review-metadata.json");
+var metadataPath = (current) => join7(current.root, ".design/review-metadata.json");
 var revisionOf2 = (pin) => pin.revisionId ?? pin.reviewId;
 function metadata(current, feedback) {
   const local = readJson(metadataPath(current), { version: 0, byRevision: {} });
@@ -2702,12 +2528,12 @@ function snapshot(file, env, shareOptions = {}) {
 }
 function readDesignHandoff(file, { env = process.env, ...shareOptions } = {}) {
   const value = snapshot(file, env, shareOptions);
-  const path = join8(dirname6(designSpecPath(value.current.root)), "review-handoff.json");
+  const path = join7(dirname4(designSpecPath(value.current.root)), "review-handoff.json");
   const draft = readJson(path, null);
   if (draft) {
     assertDraft(draft);
     const markdownPath = path.replace(/\.json$/u, ".md");
-    if (!existsSync5(markdownPath) || readFileSync6(markdownPath, "utf8") !== draft.markdown)
+    if (!existsSync4(markdownPath) || readFileSync6(markdownPath, "utf8") !== draft.markdown)
       throw new Error(
         "The handoff Markdown differs from its approved JSON. Rebuild the handoff projection before using it in Plan."
       );
@@ -2744,9 +2570,9 @@ function assertDraft(draft) {
 }
 
 // packages/design/lib/design/plan-handoff-utility.mjs
-function inspectPlanDesignHandoff(argv, { stdout = (value) => process.stdout.write(`${JSON.stringify(value)}
+function inspectPlanDesignHandoff(argv2, { stdout = (value) => process.stdout.write(`${JSON.stringify(value)}
 `) } = {}) {
-  if (argv.length === 0 || ["--help", "help"].includes(argv[0])) {
+  if (argv2.length === 0 || argv2[0] === "help" || argv2.some((value) => ["--help", "-h"].includes(value))) {
     const help = {
       usage: "design.mjs handoff <design-document.json> [--action inspect] [--json]",
       note: "Reads the existing handoff and its current approval; never renders, publishes, or starts implementation."
@@ -2754,7 +2580,9 @@ function inspectPlanDesignHandoff(argv, { stdout = (value) => process.stdout.wri
     stdout(help);
     return help;
   }
-  const [command, input, ...args] = argv;
+  const [command, input, ...args] = argv2;
+  if (typeof input === "string" && input.startsWith("-"))
+    throw new Error(`${input} must be a design document path, not an option.`);
   if (command !== "handoff" || !input)
     throw new Error("Usage: design.mjs handoff <design-document.json> [--action inspect] [--json]");
   for (let index = 0; index < args.length; index += 1) {
@@ -2762,20 +2590,20 @@ function inspectPlanDesignHandoff(argv, { stdout = (value) => process.stdout.wri
     if (args[index] === "--action" && args[++index] === "inspect") continue;
     throw new Error("Plan handoff support only accepts --action inspect and --json.");
   }
-  const result = readDesignHandoff(resolve6(input), { recoverPublication: false });
+  const result = readDesignHandoff(resolve4(input), { recoverPublication: false });
   stdout(result);
   return result;
 }
-async function main(argv = process.argv.slice(2)) {
+async function main(argv2 = process.argv.slice(2)) {
   try {
-    return inspectPlanDesignHandoff(argv);
+    return inspectPlanDesignHandoff(argv2);
   } catch (error) {
     process.stderr.write(`${error.code ? `${error.code}: ` : ""}${error.message}
 `);
     process.exitCode = 1;
   }
 }
-if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync5(process.argv[1]))
+if (process.argv[1] && fileURLToPath(import.meta.url) === realpathSync3(process.argv[1]))
   await main();
 export {
   inspectPlanDesignHandoff,
