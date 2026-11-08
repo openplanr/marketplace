@@ -13,6 +13,8 @@ Ordinary implementation remains with `planr-ship`.
 
 ## Start
 
+If `openplanr` is not on PATH, tell the user, then run `npx -y openplanr@3.5.0 delegate probe --json`.
+
 Resolve [runner.mjs](scripts/runner.mjs) from this installed skill. Call it through
 Node as `node <installed-skill>/scripts/runner.mjs <action>`, with one JSON object
 on stdin. Alternatively, include `action` in that object and omit the command-line
