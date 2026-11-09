@@ -14,14 +14,11 @@ automatically.
 
 ## Resolve context directly
 
-Read the strongest available inputs:
-
-1. the request and selected specification;
-2. repository instructions (`AGENTS.md`, `CLAUDE.md`, or equivalents), ADRs,
-   planning rules, and active stack files named by the repository;
-3. relevant implementation code, tests, package scripts, and CI configuration;
-4. design inputs and design specifications when a browser surface is involved;
-5. the database schema or persistence code when data behavior is involved.
+Read the request, the selected specification and the files either names, plus
+`AGENTS.md` and `CLAUDE.md` when tracked, in one batch. Expand only for a missing
+contract, a dependency or a contradiction, and stop when each claim has evidence
+or a named gap. Read design inputs when a browser surface is involved and the
+schema or persistence code when data behavior is involved.
 
 Use repository-local conventions first. Missing legacy `input/` or `.planr/`
 paths do not block a clear request. State what was unavailable and continue when
@@ -93,11 +90,10 @@ Read [the artifact contract](references/artifact-contract.md) before writing.
 Write stories and tasks directly in the repository's active planning mode.
 
 - Allocate project-global monotonic `US-NNN` and `T-NNN` IDs. Never reuse a
-  deleted ID. The packaged [planning ID helper](scripts/planning-ids.mjs) may
-  inspect or reserve IDs; it never generates content. Pass `--root` with the
-  `specs` folder under the project's configured planning path (`.planr/specs`
-  by default). It exits non-zero when that folder is missing or is not the one
-  `.planr/config.json` configures; never fall back to `US-001` or `T-001`.
+  deleted ID. Follow [the planning ID procedure](references/planning-ids.md)
+  immediately before writing: it reads the stored sequence and the existing
+  files, never overwrites an artifact, and never falls back to `US-001` or
+  `T-001`.
 - Give each story stable acceptance IDs starting at `AC-001`.
 - Split each story into tasks that are coherent and independently verifiable.
   Separate by ownership first: UI work is a `UI` task for the frontend role and
@@ -116,9 +112,12 @@ Write stories and tasks directly in the repository's active planning mode.
 - Name concrete files and repository-grounded checks. Preserve established
   repository headings when they carry additional information.
 
-Validate all frontmatter and acceptance coverage before finishing. If a helper
-is unavailable, inspect existing IDs and validate the same invariants directly;
-do not route semantic work to a CLI fallback.
+Before finishing, check directly that every story and task frontmatter is
+valid, every acceptance ID is mapped through `acceptanceRefs` and named under
+`## Test Requirements`, and no ID repeats an existing one. When
+`command -v openplanr` succeeds and a `SPEC-NNN` exists,
+`openplanr spec sync <SPEC-ID> --dry-run` adds an orphan and schema-drift check
+and writes nothing. Do not route semantic work to a CLI fallback.
 
 For approved design input, author the complete story and task bytes before
 touching target paths, then commit those bytes and the sibling
@@ -142,7 +141,7 @@ instead of repeating every path in chat.
   (Codex/ChatGPT) or the `planr-ship` rule (Cursor).
 
 Mention the planning layout or consulted lenses only when they explain a material
-choice. Different summary wording never requires another planning run.
+choice. Follow [the shared return rules](references/return-contract.md).
 
 When the OpenPlanr dashboard is running, the planned graph is browsable at
 `#/board`; open one story at `#/detail/<US-###>`.

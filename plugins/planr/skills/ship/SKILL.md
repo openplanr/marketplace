@@ -17,10 +17,11 @@ plain Ship never launches its helper. Keep the work local; do not publish or dep
 
 For a selector, locate exactly one task and read it completely. Then follow its
 `storyId` and `specId` to the parent story, acceptance criteria, Gherkin file
-when present, and specification. Also read repository instructions, ADRs,
-planning rules, applicable stack guidance, relevant design/database context,
-implementation code, tests, and interfaces produced by declared dependencies. Read any
-`.planr/conventions/<area>.md`, indexed from AGENTS.md, for the areas this task touches.
+when present, and specification. Read the files the task names, plus `AGENTS.md` and
+`CLAUDE.md` when tracked, in one batch, and any `.planr/conventions/<area>.md` indexed
+from AGENTS.md for the areas this task touches. Expand only for a missing contract, a
+dependency's interface or a contradiction, and stop when each claim has evidence or a
+named gap.
 
 Read [the design lineage contract](references/design-lineage.md). If the selected
 planning root contains `design-lineage.json`, load only the selected task's mapped
@@ -78,29 +79,43 @@ its `changed` list with `git diff --name-only` plus untracked files; report any 
 
 ## Discover and run verification
 
-Discover checks in this order:
+Inspect these sources directly, in this order:
 
 1. task Test Requirements;
 2. repository instructions;
 3. package and task-runner scripts;
-4. applicable CI and pre-commit configuration.
+4. applicable CI configuration, the pre-commit hook (for example lint-staged) and the
+   pre-push hook, when present, whatever the change touches.
 
-Run `openplanr ship checks --json --task <task-path>` (omit `--task` for a direct
-request; add `--tier story` or `--tier push` before pushing) and run its `checks`
-from each `cwd`. The command never executes checks or writes files. When
+List each candidate check with its `cwd` and the source that named it. Discovery
+only reads sources: never build, install or execute a check while discovering;
+running checks is a later step. Then run the candidates from each `cwd`. Let the change pick checks: when it touches a build input (a
+`tsconfig*.json`, a bundler config, or a package's `main`, `exports`, `bin` or
+`build` scripts), include the build CI runs; prefer tests related to the changed
+files. Before pushing, include every CI job whose triggers and path filters fire
+for the changed paths, and for a published package that gains non-code files, a
+dry-run pack that confirms they are packed. When a workflow selects jobs at
+runtime (a `changes` or paths-filter job whose outputs gate other jobs), list every job it
+gates and mark each conditional. Run a conditional job when a local equivalent command
+exists; otherwise report it as "conditional, not run". Never drop one silently or by
+reading the paths yourself. Read every workflow file whose triggers fire for the
+change, not only the main one: dedicated browser, end-to-end and sandbox workflows are sources too. List a git hook as
+its own command and, when it delegates to a script, also each check that script runs.
+Discovery lists what the sources define whatever the size or kind of the change, a
+documentation-only change included; the change picks only which listed checks you run.
+Missing commands are diagnostics, not a reason to invent or
+skip all verification.
+
+If `openplanr` is already on `PATH`, `openplanr ship checks --json --task <task-path>`
+(omit `--task` for a direct request; add `--tier story` or `--tier push` before
+pushing) adds `complete` and diagnostics. The command never executes checks or writes files. When
 `complete` is `false`, report its error diagnostics and treat the check set as
 incomplete: a pass is not CI-equivalent. Act on warning diagnostics too; each names
 the files or checks it affects. A diagnostic that a check could not run, such as
 `TYPESCRIPT_UNAVAILABLE`, is not a pass: name that check in `checks` and verify its
 concern yourself where you can (for a new test file, confirm some tsconfig includes
 it). For a `package-contents` check, account for every `expectFiles` entry in the
-tarball's `files`: packed or deliberately left out. Without
-the CLI, the packaged read-only [verification discovery helper](scripts/discover-verification.mjs)
-may list candidates. Resolve it relative to this `SKILL.md` and run
-`node <helper> --project <repository-root> --task <task-path>`; omit `--task` for a
-direct request. It never executes checks or writes files. If both are unavailable,
-inspect those four sources directly. Missing commands are diagnostics, not a
-reason to invent or skip all verification.
+tarball's `files`: packed or deliberately left out.
 
 Run the strongest applicable focused checks while working, then the relevant
 regression checks. Run each check on its own or under `set -o pipefail`, and judge
@@ -111,9 +126,9 @@ For an acceptance check written or changed for this task, follow
 Read [the result contract](references/result-contract.md) before reporting.
 
 Report defects you notice outside the task as [findings](references/findings.md),
-and never fix them in this change unless they block it. The packaged
-[backlog helper](scripts/backlog-item.mjs) lists and files backlog items when no
-CLI is installed; resolve it relative to this `SKILL.md`.
+and never fix them in this change unless they block it.
+[Backlog filing](references/backlog-filing.md) lists and files backlog items with
+your own file tools.
 
 Do not write progress into an approved design package. The studio derives
 approved, planned, implementing, and verified state from canonical planning and
@@ -135,10 +150,8 @@ results instead of reproducing them in chat.
 - **Issues:** blockers with problem, impact, and next action, or `none`; then
   findings outside the task, each with its disposition.
 
-Keep the five machine fields unchanged. A human summary may omit empty or unavailable fields,
-but must make partial, blocked or unverified work clear and give the smallest
-recovery action. Preserve native transcripts; never require another execution
-or correction just to change summary wording.
+Keep the five machine fields unchanged. Follow [the shared return rules](references/return-contract.md);
+the summary must make partial, blocked or unverified work clear.
 
 Suggest `planr-land` only when a landing step remains in the requested workflow.
 Do not add a next action when the requested scope is fulfilled. This guidance

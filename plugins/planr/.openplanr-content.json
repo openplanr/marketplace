@@ -7,12 +7,12 @@
   "roleCount": 9,
   "files": [
     {
-      "path": ".claude-plugin/icon.svg",
-      "digest": "sha256:75fac2fbc96f8b3599c6aafc8cc61a46e1c1e65b9533e1b5cba6add060e2a734"
+      "path": ".claude-plugin/icon.png",
+      "digest": "sha256:49a4be39fe693b17991fcb87590e59f30f636b74fc69f0352b6c2e1d79e56716"
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:34a15ddc3d48854b6983029e7ee8f081187d089328c1798723346fbd2475bef2"
+      "digest": "sha256:8a40bb2b6809817cb39237a2f05485564d78e6a5b0075c4804db96029f4663ca"
     },
     {
       "path": "agents/planr-backend.md",
@@ -60,7 +60,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:8f1c9e4e763777c4afb6068fd32677a606bd9a9ef8214c06a5b24b095c880563"
+      "digest": "sha256:c24827bf2c8925fbe87bd3fdf61e6d0b60920b0d5406aefa8b78911e26448f4d"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -167,22 +167,6 @@
       "digest": "sha256:3bc3f31b58feacd7bd9737c44e1d2c3a2b06e320f9cda42e2950614301bc2560"
     },
     {
-      "path": "runtime/operate/scripts/errors.mjs",
-      "digest": "sha256:6c02fdf441b22fc101a764c928bb0e98fa0a93a602183463c44adc3f8e1d7f79"
-    },
-    {
-      "path": "runtime/operate/scripts/operate-review-contract.mjs",
-      "digest": "sha256:76de44f9fda5444ad5b4805ae16b21221cde19a99669140ea7a6f032f383edcd"
-    },
-    {
-      "path": "runtime/operate/scripts/operate-review-note.mjs",
-      "digest": "sha256:10fd0d90e5ec8674a9df0b4dabcb44c0c90ca63a72ea42194d69d365034c94aa"
-    },
-    {
-      "path": "runtime/operate/scripts/validate-note.mjs",
-      "digest": "sha256:5955daf739c410c970b998913c106c4f147b0eff47e4433c01eaf06471bfd651"
-    },
-    {
       "path": "skills/artifact/references/company-review.md",
       "digest": "sha256:38fbf85cd7e3342de16933debde9ffb39468b283e3c70bdcf2beffdd0ebee147"
     },
@@ -203,40 +187,40 @@
       "digest": "sha256:dc9fdcc48a53ea2f708f1922e0a6d587d005c51f7e86965d611bcbb333ac115f"
     },
     {
-      "path": "skills/ceo-review/references/operate-advisor-contract.md",
-      "digest": "sha256:3153403563d422f395add6a2afd6d249737b8807e4ab31db5b830d82d7814fc5"
+      "path": "skills/ceo-review/references/note-checklist.md",
+      "digest": "sha256:dfdf3cb1fea507a58b9a273561bb66b57f657ba6d9b4f6093170093c70bf9a11"
     },
     {
-      "path": "skills/ceo-review/scripts/validate-note.mjs",
-      "digest": "sha256:9c3c94842059fb884c9a1b22413395f7a0169f788cded3c04bd3b251acd564ae"
+      "path": "skills/ceo-review/references/operate-advisor-contract.md",
+      "digest": "sha256:7d33addcfea3e8de7f8fb35862fc1ee70d5b4c1557bb2e35051c48032a4f29cf"
     },
     {
       "path": "skills/ceo-review/SKILL.md",
       "digest": "sha256:7187af962fbe765ead56b8acab4a77373333102d715a8d24c46e652fadf204c6"
     },
     {
-      "path": "skills/chair-review/scripts/validate-note.mjs",
-      "digest": "sha256:9c3c94842059fb884c9a1b22413395f7a0169f788cded3c04bd3b251acd564ae"
+      "path": "skills/chair-review/references/note-checklist.md",
+      "digest": "sha256:dfdf3cb1fea507a58b9a273561bb66b57f657ba6d9b4f6093170093c70bf9a11"
     },
     {
       "path": "skills/chair-review/SKILL.md",
-      "digest": "sha256:07077d1c317495fcaa5b1a278eec9f466f94c62f9c0ce1a7e04759a46d1cac71"
+      "digest": "sha256:8d6fe0f2566bd55fefa1ef4b9819bc030a096a26fa9b3797162adf38fe8e85b2"
     },
     {
-      "path": "skills/challenger-review/scripts/validate-note.mjs",
-      "digest": "sha256:9c3c94842059fb884c9a1b22413395f7a0169f788cded3c04bd3b251acd564ae"
+      "path": "skills/challenger-review/references/note-checklist.md",
+      "digest": "sha256:dfdf3cb1fea507a58b9a273561bb66b57f657ba6d9b4f6093170093c70bf9a11"
     },
     {
       "path": "skills/challenger-review/SKILL.md",
-      "digest": "sha256:c614fc0a921cf061bfdd543d2d14b6dec0921c3d3eb87a8f98209524ca6cc2d7"
+      "digest": "sha256:dd985a05d3e526f1879cc81ce11da52a6e6823a85f84cc6ae1a7bda49dedef3a"
+    },
+    {
+      "path": "skills/cmo-review/references/note-checklist.md",
+      "digest": "sha256:dfdf3cb1fea507a58b9a273561bb66b57f657ba6d9b4f6093170093c70bf9a11"
     },
     {
       "path": "skills/cmo-review/references/operate-advisor-contract.md",
-      "digest": "sha256:3153403563d422f395add6a2afd6d249737b8807e4ab31db5b830d82d7814fc5"
-    },
-    {
-      "path": "skills/cmo-review/scripts/validate-note.mjs",
-      "digest": "sha256:9c3c94842059fb884c9a1b22413395f7a0169f788cded3c04bd3b251acd564ae"
+      "digest": "sha256:7d33addcfea3e8de7f8fb35862fc1ee70d5b4c1557bb2e35051c48032a4f29cf"
     },
     {
       "path": "skills/cmo-review/SKILL.md",
@@ -251,36 +235,36 @@
       "digest": "sha256:a66a81a5d8e1448dddc9f527c9dded435f045e1cf408f06dc5ede34be311d792"
     },
     {
-      "path": "skills/coo-review/references/operate-advisor-contract.md",
-      "digest": "sha256:3153403563d422f395add6a2afd6d249737b8807e4ab31db5b830d82d7814fc5"
+      "path": "skills/coo-review/references/note-checklist.md",
+      "digest": "sha256:dfdf3cb1fea507a58b9a273561bb66b57f657ba6d9b4f6093170093c70bf9a11"
     },
     {
-      "path": "skills/coo-review/scripts/validate-note.mjs",
-      "digest": "sha256:9c3c94842059fb884c9a1b22413395f7a0169f788cded3c04bd3b251acd564ae"
+      "path": "skills/coo-review/references/operate-advisor-contract.md",
+      "digest": "sha256:7d33addcfea3e8de7f8fb35862fc1ee70d5b4c1557bb2e35051c48032a4f29cf"
     },
     {
       "path": "skills/coo-review/SKILL.md",
       "digest": "sha256:e7e830fb1e976c510a9100d1f44b247a578408c96069915e02a3af32daabbb56"
     },
     {
-      "path": "skills/cpo-review/references/operate-advisor-contract.md",
-      "digest": "sha256:3153403563d422f395add6a2afd6d249737b8807e4ab31db5b830d82d7814fc5"
+      "path": "skills/cpo-review/references/note-checklist.md",
+      "digest": "sha256:dfdf3cb1fea507a58b9a273561bb66b57f657ba6d9b4f6093170093c70bf9a11"
     },
     {
-      "path": "skills/cpo-review/scripts/validate-note.mjs",
-      "digest": "sha256:9c3c94842059fb884c9a1b22413395f7a0169f788cded3c04bd3b251acd564ae"
+      "path": "skills/cpo-review/references/operate-advisor-contract.md",
+      "digest": "sha256:7d33addcfea3e8de7f8fb35862fc1ee70d5b4c1557bb2e35051c48032a4f29cf"
     },
     {
       "path": "skills/cpo-review/SKILL.md",
       "digest": "sha256:115b3a3ef5eb6f75ab3f3cb36ee7c7aece8a84c5fc641e9465d6b13633cacc28"
     },
     {
-      "path": "skills/cto-review/references/operate-advisor-contract.md",
-      "digest": "sha256:3153403563d422f395add6a2afd6d249737b8807e4ab31db5b830d82d7814fc5"
+      "path": "skills/cto-review/references/note-checklist.md",
+      "digest": "sha256:dfdf3cb1fea507a58b9a273561bb66b57f657ba6d9b4f6093170093c70bf9a11"
     },
     {
-      "path": "skills/cto-review/scripts/validate-note.mjs",
-      "digest": "sha256:9c3c94842059fb884c9a1b22413395f7a0169f788cded3c04bd3b251acd564ae"
+      "path": "skills/cto-review/references/operate-advisor-contract.md",
+      "digest": "sha256:7d33addcfea3e8de7f8fb35862fc1ee70d5b4c1557bb2e35051c48032a4f29cf"
     },
     {
       "path": "skills/cto-review/SKILL.md",
@@ -603,20 +587,20 @@
       "digest": "sha256:ae1c90830273a51d54c60a846ea00e8c4412f50e43ad8172a2e112e2b51e6412"
     },
     {
+      "path": "skills/investigate/references/backlog-filing.md",
+      "digest": "sha256:4e86fca9f2ad70ab1dfc7f0984009a1fb64e9459666093552c8405aa0d3084be"
+    },
+    {
       "path": "skills/investigate/references/fail-first.md",
       "digest": "sha256:8fb3ac5b32e2a13e099b728423b8962b15559430bf2b7f6f70a1927df2044b4a"
     },
     {
       "path": "skills/investigate/references/findings.md",
-      "digest": "sha256:2bee6285c88650a81ae049541eb9a09549c0935210b5ca3eae0b1c99fd52f45f"
-    },
-    {
-      "path": "skills/investigate/scripts/backlog-item.mjs",
-      "digest": "sha256:4d3ae483819acaa34ef79b1ee3b21f75ceb78bf290366d7a9e095021340a3b68"
+      "digest": "sha256:a097b21620a272487758817a52b85bb7cd08d58133d9a704f44cb67870c63c09"
     },
     {
       "path": "skills/investigate/SKILL.md",
-      "digest": "sha256:d65f7dbdfe519db5aea0145cb8d89834280840d848317d39319a31b697d0058e"
+      "digest": "sha256:10ca66e7d350ab820d3f71232053e92fb5a2f6e76af7720397da431b1faf7a45"
     },
     {
       "path": "skills/land/SKILL.md",
@@ -627,16 +611,24 @@
       "digest": "sha256:e81058f5a898978b7c503e8a3ee8334a614ca43270aafb6df94bb2411bf8e1cc"
     },
     {
-      "path": "skills/operate/scripts/validate-note.mjs",
-      "digest": "sha256:9c3c94842059fb884c9a1b22413395f7a0169f788cded3c04bd3b251acd564ae"
+      "path": "skills/operate/references/note-checklist.md",
+      "digest": "sha256:dfdf3cb1fea507a58b9a273561bb66b57f657ba6d9b4f6093170093c70bf9a11"
+    },
+    {
+      "path": "skills/operate/references/return-contract.md",
+      "digest": "sha256:65081a1dd594dbe5136e2892a64110270e85a6b246a0ee74d43edc1f55d69bde"
     },
     {
       "path": "skills/operate/SKILL.md",
-      "digest": "sha256:6bc1de840850496637881024c6aa0c45156486a660bf6a40672dbbb75be94507"
+      "digest": "sha256:fd655ac1eace4821e007e46d6e01af6f45b7dd11d72ca83d2a366074db11ce26"
+    },
+    {
+      "path": "skills/plan-review/references/return-contract.md",
+      "digest": "sha256:65081a1dd594dbe5136e2892a64110270e85a6b246a0ee74d43edc1f55d69bde"
     },
     {
       "path": "skills/plan-review/SKILL.md",
-      "digest": "sha256:c60ba860c021d1bc79361fb9434eb8bedc7797053e49d91b9418d022fc1c947b"
+      "digest": "sha256:09e614a279a3bcdcc858fa5bf7a0c5bc3010d91f922a85718dea9dc3f84c1787"
     },
     {
       "path": "skills/plan/references/artifact-contract.md",
@@ -645,6 +637,14 @@
     {
       "path": "skills/plan/references/design-handoff.md",
       "digest": "sha256:b918cc16855412a75028e1a014832c2ced59b0349461a24d9e1fdcfc336b9f5f"
+    },
+    {
+      "path": "skills/plan/references/planning-ids.md",
+      "digest": "sha256:5028070be05aefca33e4f835f7dfc096e55e46e976fd1745a2e9adfaa2759527"
+    },
+    {
+      "path": "skills/plan/references/return-contract.md",
+      "digest": "sha256:65081a1dd594dbe5136e2892a64110270e85a6b246a0ee74d43edc1f55d69bde"
     },
     {
       "path": "skills/plan/schemas/design-document.schema.json",
@@ -659,12 +659,8 @@
       "digest": "sha256:402b25238f93f8269b98697bf77fa11dda1fd284f44e41d73cdb813f5244a4e0"
     },
     {
-      "path": "skills/plan/scripts/planning-ids.mjs",
-      "digest": "sha256:d7051fab0540e3beb176015f174e0851a3ceb8a24c43344495b43a28d2eaceae"
-    },
-    {
       "path": "skills/plan/SKILL.md",
-      "digest": "sha256:0fbdb77edc87f855c1b969c286bc803eda1773b9d9175e924c220b489c2c1144"
+      "digest": "sha256:9467d6abce56d62677b95dd5e0c3a814ce4ad60733704beef91c5245e0445b2c"
     },
     {
       "path": "skills/release/assets/changelog-template.md",
@@ -676,23 +672,23 @@
     },
     {
       "path": "skills/release/references/cadence.md",
-      "digest": "sha256:c9d0e67e35aaa4db563a8f520dc3ff441be8a8c54b86be274b44a20dfa363077"
+      "digest": "sha256:73786c9d4b5174d66e28d90163a0f705e3a316aa778220119cb3c3326ed5a5dc"
     },
     {
       "path": "skills/release/references/release-notes.md",
-      "digest": "sha256:9dd1784dc10f40dc4e1962e9eab4373cc0dc04c111935fb8f145772a8f6c2fec"
+      "digest": "sha256:15645f09c3906c05d6fe994ef8a97b939742ff31be18a0b4d13465e3ceab8f8d"
+    },
+    {
+      "path": "skills/release/references/return-contract.md",
+      "digest": "sha256:65081a1dd594dbe5136e2892a64110270e85a6b246a0ee74d43edc1f55d69bde"
     },
     {
       "path": "skills/release/references/schemes.md",
-      "digest": "sha256:79769004c106f31ddb6a74a4f7a902b3f1d8c43617fb11d56f9f7455855cfa69"
-    },
-    {
-      "path": "skills/release/scripts/collect_changes.sh",
-      "digest": "sha256:6271a1d8ea7d0a8c86dd52f85fa78666845d7d152cc95ae5148fde68dcd2f652"
+      "digest": "sha256:9279cb628c5fae52d3119b5a229d644131c9699abcff74cf27e2f21af1f4706c"
     },
     {
       "path": "skills/release/SKILL.md",
-      "digest": "sha256:6965c890c175598df291fcbb221904a48abe61361a73c714c73ae8e4a82b07c2"
+      "digest": "sha256:271a64e265ff0b5b7bd423abd45dc19d41fe5cbe2bb98da35f40385f58e66e58"
     },
     {
       "path": "skills/share/references/connectors.md",
@@ -701,6 +697,10 @@
     {
       "path": "skills/share/SKILL.md",
       "digest": "sha256:a678310ecdc532045de14b9b10ef3c45234c89c2c059b737c17df89e051cbf6b"
+    },
+    {
+      "path": "skills/ship/references/backlog-filing.md",
+      "digest": "sha256:4e86fca9f2ad70ab1dfc7f0984009a1fb64e9459666093552c8405aa0d3084be"
     },
     {
       "path": "skills/ship/references/design-lineage.md",
@@ -712,23 +712,23 @@
     },
     {
       "path": "skills/ship/references/findings.md",
-      "digest": "sha256:2bee6285c88650a81ae049541eb9a09549c0935210b5ca3eae0b1c99fd52f45f"
+      "digest": "sha256:a097b21620a272487758817a52b85bb7cd08d58133d9a704f44cb67870c63c09"
     },
     {
       "path": "skills/ship/references/result-contract.md",
       "digest": "sha256:1c8bf48c8bbae9b6a7ef7b6e1d444412c9bf6f3c67fc0233c159c3b084cc7e0e"
     },
     {
-      "path": "skills/ship/scripts/backlog-item.mjs",
-      "digest": "sha256:4d3ae483819acaa34ef79b1ee3b21f75ceb78bf290366d7a9e095021340a3b68"
-    },
-    {
-      "path": "skills/ship/scripts/discover-verification.mjs",
-      "digest": "sha256:8805ac8d814a1d94364d455df6da350983d4c8436faa3749717da5f1b3ae63b1"
+      "path": "skills/ship/references/return-contract.md",
+      "digest": "sha256:65081a1dd594dbe5136e2892a64110270e85a6b246a0ee74d43edc1f55d69bde"
     },
     {
       "path": "skills/ship/SKILL.md",
-      "digest": "sha256:1c9ce6742d68811b9906a4679f9b3e6851e08c9c0eb8c08330ff90076afa8c1c"
+      "digest": "sha256:f351cc3c9ddd6326915b97521580d4649de7d405d7e0f4e79f63424ace27c854"
+    },
+    {
+      "path": "skills/spec/references/return-contract.md",
+      "digest": "sha256:65081a1dd594dbe5136e2892a64110270e85a6b246a0ee74d43edc1f55d69bde"
     },
     {
       "path": "skills/spec/references/specification-contract.md",
@@ -736,7 +736,7 @@
     },
     {
       "path": "skills/spec/SKILL.md",
-      "digest": "sha256:8da00648b861c64b675384fc0524f1c8b48cf5e245e23eb416e35519a44c9eba"
+      "digest": "sha256:b72b49d62edf4455ff8ce32992a7d780b650535608b9325076799ad549782a0a"
     },
     {
       "path": "skills/sprint/references/connectors.md",
@@ -795,5 +795,5 @@
       "digest": "sha256:79cb62f3f8b0c36ef55c9424ca694a37448f90170183d13d0654d500613da414"
     }
   ],
-  "contentDigest": "sha256:bf4aed141ae8e0b449e0cf225c5c92a5d951d00e9a991964dcb86b17b48885f8"
+  "contentDigest": "sha256:654fed39ae53a3537701e2a2d3a2090509db18a766aa8cc12985ce311fc121cc"
 }
