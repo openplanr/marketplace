@@ -11,15 +11,21 @@ CLI. The delegate investigates, implements, builds, tests and corrects. You own 
 scope, the brief, independent review, acceptance and integration. Ordinary
 implementation stays with `planr-ship`.
 
-Use the native loop below. Only when `openplanr` is already on `PATH` and the user wants
-its capsule, custody, recorded checks or resume, use [the CLI path](references/openplanr-cli.md)
-instead.
+Use the native loop below, which also runs `openplanr delegate probe` when `openplanr` is
+on `PATH`. Only when the user wants the CLI's capsule, custody, recorded checks or resume,
+use [the CLI path](references/openplanr-cli.md) instead.
 
 ## Native loop
 
-Agree the engine, model and optional profile with the user first. A profile is a native
-config directory plus a model: `CODEX_HOME=<dir>` or `CLAUDE_CONFIG_DIR=<dir>`. Confirm
-identity only with `codex login status`, `claude auth status` or `agent status`. Never
+Agree the engine, model and optional profile with the user first. When `openplanr` is on
+`PATH`, run `openplanr delegate probe --json` and offer `result.profiles` (saved profiles,
+local-model ones included) alongside the installed engines, each labelled with its `kind`,
+`selectedModel` (none means the native default) and `destination.class`. A profile's name does not prove local routing: for a
+local run, confirm the routing in the engine's own configuration as
+[native commands](references/native-commands.md) says, and never fall back to a cloud model.
+A profile is a native config directory plus a model: `CODEX_HOME=<dir>` or
+`CLAUDE_CONFIG_DIR=<dir>`. Confirm identity only with `codex login status`,
+`claude auth status` or `agent status`. Never
 read, copy or forward tokens, credential files or the keychain.
 
 1. **Worktree.** From a clean base, `git worktree add -b planr-delegate/<slug> <dir> HEAD`
@@ -50,7 +56,7 @@ read, copy or forward tokens, credential files or the keychain.
 | No local shell | The host cannot run commands, such as ChatGPT | Say that delegation needs a coding agent with a shell. |
 | CLI missing | The engine's command is not on `PATH` | Name its install command; do not install it yourself. |
 | Not signed in | The status command reports no login | The user signs in with that CLI's own login. |
-| Credential in environment | `ANTHROPIC_API_KEY`, `ANTHROPIC_AUTH_TOKEN`, `CLAUDE_CODE_OAUTH_TOKEN`, `OPENAI_API_KEY`, `CODEX_API_KEY` or `CURSOR_API_KEY` is set (test with `[ -n "${NAME+x}" ]`; never print it) | Ask whether the user chose that; otherwise run with `env -u <NAME>`. |
+| API-key sign-in | The status command reports an API key or token instead of the user's own account login | Tell the user before running and let them choose whether to continue. |
 | Out of scope | A changed path is outside scope or in a protected path | Send it back, or ask the user to widen the scope. |
 | Gates fail | A gate exits non-zero | Send the output back to the same session; integrate nothing. |
 | Patch conflict | `git apply --check` fails | Report the paths; never overwrite the user's edits. |

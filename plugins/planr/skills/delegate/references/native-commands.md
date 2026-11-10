@@ -21,9 +21,6 @@ Claude `permissions.defaultMode`), leave the flag out so their choice applies. C
 `-p` can already run shell commands its allowlist permits; add the commands the task
 needs to `~/.cursor/cli-config.json` before the run.
 
-To run without a credential variable the user did not choose, prefix the command with
-`env -u <NAME>` for each one, for example `env -u ANTHROPIC_API_KEY claude -p …`.
-
 From inside Codex, its default `workspace-write` sandbox blocks network and writes
 outside the workspace, so a nested `claude -p` or `codex exec` may not reach its model or
 its config directory. Ask the user to run the command in their own terminal, or to
@@ -53,8 +50,7 @@ same session.
 Precedence: what the user named, then their saved profile, then the only installed
 engine; otherwise ask, engine first. A profile or model name does not prove where
 inference runs. For a request to run locally, confirm the routing in the engine's own
-configuration (Claude `ANTHROPIC_BASE_URL` in its settings, Codex `model_provider` in
-`config.toml`) before the run, and never fall back to a cloud model.
+settings (Claude's settings file, Codex `config.toml`) before the run, and never fall back to a cloud model.
 
 ## Several tasks
 
