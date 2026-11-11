@@ -17,10 +17,10 @@ Follow with `/planr:plan` to decompose the specification into stories and tasks,
 ## Install the CLI
 
 Several skills call the deterministic `openplanr` CLI from the `openplanr` npm package, which ships
-this plugin at the same version (3.7.1):
+this plugin at the same version (3.7.2):
 
 ```bash
-npm install -g openplanr@3.7.1
+npm install -g openplanr@3.7.2
 cd your-project
 openplanr init
 ```
@@ -35,7 +35,7 @@ The same skills ship for Codex and Cursor through the `openplanr` package.
   telemetry. It has no hooks and no MCP servers.
 - The plugin ships instructions only: skills, agents, references, metadata and its icon. It has
   no scripts or executables.
-- Skills call the `openplanr` CLI, `git`, and the GitHub CLI (`gh`). They read and write files in
+- Skills call the `openplanr` CLI and `git`. They read and write files in
   your repository. The design skills run every local design operation through `openplanr design`;
   the plugin ships no design runtime.
 - The planning dashboard and local artifact reviews bind to loopback only.
@@ -58,7 +58,7 @@ The same skills ship for Codex and Cursor through the `openplanr` package.
   credentials; a server that requires sign-in is reported as not checked.
 - Only when you ask:
   - `sync`, `sprint` and `status` reach GitHub and Linear through your coding agent's own
-    GitHub or Linear connection, or through the GitHub CLI (`gh`) when it is signed in.
+    GitHub or Linear connection.
   - `artifact` and the design skills share an encrypted review through the `openplanr` CLI,
     which sends it to `share.openplanr.dev`.
   - Company workspaces, a pre-release hosted service, are used only when you configure one.
