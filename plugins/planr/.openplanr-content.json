@@ -12,7 +12,7 @@
     },
     {
       "path": ".claude-plugin/plugin.json",
-      "digest": "sha256:5fbd15e467f68f82445d86baaaac515f79ab0acde18b7a8fe03e60e2195e7890"
+      "digest": "sha256:c589d19fe052b366c31595849ce93a4d7a5add3d3fc62f82cc34e82d8103ba39"
     },
     {
       "path": "agents/planr-backend.md",
@@ -20,7 +20,7 @@
     },
     {
       "path": "agents/planr-database.md",
-      "digest": "sha256:9322833b948d96a0bbf8b5adb577e5c4e6e8765228992f2c206c690890447f65"
+      "digest": "sha256:91dea85d44a1762885a7c8bbcd612545ce3725b3af4c90e5694d46c1b2e1c939"
     },
     {
       "path": "agents/planr-designer.md",
@@ -52,7 +52,7 @@
     },
     {
       "path": "CONNECTORS.md",
-      "digest": "sha256:cb15d41cd314989baf87f48e0279bd994a92b7644d19a3f42dbc0f0d290f48c7"
+      "digest": "sha256:ab71e79082d1bc8b7e5e9975141cb94a8e0af0e38fe2c8d71c027e899cc3be1d"
     },
     {
       "path": "LICENSE",
@@ -60,7 +60,7 @@
     },
     {
       "path": "README.md",
-      "digest": "sha256:97a544291db1feeae7341c7f226684c2d574da65528b7f2e9a6cd3d124afbc2d"
+      "digest": "sha256:d9dba24c3f5d4086d368f5b1b80b992c85146c32cf8b3208e3f1d6e255ae3d32"
     },
     {
       "path": "references/agents/shared/modes/default/backend.md",
@@ -228,11 +228,11 @@
     },
     {
       "path": "skills/connect/references/connectors.md",
-      "digest": "sha256:cb15d41cd314989baf87f48e0279bd994a92b7644d19a3f42dbc0f0d290f48c7"
+      "digest": "sha256:ab71e79082d1bc8b7e5e9975141cb94a8e0af0e38fe2c8d71c027e899cc3be1d"
     },
     {
       "path": "skills/connect/SKILL.md",
-      "digest": "sha256:a66a81a5d8e1448dddc9f527c9dded435f045e1cf408f06dc5ede34be311d792"
+      "digest": "sha256:605ae866d13abc9303bbdeb0ed87d4c4587e123b4f958d2c07df5be8b2feae6c"
     },
     {
       "path": "skills/coo-review/references/note-checklist.md",
@@ -344,7 +344,7 @@
     },
     {
       "path": "skills/design-loop/references/utilities.md",
-      "digest": "sha256:0f31a931ff26af31e0c162019fc83e80afda57c5e3523a3d2c9906a066bea7d0"
+      "digest": "sha256:1ebec3098adefc4e45d8506170222189a304c82b42ffea145b00f78e9fa8ffd2"
     },
     {
       "path": "skills/design-loop/schemas/design-document.schema.json",
@@ -396,7 +396,7 @@
     },
     {
       "path": "skills/design-review/references/utilities.md",
-      "digest": "sha256:0f31a931ff26af31e0c162019fc83e80afda57c5e3523a3d2c9906a066bea7d0"
+      "digest": "sha256:1ebec3098adefc4e45d8506170222189a304c82b42ffea145b00f78e9fa8ffd2"
     },
     {
       "path": "skills/design-review/schemas/design-document.schema.json",
@@ -452,7 +452,7 @@
     },
     {
       "path": "skills/design/references/utilities.md",
-      "digest": "sha256:0f31a931ff26af31e0c162019fc83e80afda57c5e3523a3d2c9906a066bea7d0"
+      "digest": "sha256:1ebec3098adefc4e45d8506170222189a304c82b42ffea145b00f78e9fa8ffd2"
     },
     {
       "path": "skills/design/schemas/design-document.schema.json",
@@ -572,7 +572,7 @@
     },
     {
       "path": "skills/plan/SKILL.md",
-      "digest": "sha256:5053dba5c0c58cab97883a48d4f683fec84957ef209e99ff653af09928d1cc70"
+      "digest": "sha256:64bf3c96e57e1656049fb8b5f5c93deee28f8e352baedbc072208af6a59a80de"
     },
     {
       "path": "skills/release/assets/changelog-template.md",
@@ -600,11 +600,11 @@
     },
     {
       "path": "skills/release/SKILL.md",
-      "digest": "sha256:c5bfd8b5457bd38c9e6a99201299344dc43da0b2a25653996d608ad79aba5560"
+      "digest": "sha256:8bb422cb0568f5cd2dcaa45aae7b6a70a923daf8c0f3bf046e9a02c0db6c071d"
     },
     {
       "path": "skills/share/references/connectors.md",
-      "digest": "sha256:cb15d41cd314989baf87f48e0279bd994a92b7644d19a3f42dbc0f0d290f48c7"
+      "digest": "sha256:ab71e79082d1bc8b7e5e9975141cb94a8e0af0e38fe2c8d71c027e899cc3be1d"
     },
     {
       "path": "skills/share/SKILL.md",
@@ -652,7 +652,7 @@
     },
     {
       "path": "skills/sprint/references/connectors.md",
-      "digest": "sha256:cb15d41cd314989baf87f48e0279bd994a92b7644d19a3f42dbc0f0d290f48c7"
+      "digest": "sha256:ab71e79082d1bc8b7e5e9975141cb94a8e0af0e38fe2c8d71c027e899cc3be1d"
     },
     {
       "path": "skills/sprint/references/refinement-contract.md",
@@ -664,7 +664,7 @@
     },
     {
       "path": "skills/sprint/references/tracker-connections.md",
-      "digest": "sha256:f9617486a5e2ecc861566d7a7eaf1c97725f9acfcc6bc64cfda1f9b6fd3c4d36"
+      "digest": "sha256:4e99cd89f7760f3f664e7182f610072a1120e1879ae79a8b08392ec650609c6b"
     },
     {
       "path": "skills/sprint/schemas/refinement.schema.json",
@@ -676,11 +676,11 @@
     },
     {
       "path": "skills/status/references/connectors.md",
-      "digest": "sha256:cb15d41cd314989baf87f48e0279bd994a92b7644d19a3f42dbc0f0d290f48c7"
+      "digest": "sha256:ab71e79082d1bc8b7e5e9975141cb94a8e0af0e38fe2c8d71c027e899cc3be1d"
     },
     {
       "path": "skills/status/references/tracker-connections.md",
-      "digest": "sha256:f9617486a5e2ecc861566d7a7eaf1c97725f9acfcc6bc64cfda1f9b6fd3c4d36"
+      "digest": "sha256:4e99cd89f7760f3f664e7182f610072a1120e1879ae79a8b08392ec650609c6b"
     },
     {
       "path": "skills/status/SKILL.md",
@@ -688,20 +688,16 @@
     },
     {
       "path": "skills/sync/references/connectors.md",
-      "digest": "sha256:cb15d41cd314989baf87f48e0279bd994a92b7644d19a3f42dbc0f0d290f48c7"
-    },
-    {
-      "path": "skills/sync/references/openplanr-cli.md",
-      "digest": "sha256:e8bbf8a703747c360a439c0110289f5d542dfde9363656e0616e5156d6369df3"
+      "digest": "sha256:ab71e79082d1bc8b7e5e9975141cb94a8e0af0e38fe2c8d71c027e899cc3be1d"
     },
     {
       "path": "skills/sync/references/tracker-connections.md",
-      "digest": "sha256:f9617486a5e2ecc861566d7a7eaf1c97725f9acfcc6bc64cfda1f9b6fd3c4d36"
+      "digest": "sha256:4e99cd89f7760f3f664e7182f610072a1120e1879ae79a8b08392ec650609c6b"
     },
     {
       "path": "skills/sync/SKILL.md",
-      "digest": "sha256:41a5cf7855d2c093625dbf9ee0e006e2275c63109e8483210aa31593c6c155a1"
+      "digest": "sha256:15ae31f53fb518422f8d258a5090af4a420e0fa2b886ee37b73e4df6cc838d5e"
     }
   ],
-  "contentDigest": "sha256:6daac0ccdbe5c35a51c0c139a2408225521484f70d17ce313ce16bac6cd7fa1f"
+  "contentDigest": "sha256:dd9b9a1ff9b25fbcb44a1f5b4a5b095b2eb9871b01f70d3492530e5b51db53f9"
 }
